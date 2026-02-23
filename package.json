@@ -74,7 +74,7 @@
     "docs:sync:check": "node scripts/check-omegax-docs-sync.mjs",
     "docs:sync:check:strict": "node scripts/check-omegax-docs-sync.mjs --strict",
     "docs:sync:update": "node scripts/update-docs-sync-manifest.mjs",
-    "test": "tsx --test \"tests/**/*.test.ts\"",
+    "test": "node --import tsx --test $(find tests -name '*.test.ts' -print)",
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
