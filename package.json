@@ -1,0 +1,97 @@
+{
+  "name": "@omegax/protocol-sdk",
+  "version": "0.4.0",
+  "description": "TypeScript SDK for OmegaX protocol oracle, reward, and coverage integrations on Solana.",
+  "keywords": [
+    "omegax",
+    "solana",
+    "protocol",
+    "oracle",
+    "sdk",
+    "health"
+  ],
+  "license": "Apache-2.0",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OmegaX-Health/omegax-sdk.git"
+  },
+  "homepage": "https://github.com/OmegaX-Health/omegax-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/OmegaX-Health/omegax-sdk/issues"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./claims": {
+      "types": "./dist/claims.d.ts",
+      "import": "./dist/claims.js"
+    },
+    "./protocol": {
+      "types": "./dist/protocol.d.ts",
+      "import": "./dist/protocol.js"
+    },
+    "./protocol_seeds": {
+      "types": "./dist/protocol_seeds.d.ts",
+      "import": "./dist/protocol_seeds.js"
+    },
+    "./rpc": {
+      "types": "./dist/rpc.d.ts",
+      "import": "./dist/rpc.js"
+    },
+    "./oracle": {
+      "types": "./dist/oracle.d.ts",
+      "import": "./dist/oracle.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    },
+    "./utils": {
+      "types": "./dist/utils.d.ts",
+      "import": "./dist/utils.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "prepack": "npm run build",
+    "sync:idl-fixture": "node scripts/sync-idl-fixture.mjs",
+    "docs:check": "node scripts/verify-doc-symbols.mjs",
+    "docs:sync:check": "node scripts/check-omegax-docs-sync.mjs",
+    "docs:sync:check:strict": "node scripts/check-omegax-docs-sync.mjs --strict",
+    "docs:sync:update": "node scripts/update-docs-sync-manifest.mjs",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.4",
+    "bs58": "^6.0.0",
+    "tweetnacl": "^1.0.3"
+  },
+  "overrides": {
+    "bn.js": "^5.2.3"
+  },
+  "devDependencies": {
+    "@types/bs58": "^4.0.4",
+    "@types/node": "^20.17.16",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

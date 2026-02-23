@@ -1,0 +1,29 @@
+{
+  "sdkVersion": "0.4.0",
+  "omegaxDocsRepo": "https://github.com/OmegaX-Health/omegax-docs",
+  "omegaxDocsCommit": "PENDING",
+  "syncedAt": "PENDING",
+  "syncedBy": "PENDING",
+  "pages": [
+    {
+      "sdkDoc": "README.md",
+      "omegaxDocsPath": "website/docs/sdk/overview.md"
+    },
+    {
+      "sdkDoc": "docs/GETTING_STARTED.md",
+      "omegaxDocsPath": "website/docs/sdk/getting-started.md"
+    },
+    {
+      "sdkDoc": "docs/WORKFLOWS.md",
+      "omegaxDocsPath": "website/docs/sdk/workflows.md"
+    },
+    {
+      "sdkDoc": "docs/API_REFERENCE.md",
+      "omegaxDocsPath": "website/docs/sdk/api-reference.md"
+    },
+    {
+      "sdkDoc": "docs/TROUBLESHOOTING.md",
+      "omegaxDocsPath": "website/docs/sdk/troubleshooting.md"
+    }
+  ]
+}

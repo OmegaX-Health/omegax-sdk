@@ -1,0 +1,6448 @@
+{
+  "address": "Bn6eixac1QEEVErGBvBjxAd6pgB9e2q4XHvAkinQ5y1B",
+  "metadata": {
+    "name": "omegax_protocol",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "OmegaX permissionless pool protocol (rewards + coverage)"
+  },
+  "instructions": [
+    {
+      "name": "attest_premium_paid_offchain",
+      "discriminator": [
+        242,
+        83,
+        241,
+        97,
+        223,
+        35,
+        142,
+        233
+      ],
+      "accounts": [
+        {
+          "name": "oracle",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_entry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "pool_oracle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_policy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "premium_ledger",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  109,
+                  105,
+                  117,
+                  109,
+                  95,
+                  108,
+                  101,
+                  100,
+                  103,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "premium_replay",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  109,
+                  105,
+                  117,
+                  109,
+                  95,
+                  114,
+                  101,
+                  112,
+                  108,
+                  97,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              },
+              {
+                "kind": "arg",
+                "path": "replay_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "member",
+          "type": "pubkey"
+        },
+        {
+          "name": "period_index",
+          "type": "u64"
+        },
+        {
+          "name": "replay_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "paid_at_ts",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "claim_oracle_v2",
+      "discriminator": [
+        175,
+        183,
+        37,
+        186,
+        182,
+        99,
+        159,
+        205
+      ],
+      "accounts": [
+        {
+          "name": "oracle",
+          "signer": true
+        },
+        {
+          "name": "oracle_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_coverage_policy",
+      "discriminator": [
+        65,
+        211,
+        182,
+        242,
+        251,
+        233,
+        236,
+        139
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "coverage_policy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_policy_nft",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "member",
+          "type": "pubkey"
+        },
+        {
+          "name": "terms_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "starts_at",
+          "type": "i64"
+        },
+        {
+          "name": "ends_at",
+          "type": "i64"
+        },
+        {
+          "name": "premium_due_every_secs",
+          "type": "i64"
+        },
+        {
+          "name": "premium_grace_secs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "create_pool_v2",
+      "discriminator": [
+        133,
+        27,
+        21,
+        38,
+        67,
+        86,
+        91,
+        132
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "arg",
+                "path": "pool_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_terms",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  116,
+                  101,
+                  114,
+                  109,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_policy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "organization_ref",
+          "type": "string"
+        },
+        {
+          "name": "payout_lamports_per_pass",
+          "type": "u64"
+        },
+        {
+          "name": "membership_mode",
+          "type": "u8"
+        },
+        {
+          "name": "token_gate_mint",
+          "type": "pubkey"
+        },
+        {
+          "name": "token_gate_min_balance",
+          "type": "u64"
+        },
+        {
+          "name": "invite_issuer",
+          "type": "pubkey"
+        },
+        {
+          "name": "pool_type",
+          "type": "u8"
+        },
+        {
+          "name": "payout_asset_mint",
+          "type": "pubkey"
+        },
+        {
+          "name": "terms_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "payout_policy_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "cycle_mode",
+          "type": "u8"
+        },
+        {
+          "name": "metadata_uri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "enroll_member_invite_permit",
+      "discriminator": [
+        24,
+        22,
+        29,
+        113,
+        117,
+        184,
+        248,
+        108
+      ],
+      "accounts": [
+        {
+          "name": "member",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "membership",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114,
+                  115,
+                  104,
+                  105,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "issuer",
+          "signer": true
+        },
+        {
+          "name": "invite_issuer_entry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  105,
+                  116,
+                  101,
+                  95,
+                  105,
+                  115,
+                  115,
+                  117,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "issuer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "enrollment_replay",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  114,
+                  111,
+                  108,
+                  108,
+                  109,
+                  101,
+                  110,
+                  116,
+                  95,
+                  114,
+                  101,
+                  112,
+                  108,
+                  97,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              },
+              {
+                "kind": "arg",
+                "path": "nonce_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "subject_commitment",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "nonce_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "invite_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "expires_at_ts",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "enroll_member_open",
+      "discriminator": [
+        130,
+        131,
+        180,
+        20,
+        143,
+        164,
+        31,
+        83
+      ],
+      "accounts": [
+        {
+          "name": "member",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "membership",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114,
+                  115,
+                  104,
+                  105,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "subject_commitment",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "enroll_member_token_gate",
+      "discriminator": [
+        176,
+        134,
+        100,
+        5,
+        250,
+        44,
+        179,
+        0
+      ],
+      "accounts": [
+        {
+          "name": "member",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "membership",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114,
+                  115,
+                  104,
+                  105,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_gate_account"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "subject_commitment",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "finalize_cycle_outcome",
+      "discriminator": [
+        192,
+        57,
+        166,
+        161,
+        50,
+        52,
+        60,
+        189
+      ],
+      "accounts": [
+        {
+          "name": "aggregate",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "finalize_unstake",
+      "discriminator": [
+        11,
+        165,
+        26,
+        80,
+        219,
+        175,
+        236,
+        227
+      ],
+      "accounts": [
+        {
+          "name": "staker",
+          "signer": true
+        },
+        {
+          "name": "stake_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stake_position.oracle",
+                "account": "OracleStakePosition"
+              },
+              {
+                "kind": "account",
+                "path": "staker"
+              }
+            ]
+          }
+        },
+        {
+          "name": "stake_vault",
+          "writable": true
+        },
+        {
+          "name": "destination_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fund_pool_sol",
+      "discriminator": [
+        53,
+        118,
+        14,
+        71,
+        80,
+        63,
+        227,
+        185
+      ],
+      "accounts": [
+        {
+          "name": "funder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "fund_pool_spl",
+      "discriminator": [
+        99,
+        26,
+        242,
+        219,
+        161,
+        74,
+        170,
+        0
+      ],
+      "accounts": [
+        {
+          "name": "funder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "pool_terms",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  116,
+                  101,
+                  114,
+                  109,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payout_mint",
+          "writable": true
+        },
+        {
+          "name": "pool_asset_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "payout_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_vault_token_account",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "funder_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_protocol_v2",
+      "discriminator": [
+        37,
+        200,
+        203,
+        247,
+        123,
+        64,
+        108,
+        119
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "protocol_fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "governance_realm",
+          "type": "pubkey"
+        },
+        {
+          "name": "governance_config",
+          "type": "pubkey"
+        },
+        {
+          "name": "default_stake_mint",
+          "type": "pubkey"
+        },
+        {
+          "name": "min_oracle_stake",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "issue_coverage_policy_from_product_v2",
+      "discriminator": [
+        229,
+        163,
+        50,
+        152,
+        88,
+        238,
+        170,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "membership",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114,
+                  115,
+                  104,
+                  105,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_product",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  112,
+                  114,
+                  111,
+                  100,
+                  117,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "product_id_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_policy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_policy_nft",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "member",
+          "type": "pubkey"
+        },
+        {
+          "name": "product_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "starts_at",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "mint_policy_nft",
+      "discriminator": [
+        201,
+        115,
+        125,
+        162,
+        26,
+        191,
+        157,
+        248
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "coverage_policy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "coverage_policy.member",
+                "account": "CoveragePolicy"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_policy_nft",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "coverage_policy.member",
+                "account": "CoveragePolicy"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "nft_mint",
+          "type": "pubkey"
+        },
+        {
+          "name": "metadata_uri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "pay_premium_onchain",
+      "discriminator": [
+        88,
+        116,
+        130,
+        81,
+        105,
+        242,
+        154,
+        183
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "pool_terms",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  116,
+                  101,
+                  114,
+                  109,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_policy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "member"
+        },
+        {
+          "name": "premium_ledger",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  109,
+                  105,
+                  117,
+                  109,
+                  95,
+                  108,
+                  101,
+                  100,
+                  103,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_asset_vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "pool_terms.payout_asset_mint",
+                "account": "PoolTerms"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer_token_account",
+          "writable": true
+        },
+        {
+          "name": "pool_vault_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "period_index",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "register_coverage_product_v2",
+      "discriminator": [
+        176,
+        139,
+        76,
+        5,
+        198,
+        211,
+        0,
+        64
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "coverage_product",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  112,
+                  114,
+                  111,
+                  100,
+                  117,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "product_id_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "product_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "display_name",
+          "type": "string"
+        },
+        {
+          "name": "metadata_uri",
+          "type": "string"
+        },
+        {
+          "name": "terms_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "duration_secs",
+          "type": "i64"
+        },
+        {
+          "name": "premium_due_every_secs",
+          "type": "i64"
+        },
+        {
+          "name": "premium_grace_secs",
+          "type": "i64"
+        },
+        {
+          "name": "premium_amount",
+          "type": "u64"
+        },
+        {
+          "name": "active",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "register_invite_issuer",
+      "discriminator": [
+        209,
+        185,
+        172,
+        26,
+        188,
+        212,
+        64,
+        100
+      ],
+      "accounts": [
+        {
+          "name": "issuer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "invite_issuer_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  105,
+                  116,
+                  101,
+                  95,
+                  105,
+                  115,
+                  115,
+                  117,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "issuer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "organization_ref",
+          "type": "string"
+        },
+        {
+          "name": "metadata_uri",
+          "type": "string"
+        },
+        {
+          "name": "active",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "register_oracle",
+      "discriminator": [
+        176,
+        200,
+        234,
+        37,
+        199,
+        129,
+        164,
+        111
+      ],
+      "accounts": [
+        {
+          "name": "oracle",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "oracle_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "metadata_uri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "register_oracle_v2",
+      "discriminator": [
+        76,
+        235,
+        44,
+        248,
+        17,
+        59,
+        182,
+        35
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "oracle_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "oracle_pubkey"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "oracle_pubkey"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "oracle_pubkey",
+          "type": "pubkey"
+        },
+        {
+          "name": "oracle_type",
+          "type": "u8"
+        },
+        {
+          "name": "display_name",
+          "type": "string"
+        },
+        {
+          "name": "legal_name",
+          "type": "string"
+        },
+        {
+          "name": "website_url",
+          "type": "string"
+        },
+        {
+          "name": "app_url",
+          "type": "string"
+        },
+        {
+          "name": "logo_uri",
+          "type": "string"
+        },
+        {
+          "name": "webhook_url",
+          "type": "string"
+        },
+        {
+          "name": "supported_schema_key_hashes",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "register_outcome_schema",
+      "discriminator": [
+        187,
+        68,
+        109,
+        211,
+        168,
+        181,
+        105,
+        32
+      ],
+      "accounts": [
+        {
+          "name": "publisher",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "schema_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  99,
+                  104,
+                  101,
+                  109,
+                  97
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "schema_key_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "schema_key_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "schema_key",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "u16"
+        },
+        {
+          "name": "schema_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "metadata_uri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "request_unstake",
+      "discriminator": [
+        44,
+        154,
+        110,
+        253,
+        160,
+        202,
+        54,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "staker",
+          "signer": true
+        },
+        {
+          "name": "stake_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stake_position.oracle",
+                "account": "OracleStakePosition"
+              },
+              {
+                "kind": "account",
+                "path": "staker"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "cooldown_seconds",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "rotate_governance_authority",
+      "discriminator": [
+        45,
+        19,
+        124,
+        4,
+        111,
+        99,
+        144,
+        103
+      ],
+      "accounts": [
+        {
+          "name": "governance_authority",
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "new_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "set_claim_delegate",
+      "discriminator": [
+        227,
+        191,
+        177,
+        221,
+        167,
+        40,
+        47,
+        138
+      ],
+      "accounts": [
+        {
+          "name": "member",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "membership",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114,
+                  115,
+                  104,
+                  105,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "claim_delegate",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  97,
+                  105,
+                  109,
+                  95,
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "delegate",
+          "type": "pubkey"
+        },
+        {
+          "name": "active",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_pool_oracle",
+      "discriminator": [
+        140,
+        225,
+        146,
+        45,
+        210,
+        81,
+        225,
+        223
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "oracle_entry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle_entry.oracle",
+                "account": "OracleRegistryEntry"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_oracle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "oracle_entry.oracle",
+                "account": "OracleRegistryEntry"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "active",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_pool_oracle_policy",
+      "discriminator": [
+        190,
+        13,
+        51,
+        113,
+        230,
+        140,
+        103,
+        82
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "oracle_policy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "quorum_m",
+          "type": "u8"
+        },
+        {
+          "name": "quorum_n",
+          "type": "u8"
+        },
+        {
+          "name": "require_verified_schema",
+          "type": "bool"
+        },
+        {
+          "name": "allow_delegate_claim",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_pool_outcome_rule",
+      "discriminator": [
+        26,
+        160,
+        29,
+        46,
+        16,
+        27,
+        167,
+        107
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "schema_entry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  99,
+                  104,
+                  101,
+                  109,
+                  97
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "schema_key_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_rule",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  114,
+                  117,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "rule_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "rule_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "schema_key_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "rule_id",
+          "type": "string"
+        },
+        {
+          "name": "schema_key",
+          "type": "string"
+        },
+        {
+          "name": "schema_version",
+          "type": "u16"
+        },
+        {
+          "name": "payout_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "enabled",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_pool_status",
+      "discriminator": [
+        112,
+        87,
+        135,
+        223,
+        83,
+        204,
+        132,
+        53
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "pool",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "set_pool_terms_hash",
+      "discriminator": [
+        105,
+        110,
+        128,
+        0,
+        7,
+        143,
+        6,
+        185
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "pool_terms",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  116,
+                  101,
+                  114,
+                  109,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "terms_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "payout_policy_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "cycle_mode",
+          "type": "u8"
+        },
+        {
+          "name": "metadata_uri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "set_protocol_params",
+      "discriminator": [
+        62,
+        227,
+        236,
+        191,
+        249,
+        100,
+        137,
+        25
+      ],
+      "accounts": [
+        {
+          "name": "governance_authority",
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "protocol_fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "allowed_payout_mints_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "min_oracle_stake",
+          "type": "u64"
+        },
+        {
+          "name": "emergency_paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "settle_coverage_claim",
+      "discriminator": [
+        95,
+        3,
+        42,
+        83,
+        209,
+        214,
+        190,
+        106
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "claimant",
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "pool_terms",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  116,
+                  101,
+                  114,
+                  109,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_policy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "coverage_policy.member",
+                "account": "CoveragePolicy"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_claim",
+          "writable": true
+        },
+        {
+          "name": "recipient_system_account",
+          "writable": true
+        },
+        {
+          "name": "pool_asset_vault"
+        },
+        {
+          "name": "pool_vault_token_account",
+          "writable": true
+        },
+        {
+          "name": "recipient_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "payout_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "slash_oracle",
+      "discriminator": [
+        69,
+        85,
+        18,
+        20,
+        205,
+        99,
+        149,
+        145
+      ],
+      "accounts": [
+        {
+          "name": "governance_authority",
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "stake_position",
+          "writable": true
+        },
+        {
+          "name": "stake_vault",
+          "writable": true
+        },
+        {
+          "name": "slash_treasury_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "stake_oracle",
+      "discriminator": [
+        86,
+        27,
+        159,
+        136,
+        82,
+        86,
+        113,
+        84
+      ],
+      "accounts": [
+        {
+          "name": "staker",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_entry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle_entry.oracle",
+                "account": "OracleRegistryEntry"
+              }
+            ]
+          }
+        },
+        {
+          "name": "stake_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle_entry.oracle",
+                "account": "OracleRegistryEntry"
+              },
+              {
+                "kind": "account",
+                "path": "staker"
+              }
+            ]
+          }
+        },
+        {
+          "name": "stake_mint",
+          "writable": true
+        },
+        {
+          "name": "stake_vault",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "staker_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "submit_coverage_claim",
+      "discriminator": [
+        151,
+        31,
+        196,
+        187,
+        126,
+        64,
+        252,
+        65
+      ],
+      "accounts": [
+        {
+          "name": "claimant",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "coverage_policy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "claim_delegate",
+          "optional": true
+        },
+        {
+          "name": "coverage_claim",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  99,
+                  108,
+                  97,
+                  105,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              },
+              {
+                "kind": "arg",
+                "path": "intent_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "member",
+          "type": "pubkey"
+        },
+        {
+          "name": "intent_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "event_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "submit_outcome_attestation_vote",
+      "discriminator": [
+        4,
+        156,
+        236,
+        181,
+        21,
+        49,
+        51,
+        204
+      ],
+      "accounts": [
+        {
+          "name": "oracle",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "oracle_entry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "stake_position",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "oracle_policy",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_oracle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "membership",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114,
+                  115,
+                  104,
+                  105,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_rule",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  114,
+                  117,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "rule_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "schema_entry"
+        },
+        {
+          "name": "vote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  116,
+                  116,
+                  101,
+                  115,
+                  116,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  118,
+                  111,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              },
+              {
+                "kind": "arg",
+                "path": "cycle_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "rule_hash"
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "aggregate",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  117,
+                  116,
+                  99,
+                  111,
+                  109,
+                  101,
+                  95,
+                  97,
+                  103,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              },
+              {
+                "kind": "arg",
+                "path": "cycle_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "rule_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "member",
+          "type": "pubkey"
+        },
+        {
+          "name": "cycle_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "rule_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "attestation_digest",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "observed_value_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "as_of_ts",
+          "type": "i64"
+        },
+        {
+          "name": "passed",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "submit_reward_claim",
+      "discriminator": [
+        231,
+        212,
+        126,
+        42,
+        124,
+        15,
+        254,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "claimant",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "pool_terms",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  116,
+                  101,
+                  114,
+                  109,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_policy",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "membership",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114,
+                  115,
+                  104,
+                  105,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "aggregate",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  117,
+                  116,
+                  99,
+                  111,
+                  109,
+                  101,
+                  95,
+                  97,
+                  103,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              },
+              {
+                "kind": "arg",
+                "path": "cycle_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "rule_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient_system_account",
+          "writable": true
+        },
+        {
+          "name": "claim_delegate",
+          "optional": true
+        },
+        {
+          "name": "pool_asset_vault",
+          "optional": true
+        },
+        {
+          "name": "pool_vault_token_account",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "recipient_token_account",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "claim_record_v2",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  97,
+                  105,
+                  109,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "member"
+              },
+              {
+                "kind": "arg",
+                "path": "cycle_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "rule_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "member",
+          "type": "pubkey"
+        },
+        {
+          "name": "cycle_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "rule_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "intent_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "payout_amount",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "subscribe_coverage_product_v2",
+      "discriminator": [
+        191,
+        230,
+        26,
+        20,
+        255,
+        112,
+        2,
+        99
+      ],
+      "accounts": [
+        {
+          "name": "member",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "membership",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114,
+                  115,
+                  104,
+                  105,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_product",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  112,
+                  114,
+                  111,
+                  100,
+                  117,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "arg",
+                "path": "product_id_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_policy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "coverage_policy_nft",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  118,
+                  101,
+                  114,
+                  97,
+                  103,
+                  101,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "product_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "starts_at",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "update_coverage_product_v2",
+      "discriminator": [
+        72,
+        223,
+        26,
+        124,
+        54,
+        244,
+        246,
+        100
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "coverage_product",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "display_name",
+          "type": "string"
+        },
+        {
+          "name": "metadata_uri",
+          "type": "string"
+        },
+        {
+          "name": "terms_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "duration_secs",
+          "type": "i64"
+        },
+        {
+          "name": "premium_due_every_secs",
+          "type": "i64"
+        },
+        {
+          "name": "premium_grace_secs",
+          "type": "i64"
+        },
+        {
+          "name": "premium_amount",
+          "type": "u64"
+        },
+        {
+          "name": "active",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "update_oracle_metadata",
+      "discriminator": [
+        10,
+        18,
+        95,
+        102,
+        9,
+        230,
+        159,
+        159
+      ],
+      "accounts": [
+        {
+          "name": "oracle",
+          "signer": true
+        },
+        {
+          "name": "oracle_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "metadata_uri",
+          "type": "string"
+        },
+        {
+          "name": "active",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "update_oracle_profile_v2",
+      "discriminator": [
+        80,
+        100,
+        94,
+        159,
+        193,
+        73,
+        50,
+        178
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "oracle_profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle_profile.oracle",
+                "account": "OracleProfile"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "oracle_type",
+          "type": "u8"
+        },
+        {
+          "name": "display_name",
+          "type": "string"
+        },
+        {
+          "name": "legal_name",
+          "type": "string"
+        },
+        {
+          "name": "website_url",
+          "type": "string"
+        },
+        {
+          "name": "app_url",
+          "type": "string"
+        },
+        {
+          "name": "logo_uri",
+          "type": "string"
+        },
+        {
+          "name": "webhook_url",
+          "type": "string"
+        },
+        {
+          "name": "supported_schema_key_hashes",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "verify_outcome_schema",
+      "discriminator": [
+        221,
+        10,
+        144,
+        137,
+        106,
+        214,
+        205,
+        170
+      ],
+      "accounts": [
+        {
+          "name": "governance_authority",
+          "signer": true
+        },
+        {
+          "name": "config_v2",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "schema_entry",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "verified",
+          "type": "bool"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "AttestationVote",
+      "discriminator": [
+        62,
+        193,
+        192,
+        215,
+        123,
+        0,
+        10,
+        74
+      ]
+    },
+    {
+      "name": "ClaimDelegateAuthorization",
+      "discriminator": [
+        189,
+        112,
+        90,
+        21,
+        58,
+        36,
+        122,
+        190
+      ]
+    },
+    {
+      "name": "ClaimRecordV2",
+      "discriminator": [
+        111,
+        81,
+        130,
+        121,
+        236,
+        77,
+        17,
+        249
+      ]
+    },
+    {
+      "name": "CoverageClaimRecord",
+      "discriminator": [
+        175,
+        235,
+        72,
+        214,
+        125,
+        172,
+        103,
+        151
+      ]
+    },
+    {
+      "name": "CoveragePolicy",
+      "discriminator": [
+        195,
+        7,
+        251,
+        240,
+        218,
+        167,
+        14,
+        128
+      ]
+    },
+    {
+      "name": "CoveragePolicyPositionNft",
+      "discriminator": [
+        253,
+        209,
+        214,
+        31,
+        120,
+        14,
+        40,
+        136
+      ]
+    },
+    {
+      "name": "CoverageProduct",
+      "discriminator": [
+        78,
+        230,
+        237,
+        77,
+        138,
+        79,
+        246,
+        249
+      ]
+    },
+    {
+      "name": "CycleOutcomeAggregate",
+      "discriminator": [
+        192,
+        232,
+        57,
+        215,
+        226,
+        48,
+        48,
+        74
+      ]
+    },
+    {
+      "name": "EnrollmentPermitReplay",
+      "discriminator": [
+        203,
+        39,
+        184,
+        157,
+        20,
+        187,
+        44,
+        205
+      ]
+    },
+    {
+      "name": "InviteIssuerRegistryEntry",
+      "discriminator": [
+        217,
+        184,
+        111,
+        51,
+        173,
+        198,
+        74,
+        128
+      ]
+    },
+    {
+      "name": "MembershipRecord",
+      "discriminator": [
+        33,
+        44,
+        79,
+        80,
+        112,
+        244,
+        29,
+        240
+      ]
+    },
+    {
+      "name": "OracleProfile",
+      "discriminator": [
+        232,
+        217,
+        185,
+        162,
+        237,
+        208,
+        114,
+        142
+      ]
+    },
+    {
+      "name": "OracleRegistryEntry",
+      "discriminator": [
+        116,
+        237,
+        108,
+        31,
+        5,
+        172,
+        86,
+        239
+      ]
+    },
+    {
+      "name": "OracleStakePosition",
+      "discriminator": [
+        154,
+        103,
+        79,
+        183,
+        12,
+        219,
+        106,
+        244
+      ]
+    },
+    {
+      "name": "OutcomeSchemaRegistryEntry",
+      "discriminator": [
+        13,
+        110,
+        228,
+        91,
+        67,
+        41,
+        1,
+        144
+      ]
+    },
+    {
+      "name": "Pool",
+      "discriminator": [
+        241,
+        154,
+        109,
+        4,
+        17,
+        177,
+        109,
+        188
+      ]
+    },
+    {
+      "name": "PoolAssetVault",
+      "discriminator": [
+        49,
+        223,
+        93,
+        79,
+        85,
+        237,
+        154,
+        194
+      ]
+    },
+    {
+      "name": "PoolOracleApproval",
+      "discriminator": [
+        116,
+        241,
+        25,
+        184,
+        205,
+        21,
+        153,
+        29
+      ]
+    },
+    {
+      "name": "PoolOraclePolicy",
+      "discriminator": [
+        246,
+        134,
+        133,
+        108,
+        100,
+        203,
+        226,
+        43
+      ]
+    },
+    {
+      "name": "PoolOutcomeRule",
+      "discriminator": [
+        166,
+        191,
+        123,
+        75,
+        143,
+        91,
+        155,
+        131
+      ]
+    },
+    {
+      "name": "PoolTerms",
+      "discriminator": [
+        110,
+        146,
+        28,
+        28,
+        109,
+        155,
+        128,
+        76
+      ]
+    },
+    {
+      "name": "PremiumAttestationReplay",
+      "discriminator": [
+        79,
+        111,
+        170,
+        140,
+        139,
+        124,
+        78,
+        91
+      ]
+    },
+    {
+      "name": "PremiumLedger",
+      "discriminator": [
+        148,
+        143,
+        139,
+        75,
+        8,
+        175,
+        27,
+        78
+      ]
+    },
+    {
+      "name": "ProtocolConfigV2",
+      "discriminator": [
+        108,
+        178,
+        219,
+        20,
+        244,
+        156,
+        125,
+        109
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidProtocolFee",
+      "msg": "Invalid protocol fee basis points"
+    },
+    {
+      "code": 6001,
+      "name": "ProtocolPaused",
+      "msg": "Protocol is paused"
+    },
+    {
+      "code": 6002,
+      "name": "PoolIdTooLong",
+      "msg": "Pool id exceeds maximum seed length"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidAmount",
+      "msg": "Invalid amount"
+    },
+    {
+      "code": 6004,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidStakeMint",
+      "msg": "Invalid stake mint"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidStakePosition",
+      "msg": "Invalid stake position state"
+    },
+    {
+      "code": 6007,
+      "name": "StakeVaultMismatch",
+      "msg": "Stake vault mismatch"
+    },
+    {
+      "code": 6008,
+      "name": "OracleInsufficientStake",
+      "msg": "Oracle has insufficient stake"
+    },
+    {
+      "code": 6009,
+      "name": "InsufficientStakeBalance",
+      "msg": "Insufficient stake balance"
+    },
+    {
+      "code": 6010,
+      "name": "NoPendingUnstake",
+      "msg": "No pending unstake"
+    },
+    {
+      "code": 6011,
+      "name": "UnstakeCooldownNotMet",
+      "msg": "Unstake cooldown not met"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidCooldown",
+      "msg": "Invalid cooldown"
+    },
+    {
+      "code": 6013,
+      "name": "GovernanceUnauthorized",
+      "msg": "Governance unauthorized"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidGovernanceAuthority",
+      "msg": "Invalid governance authority"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidGovernanceRealm",
+      "msg": "Invalid governance realm"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidGovernanceConfig",
+      "msg": "Invalid governance config"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidGovernanceRecoveryTarget",
+      "msg": "Invalid emergency governance recovery target"
+    },
+    {
+      "code": 6018,
+      "name": "MetadataUriTooLong",
+      "msg": "Metadata URI too long"
+    },
+    {
+      "code": 6019,
+      "name": "OrganizationRefTooLong",
+      "msg": "Organization reference too long"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidPoolType",
+      "msg": "Invalid pool type"
+    },
+    {
+      "code": 6021,
+      "name": "InvalidQuorum",
+      "msg": "Invalid quorum configuration"
+    },
+    {
+      "code": 6022,
+      "name": "SchemaKeyTooLong",
+      "msg": "Schema key too long"
+    },
+    {
+      "code": 6023,
+      "name": "RuleIdTooLong",
+      "msg": "Rule id too long"
+    },
+    {
+      "code": 6024,
+      "name": "InviteIssuerNotActive",
+      "msg": "Invite issuer not active"
+    },
+    {
+      "code": 6025,
+      "name": "InviteIssuerMismatch",
+      "msg": "Invite issuer mismatch"
+    },
+    {
+      "code": 6026,
+      "name": "PermitExpired",
+      "msg": "Permit expired"
+    },
+    {
+      "code": 6027,
+      "name": "PoolNotOpenForEnrollment",
+      "msg": "Pool is not open for enrollment"
+    },
+    {
+      "code": 6028,
+      "name": "InvalidMembershipMode",
+      "msg": "Invalid membership mode"
+    },
+    {
+      "code": 6029,
+      "name": "InvalidMembershipConfiguration",
+      "msg": "Invalid membership configuration"
+    },
+    {
+      "code": 6030,
+      "name": "TokenGateOwnerMismatch",
+      "msg": "Token gate owner mismatch"
+    },
+    {
+      "code": 6031,
+      "name": "TokenGateMintMismatch",
+      "msg": "Token gate mint mismatch"
+    },
+    {
+      "code": 6032,
+      "name": "TokenGateBalanceTooLow",
+      "msg": "Token gate balance too low"
+    },
+    {
+      "code": 6033,
+      "name": "PoolNotActive",
+      "msg": "Pool is not active"
+    },
+    {
+      "code": 6034,
+      "name": "OracleNotApprovedForPool",
+      "msg": "Oracle not approved for pool"
+    },
+    {
+      "code": 6035,
+      "name": "OracleRegistryNotActive",
+      "msg": "Oracle registry entry is not active"
+    },
+    {
+      "code": 6036,
+      "name": "MembershipMemberMismatch",
+      "msg": "Membership member mismatch"
+    },
+    {
+      "code": 6037,
+      "name": "MembershipNotActive",
+      "msg": "Membership not active"
+    },
+    {
+      "code": 6038,
+      "name": "RuleDisabled",
+      "msg": "Rule is disabled"
+    },
+    {
+      "code": 6039,
+      "name": "SchemaUnverified",
+      "msg": "Schema is not verified"
+    },
+    {
+      "code": 6040,
+      "name": "RuleHashMismatch",
+      "msg": "Rule hash mismatch"
+    },
+    {
+      "code": 6041,
+      "name": "OutcomeAlreadyFinalized",
+      "msg": "Outcome aggregate is already finalized"
+    },
+    {
+      "code": 6042,
+      "name": "OracleVoteWindowClosed",
+      "msg": "Outcome aggregate reached maximum vote window"
+    },
+    {
+      "code": 6043,
+      "name": "OracleQuorumNotMet",
+      "msg": "Oracle quorum not met"
+    },
+    {
+      "code": 6044,
+      "name": "OutcomeDidNotPass",
+      "msg": "Outcome did not pass"
+    },
+    {
+      "code": 6045,
+      "name": "AlreadyClaimed",
+      "msg": "Already claimed"
+    },
+    {
+      "code": 6046,
+      "name": "CycleHashMismatch",
+      "msg": "Cycle hash mismatch"
+    },
+    {
+      "code": 6047,
+      "name": "DelegateNotAuthorized",
+      "msg": "Delegate not authorized"
+    },
+    {
+      "code": 6048,
+      "name": "RecipientMismatch",
+      "msg": "Recipient mismatch"
+    },
+    {
+      "code": 6049,
+      "name": "PayoutAssetNotConfigured",
+      "msg": "Payout asset not configured"
+    },
+    {
+      "code": 6050,
+      "name": "PayoutMintMismatch",
+      "msg": "Payout mint mismatch"
+    },
+    {
+      "code": 6051,
+      "name": "PayoutAmountMismatch",
+      "msg": "Payout amount must match pool payout configuration"
+    },
+    {
+      "code": 6052,
+      "name": "MissingAssetVault",
+      "msg": "Missing asset vault"
+    },
+    {
+      "code": 6053,
+      "name": "VaultTokenAccountMismatch",
+      "msg": "Vault token account mismatch"
+    },
+    {
+      "code": 6054,
+      "name": "AccountPoolMismatch",
+      "msg": "Account pool mismatch"
+    },
+    {
+      "code": 6055,
+      "name": "MissingTokenAccount",
+      "msg": "Missing token account"
+    },
+    {
+      "code": 6056,
+      "name": "InsufficientPoolBalance",
+      "msg": "Insufficient pool balance"
+    },
+    {
+      "code": 6057,
+      "name": "InsufficientPoolRentReserve",
+      "msg": "Payout would violate pool rent reserve"
+    },
+    {
+      "code": 6058,
+      "name": "TokenAccountOwnerMismatch",
+      "msg": "Token account owner mismatch"
+    },
+    {
+      "code": 6059,
+      "name": "InvalidCoverageWindow",
+      "msg": "Invalid coverage window"
+    },
+    {
+      "code": 6060,
+      "name": "InvalidPremiumSchedule",
+      "msg": "Invalid premium schedule"
+    },
+    {
+      "code": 6061,
+      "name": "CoverageProductNameTooLong",
+      "msg": "Coverage product name too long"
+    },
+    {
+      "code": 6062,
+      "name": "CoverageProductMetadataUriTooLong",
+      "msg": "Coverage product metadata URI too long"
+    },
+    {
+      "code": 6063,
+      "name": "CoverageProductDurationInvalid",
+      "msg": "Coverage product duration is invalid"
+    },
+    {
+      "code": 6064,
+      "name": "CoverageProductPremiumScheduleInvalid",
+      "msg": "Coverage product premium schedule is invalid"
+    },
+    {
+      "code": 6065,
+      "name": "CoverageProductInactive",
+      "msg": "Coverage product is inactive"
+    },
+    {
+      "code": 6066,
+      "name": "CoverageProductIdMismatch",
+      "msg": "Coverage product id mismatch"
+    },
+    {
+      "code": 6067,
+      "name": "CoverageProductAdminUnauthorized",
+      "msg": "Coverage product update is unauthorized"
+    },
+    {
+      "code": 6068,
+      "name": "InvalidPremiumPeriodIndex",
+      "msg": "Invalid premium period index"
+    },
+    {
+      "code": 6069,
+      "name": "CoverageNotActive",
+      "msg": "Coverage is not active"
+    },
+    {
+      "code": 6070,
+      "name": "PremiumDelinquent",
+      "msg": "Premium is delinquent"
+    },
+    {
+      "code": 6071,
+      "name": "CoverageClaimNotSubmitted",
+      "msg": "Coverage claim not submitted"
+    },
+    {
+      "code": 6072,
+      "name": "ClaimantMismatch",
+      "msg": "Coverage claimant mismatch"
+    },
+    {
+      "code": 6073,
+      "name": "InvalidOracleType",
+      "msg": "Invalid oracle type"
+    },
+    {
+      "code": 6074,
+      "name": "OracleDisplayNameTooLong",
+      "msg": "Oracle display name too long"
+    },
+    {
+      "code": 6075,
+      "name": "OracleLegalNameTooLong",
+      "msg": "Oracle legal name too long"
+    },
+    {
+      "code": 6076,
+      "name": "OracleUrlTooLong",
+      "msg": "Oracle URL too long"
+    },
+    {
+      "code": 6077,
+      "name": "OracleLogoUriTooLong",
+      "msg": "Oracle logo URI too long"
+    },
+    {
+      "code": 6078,
+      "name": "OracleWebhookUrlTooLong",
+      "msg": "Oracle webhook URL too long"
+    },
+    {
+      "code": 6079,
+      "name": "OracleSupportedSchemaLimitExceeded",
+      "msg": "Oracle supported schema list exceeds maximum"
+    },
+    {
+      "code": 6080,
+      "name": "OracleProfileUnauthorized",
+      "msg": "Oracle profile update is unauthorized"
+    },
+    {
+      "code": 6081,
+      "name": "OracleKeyMismatch",
+      "msg": "Oracle key mismatch"
+    },
+    {
+      "code": 6082,
+      "name": "InvalidPoolStatus",
+      "msg": "Invalid pool status"
+    },
+    {
+      "code": 6083,
+      "name": "PoolClosed",
+      "msg": "Pool is closed"
+    }
+  ],
+  "types": [
+    {
+      "name": "AttestationVote",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "cycle_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "rule_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "oracle",
+            "type": "pubkey"
+          },
+          {
+            "name": "passed",
+            "type": "bool"
+          },
+          {
+            "name": "attestation_digest",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "observed_value_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "as_of_ts",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClaimDelegateAuthorization",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "delegate",
+            "type": "pubkey"
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClaimRecordV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "claimant",
+            "type": "pubkey"
+          },
+          {
+            "name": "cycle_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "rule_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "intent_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "payout_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "payout_amount",
+            "type": "u64"
+          },
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "submitted_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CoverageClaimRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "claimant",
+            "type": "pubkey"
+          },
+          {
+            "name": "intent_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "event_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "submitted_at",
+            "type": "i64"
+          },
+          {
+            "name": "settled_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CoveragePolicy",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "terms_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "starts_at",
+            "type": "i64"
+          },
+          {
+            "name": "ends_at",
+            "type": "i64"
+          },
+          {
+            "name": "premium_due_every_secs",
+            "type": "i64"
+          },
+          {
+            "name": "premium_grace_secs",
+            "type": "i64"
+          },
+          {
+            "name": "next_due_at",
+            "type": "i64"
+          },
+          {
+            "name": "nft_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CoveragePolicyPositionNft",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "nft_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "metadata_uri",
+            "type": "string"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CoverageProduct",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "product_id_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "name": "display_name",
+            "type": "string"
+          },
+          {
+            "name": "metadata_uri",
+            "type": "string"
+          },
+          {
+            "name": "terms_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "duration_secs",
+            "type": "i64"
+          },
+          {
+            "name": "premium_due_every_secs",
+            "type": "i64"
+          },
+          {
+            "name": "premium_grace_secs",
+            "type": "i64"
+          },
+          {
+            "name": "premium_amount",
+            "type": "u64"
+          },
+          {
+            "name": "created_at_ts",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at_ts",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CycleOutcomeAggregate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "cycle_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "rule_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "pass_votes",
+            "type": "u16"
+          },
+          {
+            "name": "fail_votes",
+            "type": "u16"
+          },
+          {
+            "name": "quorum_m",
+            "type": "u8"
+          },
+          {
+            "name": "quorum_n",
+            "type": "u8"
+          },
+          {
+            "name": "finalized",
+            "type": "bool"
+          },
+          {
+            "name": "passed",
+            "type": "bool"
+          },
+          {
+            "name": "claimed",
+            "type": "bool"
+          },
+          {
+            "name": "latest_as_of_ts",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EnrollmentPermitReplay",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "issuer",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "nonce_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "invite_id_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InviteIssuerRegistryEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "issuer",
+            "type": "pubkey"
+          },
+          {
+            "name": "organization_ref",
+            "type": "string"
+          },
+          {
+            "name": "metadata_uri",
+            "type": "string"
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MembershipRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "subject_commitment",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "enrolled_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleProfile",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "oracle",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "oracle_type",
+            "type": "u8"
+          },
+          {
+            "name": "display_name",
+            "type": "string"
+          },
+          {
+            "name": "legal_name",
+            "type": "string"
+          },
+          {
+            "name": "website_url",
+            "type": "string"
+          },
+          {
+            "name": "app_url",
+            "type": "string"
+          },
+          {
+            "name": "logo_uri",
+            "type": "string"
+          },
+          {
+            "name": "webhook_url",
+            "type": "string"
+          },
+          {
+            "name": "supported_schema_count",
+            "type": "u8"
+          },
+          {
+            "name": "supported_schema_key_hashes",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                16
+              ]
+            }
+          },
+          {
+            "name": "claimed",
+            "type": "bool"
+          },
+          {
+            "name": "created_at_ts",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at_ts",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleRegistryEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "oracle",
+            "type": "pubkey"
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "metadata_uri",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleStakePosition",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "oracle",
+            "type": "pubkey"
+          },
+          {
+            "name": "staker",
+            "type": "pubkey"
+          },
+          {
+            "name": "stake_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "stake_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "staked_amount",
+            "type": "u64"
+          },
+          {
+            "name": "pending_unstake_amount",
+            "type": "u64"
+          },
+          {
+            "name": "can_finalize_unstake_at",
+            "type": "i64"
+          },
+          {
+            "name": "slash_pending",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OutcomeSchemaRegistryEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "schema_key_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "schema_key",
+            "type": "string"
+          },
+          {
+            "name": "version",
+            "type": "u16"
+          },
+          {
+            "name": "schema_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "publisher",
+            "type": "pubkey"
+          },
+          {
+            "name": "verified",
+            "type": "bool"
+          },
+          {
+            "name": "metadata_uri",
+            "type": "string"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Pool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "pool_id",
+            "type": "string"
+          },
+          {
+            "name": "organization_ref",
+            "type": "string"
+          },
+          {
+            "name": "payout_lamports_per_pass",
+            "type": "u64"
+          },
+          {
+            "name": "membership_mode",
+            "type": "u8"
+          },
+          {
+            "name": "token_gate_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_gate_min_balance",
+            "type": "u64"
+          },
+          {
+            "name": "invite_issuer",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolAssetVault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "payout_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_token_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolOracleApproval",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "oracle",
+            "type": "pubkey"
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolOraclePolicy",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "quorum_m",
+            "type": "u8"
+          },
+          {
+            "name": "quorum_n",
+            "type": "u8"
+          },
+          {
+            "name": "require_verified_schema",
+            "type": "bool"
+          },
+          {
+            "name": "allow_delegate_claim",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolOutcomeRule",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "rule_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "schema_key_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "rule_id",
+            "type": "string"
+          },
+          {
+            "name": "schema_key",
+            "type": "string"
+          },
+          {
+            "name": "schema_version",
+            "type": "u16"
+          },
+          {
+            "name": "payout_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "enabled",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolTerms",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "pool_type",
+            "type": "u8"
+          },
+          {
+            "name": "payout_asset_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "terms_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "payout_policy_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "cycle_mode",
+            "type": "u8"
+          },
+          {
+            "name": "metadata_uri",
+            "type": "string"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PremiumAttestationReplay",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "period_index",
+            "type": "u64"
+          },
+          {
+            "name": "replay_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "oracle",
+            "type": "pubkey"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PremiumLedger",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "period_index",
+            "type": "u64"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "source",
+            "type": "u8"
+          },
+          {
+            "name": "paid_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolConfigV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "governance_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "governance_realm",
+            "type": "pubkey"
+          },
+          {
+            "name": "governance_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "default_stake_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "protocol_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "min_oracle_stake",
+            "type": "u64"
+          },
+          {
+            "name": "emergency_paused",
+            "type": "bool"
+          },
+          {
+            "name": "allowed_payout_mints_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}
