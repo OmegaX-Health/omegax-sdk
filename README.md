@@ -2,6 +2,16 @@
 
 TypeScript SDK for OmegaX protocol integrations on Solana.
 
+## Network status
+
+- Current live network: **devnet beta**
+- Mainnet support: **coming soon**
+- Protocol UI: https://protocol.omegax.health
+- Protocol repository: `omegaxhealth_protocol`
+- Governance token:
+  - Mainnet CA: `4Aar9R14YMbEie6yh8WcH1gWXrBtfucoFjw6SpjXpump`
+  - Devnet: governance token distribution is via the protocol faucet
+
 It supports:
 
 - Oracle lifecycle, staking, attestation voting, and reward claims
@@ -39,6 +49,7 @@ npm install @omegax/protocol-sdk
 - Builders create **unsigned** transactions. Your app signs and submits them.
 - `programId` is explicit in SDK flows and should be passed from your runtime config.
 - Use `createProtocolClient(connection, programId)` for protocol operations.
+- `createConnection({ network: 'mainnet' })` is available but warns that mainnet is coming soon.
 
 ## Quickstart
 
@@ -47,7 +58,11 @@ npm install @omegax/protocol-sdk
 ```ts
 import { createConnection, createProtocolClient, createRpcClient } from '@omegax/protocol-sdk';
 
-const connection = createConnection('https://api.mainnet-beta.solana.com', 'confirmed');
+const connection = createConnection({
+  network: 'devnet',
+  rpcUrl: process.env.SOLANA_RPC_URL,
+  commitment: 'confirmed',
+});
 const programId = 'Bn6eixac1QEEVErGBvBjxAd6pgB9e2q4XHvAkinQ5y1B';
 
 const protocol = createProtocolClient(connection, programId);

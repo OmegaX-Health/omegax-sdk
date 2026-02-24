@@ -5,9 +5,19 @@ This is the complete public SDK surface for package consumers.
 ## Core entrypoints
 
 - `createConnection(rpcUrl, commitment?)`
+- `createConnection(options?)`
+- `getOmegaXNetworkInfo(input?)`
+- `OMEGAX_NETWORKS`
 - `createRpcClient(connection)`
 - `createProtocolClient(connection, programId)`
 - `derivePoolAddress(...)`
+
+Network types:
+
+- `OmegaXNetwork` (`'devnet' | 'mainnet'`)
+- `OmegaXNetworkInput` (`'devnet' | 'mainnet' | 'mainnet-beta'`)
+- `OmegaXConnectionOptions`
+- `OmegaXNetworkInfo`
 
 ## Claims module (`@omegax/protocol-sdk/claims`)
 

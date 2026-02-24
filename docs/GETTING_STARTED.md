@@ -6,8 +6,10 @@ This guide gets you from install to a signed and broadcast transaction.
 
 - Node.js `>=20`
 - ESM runtime (`"type": "module"`)
-- A Solana RPC endpoint
+- A Solana RPC endpoint (optional when using SDK network defaults)
 - The OmegaX protocol `programId` for your target cluster
+
+> OmegaX is currently live on devnet beta. Mainnet support is coming soon.
 
 ## 2) Install
 
@@ -22,10 +24,18 @@ import {
   createConnection,
   createProtocolClient,
   createRpcClient,
+  getOmegaXNetworkInfo,
   PROTOCOL_PROGRAM_ID,
 } from '@omegax/protocol-sdk';
 
-const connection = createConnection(process.env.SOLANA_RPC_URL!, 'confirmed');
+const network = (process.env.OMEGAX_NETWORK as 'devnet' | 'mainnet' | undefined) ?? 'devnet';
+const networkInfo = getOmegaXNetworkInfo(network);
+
+const connection = createConnection({
+  network,
+  rpcUrl: process.env.SOLANA_RPC_URL,
+  commitment: 'confirmed',
+});
 const programId = process.env.OMEGAX_PROGRAM_ID ?? PROTOCOL_PROGRAM_ID;
 
 const protocol = createProtocolClient(connection, programId);
@@ -99,6 +109,7 @@ For explicit message binding in client/server claim handoffs:
 ## Production checklist
 
 - Configure `programId` and RPC URL per environment.
+- Default network selection should be `devnet` until mainnet launch is announced.
 - Ensure transaction recent blockhash is fresh before signing.
 - Persist emitted signatures and poll `getSignatureStatus(...)`.
 - Use reader calls (`fetch...`) to verify authoritative onchain outcomes.

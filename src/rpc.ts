@@ -15,8 +15,78 @@ import type {
 } from './types.js';
 import { normalizeClaimSimulationFailure } from './claims.js';
 
-export function createConnection(rpcUrl: string, commitment: Commitment = 'confirmed'): Connection {
-  return new Connection(rpcUrl, commitment);
+export type OmegaXNetwork = 'devnet' | 'mainnet';
+export type OmegaXNetworkInput = OmegaXNetwork | 'mainnet-beta';
+
+export interface OmegaXConnectionOptions {
+  network?: OmegaXNetworkInput;
+  rpcUrl?: string;
+  commitment?: Commitment;
+  warnOnComingSoon?: boolean;
+}
+
+export interface OmegaXNetworkInfo {
+  network: OmegaXNetwork;
+  solanaCluster: 'devnet' | 'mainnet-beta';
+  defaultRpcUrl: string;
+  isAvailable: boolean;
+  status: 'live' | 'coming_soon';
+  statusMessage: string;
+}
+
+export const OMEGAX_NETWORKS: Record<OmegaXNetwork, OmegaXNetworkInfo> = {
+  devnet: {
+    network: 'devnet',
+    solanaCluster: 'devnet',
+    defaultRpcUrl: 'https://api.devnet.solana.com',
+    isAvailable: true,
+    status: 'live',
+    statusMessage: 'OmegaX devnet beta is live.',
+  },
+  mainnet: {
+    network: 'mainnet',
+    solanaCluster: 'mainnet-beta',
+    defaultRpcUrl: 'https://api.mainnet-beta.solana.com',
+    isAvailable: false,
+    status: 'coming_soon',
+    statusMessage: 'OmegaX mainnet support is coming soon. Please use devnet beta for now.',
+  },
+};
+
+function normalizeOmegaXNetwork(input: OmegaXNetworkInput | undefined): OmegaXNetwork {
+  const normalized = String(input ?? 'devnet').trim().toLowerCase();
+  if (normalized === 'devnet') return 'devnet';
+  if (normalized === 'mainnet' || normalized === 'mainnet-beta') return 'mainnet';
+  throw new Error(
+    `Unsupported OmegaX network "${String(input)}". Supported networks: "devnet", "mainnet".`,
+  );
+}
+
+export function getOmegaXNetworkInfo(input: OmegaXNetworkInput = 'devnet'): OmegaXNetworkInfo {
+  const network = normalizeOmegaXNetwork(input);
+  return { ...OMEGAX_NETWORKS[network] };
+}
+
+export function createConnection(rpcUrl: string, commitment?: Commitment): Connection;
+export function createConnection(options?: OmegaXConnectionOptions): Connection;
+export function createConnection(
+  rpcUrlOrOptions: string | OmegaXConnectionOptions = { network: 'devnet' },
+  commitment: Commitment = 'confirmed',
+): Connection {
+  if (typeof rpcUrlOrOptions === 'string') {
+    return new Connection(rpcUrlOrOptions, commitment);
+  }
+
+  const options = rpcUrlOrOptions ?? {};
+  const resolvedCommitment = options.commitment ?? 'confirmed';
+  const networkInfo = getOmegaXNetworkInfo(options.network);
+
+  if (!networkInfo.isAvailable && (options.warnOnComingSoon ?? true)) {
+    console.warn(`[omegax-sdk] ${networkInfo.statusMessage}`);
+  }
+
+  const rpcUrl = options.rpcUrl ?? networkInfo.defaultRpcUrl;
+  return new Connection(rpcUrl, resolvedCommitment);
 }
 
 export function createRpcClient(connection: Connection): RpcClient {

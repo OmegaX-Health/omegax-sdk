@@ -1,14 +1,15 @@
 {
   "name": "@omegax/protocol-sdk",
   "version": "0.4.0",
-  "description": "TypeScript SDK for OmegaX protocol oracle, reward, and coverage integrations on Solana.",
+  "description": "TypeScript SDK for OmegaX protocol integrations on Solana devnet beta (mainnet coming soon).",
   "keywords": [
     "omegax",
     "solana",
     "protocol",
     "oracle",
     "sdk",
-    "health"
+    "health",
+    "devnet"
   ],
   "license": "Apache-2.0",
   "private": false,
