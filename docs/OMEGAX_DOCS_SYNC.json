@@ -1,9 +1,9 @@
 {
-  "sdkVersion": "0.4.0",
+  "sdkVersion": "0.4.1",
   "omegaxDocsRepo": "https://github.com/OmegaX-Health/omegax-docs",
-  "omegaxDocsCommit": "08a2185",
-  "syncedAt": "2026-02-24T03:02:00Z",
-  "syncedBy": "marinosabijan",
+  "omegaxDocsCommit": "c820f7315faed5034ad45d767ba8d0b1efe99c0d",
+  "syncedAt": "2026-02-24T03:49:29.991Z",
+  "syncedBy": "dr_sabijan",
   "pages": [
     {
       "sdkDoc": "README.md",
