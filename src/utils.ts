@@ -108,7 +108,15 @@ export function toHex(bytes: Uint8Array): string {
 }
 
 export function fromHex(value: string, expectedLength?: number): Uint8Array {
-  const normalized = value.trim().toLowerCase().replace(/^0x/, '');
+  const normalized = value.trim().replace(/^0x/i, '');
+
+  if (normalized.length % 2 !== 0) {
+    throw new Error('invalid hex string: expected an even number of characters');
+  }
+  if (!/^[0-9a-fA-F]*$/.test(normalized)) {
+    throw new Error('invalid hex string: contains non-hex characters');
+  }
+
   const bytes = Buffer.from(normalized, 'hex');
   if (typeof expectedLength === 'number' && bytes.length !== expectedLength) {
     throw new Error(`invalid hex length: expected ${expectedLength}, got ${bytes.length}`);

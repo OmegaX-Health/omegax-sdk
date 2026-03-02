@@ -1513,7 +1513,7 @@ function encodeSubmitOutcomeAttestationData(params: BuildSubmitOutcomeAttestatio
   const outcomeHash = hashStringTo32(params.outcomeId);
   const replayHash = hashStringTo32(params.replayKey);
   const digest = params.attestationDigestHex
-    ? Buffer.from(params.attestationDigestHex.replace(/^0x/, ''), 'hex')
+    ? Buffer.from(fromHex(params.attestationDigestHex, 32))
     : Buffer.from(hashStringTo32(`${params.cycleId}:${params.outcomeId}:${params.replayKey}`));
   if (digest.length !== 32) {
     throw new Error('attestation digest must be 32 bytes');

@@ -142,6 +142,136 @@ test('buildSubmitRewardClaimTx rejects partial SPL payout accounts', () => {
   });
 });
 
+test('buildSubmitOutcomeAttestationTx validates optional attestation digest hex strictly', () => {
+  const oracle = Keypair.generate();
+  const member = Keypair.generate();
+  const pool = Keypair.generate();
+  const program = Keypair.generate();
+  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
+  const client = createProtocolClient(connection, program.publicKey.toBase58());
+  const cycleId = 'cycle-1';
+  const outcomeId = 'outcome-1';
+  const replayKey = 'replay-1';
+  const asOfIso = '2026-01-01T00:00:00.000Z';
+
+  const txWithDigest = client.buildSubmitOutcomeAttestationTx!({
+    oracle: oracle.publicKey.toBase58(),
+    member: member.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+    cycleId,
+    outcomeId,
+    replayKey,
+    asOfIso,
+    passed: true,
+    attestationDigestHex: 'aa'.repeat(32),
+    recentBlockhash: '11111111111111111111111111111111',
+    programId: program.publicKey.toBase58(),
+  });
+  assert.equal(
+    txWithDigest.instructions[0].data.subarray(-32).toString('hex'),
+    'aa'.repeat(32),
+  );
+
+  const txWithPrefixedDigest = client.buildSubmitOutcomeAttestationTx!({
+    oracle: oracle.publicKey.toBase58(),
+    member: member.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+    cycleId,
+    outcomeId,
+    replayKey,
+    asOfIso,
+    passed: true,
+    attestationDigestHex: `0x${'bb'.repeat(32)}`,
+    recentBlockhash: '11111111111111111111111111111111',
+    programId: program.publicKey.toBase58(),
+  });
+  assert.equal(
+    txWithPrefixedDigest.instructions[0].data.subarray(-32).toString('hex'),
+    'bb'.repeat(32),
+  );
+
+  const txWithoutDigest = client.buildSubmitOutcomeAttestationTx!({
+    oracle: oracle.publicKey.toBase58(),
+    member: member.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+    cycleId,
+    outcomeId,
+    replayKey,
+    asOfIso,
+    passed: true,
+    recentBlockhash: '11111111111111111111111111111111',
+    programId: program.publicKey.toBase58(),
+  });
+  assert.equal(
+    txWithoutDigest.instructions[0].data.subarray(-32).toString('hex'),
+    Buffer.from(hashStringTo32(`${cycleId}:${outcomeId}:${replayKey}`)).toString('hex'),
+  );
+
+  assert.throws(() => {
+    client.buildSubmitOutcomeAttestationTx!({
+      oracle: oracle.publicKey.toBase58(),
+      member: member.publicKey.toBase58(),
+      poolAddress: pool.publicKey.toBase58(),
+      cycleId,
+      outcomeId,
+      replayKey,
+      asOfIso,
+      passed: true,
+      attestationDigestHex: `${'11'.repeat(32)}gg`,
+      recentBlockhash: '11111111111111111111111111111111',
+      programId: program.publicKey.toBase58(),
+    });
+  });
+
+  assert.throws(() => {
+    client.buildSubmitOutcomeAttestationTx!({
+      oracle: oracle.publicKey.toBase58(),
+      member: member.publicKey.toBase58(),
+      poolAddress: pool.publicKey.toBase58(),
+      cycleId,
+      outcomeId,
+      replayKey,
+      asOfIso,
+      passed: true,
+      attestationDigestHex: 'a'.repeat(63),
+      recentBlockhash: '11111111111111111111111111111111',
+      programId: program.publicKey.toBase58(),
+    });
+  });
+
+  assert.throws(() => {
+    client.buildSubmitOutcomeAttestationTx!({
+      oracle: oracle.publicKey.toBase58(),
+      member: member.publicKey.toBase58(),
+      poolAddress: pool.publicKey.toBase58(),
+      cycleId,
+      outcomeId,
+      replayKey,
+      asOfIso,
+      passed: true,
+      attestationDigestHex: 'aa'.repeat(31),
+      recentBlockhash: '11111111111111111111111111111111',
+      programId: program.publicKey.toBase58(),
+    });
+  });
+
+  assert.throws(() => {
+    client.buildSubmitOutcomeAttestationTx!({
+      oracle: oracle.publicKey.toBase58(),
+      member: member.publicKey.toBase58(),
+      poolAddress: pool.publicKey.toBase58(),
+      cycleId,
+      outcomeId,
+      replayKey,
+      asOfIso,
+      passed: true,
+      attestationDigestHex: 'aa'.repeat(33),
+      recentBlockhash: '11111111111111111111111111111111',
+      programId: program.publicKey.toBase58(),
+    });
+  });
+});
+
 test('protocol client builds deterministic lifecycle transactions', () => {
   const admin = Keypair.generate();
   const authority = Keypair.generate();
