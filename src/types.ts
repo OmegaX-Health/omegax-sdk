@@ -11,6 +11,8 @@ export type ClaimFailureCode =
   | 'claim_window_not_open'
   | 'claim_window_closed'
   | 'no_passing_outcomes'
+  | 'seeker_rule_misconfigured'
+  | 'seeker_commitment_disabled'
   | 'intent_expired'
   | 'intent_message_mismatch'
   | 'required_signer_mismatch'
@@ -48,6 +50,8 @@ export interface RewardSummary {
     claimableRaw: string;
     claimableUi: string;
     status: 'eligible' | 'not_eligible' | 'pending' | 'claimed' | 'failed';
+    errorCode?: string | null;
+    errorMessage?: string | null;
   };
 }
 
@@ -424,6 +428,176 @@ export interface BuildSubmitClaimTxParams {
   programId: string;
 }
 
+export interface ProtocolCycleQuoteFields {
+  poolAddress: string;
+  member: string;
+  productIdHashHex: string;
+  paymentMint: string;
+  premiumAmountRaw: bigint;
+  canonicalPremiumAmount: bigint;
+  periodIndex: bigint;
+  commitmentEnabled: boolean;
+  bondAmountRaw: bigint;
+  shieldFeeRaw: bigint;
+  protocolFeeRaw: bigint;
+  oracleFeeRaw: bigint;
+  netPoolPremiumRaw: bigint;
+  totalAmountRaw: bigint;
+  includedShieldCount: number;
+  thresholdBps: number;
+  expiresAtTs: bigint;
+  nonceHashHex: string;
+  quoteMetaHashHex: string;
+}
+
+export interface BuildActivateCycleWithQuoteSolTxParams {
+  payer: string;
+  member: string;
+  poolAddress: string;
+  oracle: string;
+  productIdHashHex: string;
+  premiumAmountRaw: bigint;
+  canonicalPremiumAmount: bigint;
+  periodIndex: bigint;
+  commitmentEnabled: boolean;
+  bondAmountRaw: bigint;
+  shieldFeeRaw: bigint;
+  protocolFeeRaw: bigint;
+  oracleFeeRaw: bigint;
+  netPoolPremiumRaw: bigint;
+  totalAmountRaw: bigint;
+  includedShieldCount: number;
+  thresholdBps: number;
+  expiresAtTs: bigint;
+  nonceHashHex: string;
+  quoteMetaHashHex: string;
+  quoteMessage: Uint8Array;
+  oracleSecretKey: Uint8Array;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildActivateCycleWithQuoteSplTxParams {
+  payer: string;
+  member: string;
+  poolAddress: string;
+  oracle: string;
+  productIdHashHex: string;
+  paymentMint: string;
+  premiumAmountRaw: bigint;
+  canonicalPremiumAmount: bigint;
+  periodIndex: bigint;
+  commitmentEnabled: boolean;
+  bondAmountRaw: bigint;
+  shieldFeeRaw: bigint;
+  protocolFeeRaw: bigint;
+  oracleFeeRaw: bigint;
+  netPoolPremiumRaw: bigint;
+  totalAmountRaw: bigint;
+  includedShieldCount: number;
+  thresholdBps: number;
+  expiresAtTs: bigint;
+  nonceHashHex: string;
+  quoteMetaHashHex: string;
+  quoteMessage: Uint8Array;
+  oracleSecretKey: Uint8Array;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildSettleCycleCommitmentTxParams {
+  payer: string;
+  oracle: string;
+  member: string;
+  poolAddress: string;
+  productIdHashHex: string;
+  paymentMint: string;
+  periodIndex: bigint;
+  passed: boolean;
+  shieldConsumed: boolean;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildSettleCycleCommitmentSolTxParams {
+  payer: string;
+  oracle: string;
+  member: string;
+  poolAddress: string;
+  productIdHashHex: string;
+  periodIndex: bigint;
+  passed: boolean;
+  shieldConsumed: boolean;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildWithdrawPoolTreasurySplTxParams {
+  payer: string;
+  oracle: string;
+  poolAddress: string;
+  paymentMint: string;
+  amount: bigint;
+  recipientTokenAccount: string;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildWithdrawPoolTreasurySolTxParams {
+  payer: string;
+  oracle: string;
+  poolAddress: string;
+  amount: bigint;
+  recipientSystemAccount: string;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildSetPoolCoverageReserveFloorTxParams {
+  authority: string;
+  poolAddress: string;
+  paymentMint: string;
+  amount: bigint;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildWithdrawProtocolFeeSplTxParams {
+  governanceAuthority: string;
+  paymentMint: string;
+  amount: bigint;
+  recipientTokenAccount: string;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildWithdrawProtocolFeeSolTxParams {
+  governanceAuthority: string;
+  amount: bigint;
+  recipientSystemAccount: string;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildWithdrawPoolOracleFeeSplTxParams {
+  oracle: string;
+  poolAddress: string;
+  paymentMint: string;
+  amount: bigint;
+  recipientTokenAccount: string;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildWithdrawPoolOracleFeeSolTxParams {
+  oracle: string;
+  poolAddress: string;
+  amount: bigint;
+  recipientSystemAccount: string;
+  recentBlockhash: string;
+  programId: string;
+}
+
 export interface ProtocolClient {
   connection: Connection;
   programId: PublicKey;
@@ -439,6 +613,17 @@ export interface ProtocolClient {
   buildRevokeMemberTx?: (params: BuildRevokeMemberTxParams) => Transaction;
   buildSubmitOutcomeAttestationTx?: (params: BuildSubmitOutcomeAttestationTxParams) => Transaction;
   buildSubmitClaimTx?: (params: BuildSubmitClaimTxParams) => Transaction;
+  buildActivateCycleWithQuoteSolTx?: (params: BuildActivateCycleWithQuoteSolTxParams) => Transaction;
+  buildActivateCycleWithQuoteSplTx?: (params: BuildActivateCycleWithQuoteSplTxParams) => Transaction;
+  buildSettleCycleCommitmentTx?: (params: BuildSettleCycleCommitmentTxParams) => Transaction;
+  buildSettleCycleCommitmentSolTx?: (params: BuildSettleCycleCommitmentSolTxParams) => Transaction;
+  buildWithdrawPoolTreasurySplTx?: (params: BuildWithdrawPoolTreasurySplTxParams) => Transaction;
+  buildWithdrawPoolTreasurySolTx?: (params: BuildWithdrawPoolTreasurySolTxParams) => Transaction;
+  buildSetPoolCoverageReserveFloorTx?: (params: BuildSetPoolCoverageReserveFloorTxParams) => Transaction;
+  buildWithdrawProtocolFeeSplTx?: (params: BuildWithdrawProtocolFeeSplTxParams) => Transaction;
+  buildWithdrawProtocolFeeSolTx?: (params: BuildWithdrawProtocolFeeSolTxParams) => Transaction;
+  buildWithdrawPoolOracleFeeSplTx?: (params: BuildWithdrawPoolOracleFeeSplTxParams) => Transaction;
+  buildWithdrawPoolOracleFeeSolTx?: (params: BuildWithdrawPoolOracleFeeSolTxParams) => Transaction;
   fetchProtocolConfig?: () => Promise<ProtocolConfigAccount | null>;
   fetchPool?: (poolAddress: string) => Promise<ProtocolPoolAccount | null>;
   fetchOracleRegistryEntry?: (oracle: string) => Promise<ProtocolOracleRegistryEntryAccount | null>;
@@ -512,6 +697,16 @@ export interface ProtocolClient {
   fetchPoolOraclePolicy?: (poolAddress: string) => Promise<ProtocolPoolOraclePolicyAccount | null>;
   fetchPoolTerms?: (poolAddress: string) => Promise<ProtocolPoolTermsAccount | null>;
   fetchPoolAssetVault?: (params: { poolAddress: string; payoutMint: string }) => Promise<ProtocolPoolAssetVaultAccount | null>;
+  fetchProtocolFeeVault?: (paymentMint: string) => Promise<ProtocolFeeVaultAccount | null>;
+  fetchPoolOracleFeeVault?: (params: {
+    poolAddress: string;
+    oracle: string;
+    paymentMint: string;
+  }) => Promise<ProtocolPoolOracleFeeVaultAccount | null>;
+  fetchPoolOraclePermissionSet?: (params: {
+    poolAddress: string;
+    oracle: string;
+  }) => Promise<ProtocolPoolOraclePermissionSetAccount | null>;
   fetchOutcomeSchema?: (schemaKeyHashHex: string) => Promise<ProtocolOutcomeSchemaRegistryEntryAccount | null>;
   fetchPoolOutcomeRule?: (params: { poolAddress: string; ruleHashHex: string }) => Promise<ProtocolPoolOutcomeRuleAccount | null>;
   fetchInviteIssuer?: (issuer: string) => Promise<ProtocolInviteIssuerRegistryEntryAccount | null>;
@@ -549,6 +744,20 @@ export interface ProtocolClient {
     poolAddress: string;
     member: string;
   }) => Promise<ProtocolCoveragePolicyPositionNftAccount | null>;
+  fetchMemberCycle?: (params: {
+    poolAddress: string;
+    member: string;
+    periodIndex: bigint | number;
+  }) => Promise<ProtocolMemberCycleAccount | null>;
+  fetchCycleQuoteReplay?: (params: {
+    poolAddress: string;
+    member: string;
+    nonceHashHex: string;
+  }) => Promise<ProtocolCycleQuoteReplayAccount | null>;
+  fetchPoolTreasuryReserve?: (params: {
+    poolAddress: string;
+    paymentMint: string;
+  }) => Promise<ProtocolPoolTreasuryReserveAccount | null>;
   fetchPremiumLedger?: (params: { poolAddress: string; member: string }) => Promise<ProtocolPremiumLedgerAccount | null>;
   fetchPremiumAttestationReplay?: (params: {
     poolAddress: string;
@@ -597,6 +806,7 @@ export interface ProtocolPoolOraclePolicyAccount {
   quorumM: number;
   quorumN: number;
   requireVerifiedSchema: boolean;
+  oracleFeeBps: number;
   allowDelegateClaim: boolean;
   bump: number;
 }
@@ -620,6 +830,78 @@ export interface ProtocolPoolAssetVaultAccount {
   payoutMint: string;
   vaultTokenAccount: string;
   active: boolean;
+  bump: number;
+}
+
+export interface ProtocolFeeVaultAccount {
+  address: string;
+  paymentMint: string;
+  bump: number;
+}
+
+export interface ProtocolPoolOracleFeeVaultAccount {
+  address: string;
+  pool: string;
+  oracle: string;
+  paymentMint: string;
+  bump: number;
+}
+
+export interface ProtocolPoolOraclePermissionSetAccount {
+  address: string;
+  pool: string;
+  oracle: string;
+  permissions: number;
+  bump: number;
+}
+
+export type ProtocolMemberCycleStatus = 'active' | 'settled' | 'unknown';
+
+export interface ProtocolMemberCycleAccount {
+  address: string;
+  pool: string;
+  member: string;
+  productIdHashHex: string;
+  periodIndex: bigint;
+  paymentMint: string;
+  premiumAmountRaw: bigint;
+  bondAmountRaw: bigint;
+  shieldFeeRaw: bigint;
+  protocolFeeRaw: bigint;
+  oracleFeeRaw: bigint;
+  netPoolPremiumRaw: bigint;
+  totalAmountRaw: bigint;
+  canonicalPremiumAmount: bigint;
+  commitmentEnabled: boolean;
+  thresholdBps: number;
+  includedShieldCount: number;
+  shieldConsumed: boolean;
+  statusCode: number;
+  status: ProtocolMemberCycleStatus;
+  passed: boolean;
+  activatedAt: number;
+  settledAt: number;
+  quoteHashHex: string;
+  bump: number;
+}
+
+export interface ProtocolCycleQuoteReplayAccount {
+  address: string;
+  pool: string;
+  member: string;
+  nonceHashHex: string;
+  quoteHashHex: string;
+  createdAt: number;
+  bump: number;
+}
+
+export interface ProtocolPoolTreasuryReserveAccount {
+  address: string;
+  pool: string;
+  paymentMint: string;
+  reservedRefundAmount: bigint;
+  reservedRewardAmount: bigint;
+  manualCoverageReserveAmount: bigint;
   bump: number;
 }
 
@@ -670,6 +952,7 @@ export interface ProtocolCycleOutcomeAggregateAccount {
   finalized: boolean;
   passed: boolean;
   claimed: boolean;
+  rewardLiabilityReserved: boolean;
   latestAsOfTs: number;
   bump: number;
 }
@@ -938,6 +1221,7 @@ export interface BuildSetPoolOraclePolicyTxParams {
   quorumM: number;
   quorumN: number;
   requireVerifiedSchema: boolean;
+  oracleFeeBps: number;
   allowDelegateClaim: boolean;
   recentBlockhash: string;
   programId: string;
@@ -1060,6 +1344,7 @@ export interface BuildSubmitOutcomeAttestationVoteTxParams {
   cycleId: string;
   ruleHashHex: string;
   schemaKeyHashHex: string;
+  payoutMint: string;
   attestationDigestHex: string;
   observedValueHashHex: string;
   asOfTs: number;
@@ -1073,6 +1358,7 @@ export interface BuildFinalizeCycleOutcomeTxParams {
   member: string;
   cycleId: string;
   ruleHashHex: string;
+  payoutMint: string;
   recentBlockhash: string;
   payer: string;
   programId: string;
@@ -1086,6 +1372,7 @@ export interface BuildSubmitRewardClaimTxParams {
   ruleHashHex: string;
   intentHashHex: string;
   payoutAmount: bigint;
+  payoutMint: string;
   recipient: string;
   recipientSystemAccount: string;
   claimDelegate?: string;

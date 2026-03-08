@@ -4,6 +4,7 @@ import { Buffer } from 'node:buffer';
 import {
   Keypair,
   PublicKey,
+  SYSVAR_INSTRUCTIONS_PUBKEY,
   SystemProgram,
   type TransactionInstruction,
 } from '@solana/web3.js';
@@ -22,6 +23,7 @@ import {
   deriveCoveragePolicyPda,
   deriveCycleWindowPda,
   deriveEnrollmentReplayPda,
+  deriveMemberCyclePda,
   deriveMembershipPda,
   deriveOraclePda,
   deriveOracleProfilePda,
@@ -34,6 +36,7 @@ import {
   derivePoolPda,
   derivePoolRulePda,
   derivePoolTermsPda,
+  derivePoolTreasuryReservePda,
   derivePremiumLedgerPda,
   derivePremiumReplayPda,
   deriveSchemaPda,
@@ -42,6 +45,7 @@ import {
   encodeU16Le,
   encodeU64Le,
   hashStringTo32,
+  ZERO_PUBKEY,
 } from '../src/index.js';
 
 function toMeta(ix: TransactionInstruction) {
@@ -133,6 +137,7 @@ test('buildSubmitRewardClaimTx rejects partial SPL payout accounts', () => {
       ruleHashHex: '22'.repeat(32),
       intentHashHex: '33'.repeat(32),
       payoutAmount: 10n,
+      payoutMint: Keypair.generate().publicKey.toBase58(),
       recipient: claimant.publicKey.toBase58(),
       recipientSystemAccount: claimant.publicKey.toBase58(),
       poolAssetVault: Keypair.generate().publicKey.toBase58(),
@@ -388,6 +393,200 @@ test('protocol client builds deterministic submit-claim transaction', () => {
   assert.equal(a, b);
 });
 
+test('cycle settlement builders match the protocol account layout', () => {
+  const oracle = Keypair.generate();
+  const member = Keypair.generate();
+  const pool = Keypair.generate();
+  const paymentMint = Keypair.generate();
+  const program = Keypair.generate();
+
+  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
+  const client = createProtocolClient(connection, program.publicKey.toBase58());
+  const [splReserve] = derivePoolTreasuryReservePda({
+    programId: program.publicKey,
+    poolAddress: pool.publicKey,
+    paymentMint: paymentMint.publicKey,
+  });
+  const [splMemberCycle] = deriveMemberCyclePda({
+    programId: program.publicKey,
+    poolAddress: pool.publicKey,
+    member: member.publicKey,
+    periodIndex: 3n,
+  });
+  const [solReserve] = derivePoolTreasuryReservePda({
+    programId: program.publicKey,
+    poolAddress: pool.publicKey,
+    paymentMint: ZERO_PUBKEY,
+  });
+  const [solMemberCycle] = deriveMemberCyclePda({
+    programId: program.publicKey,
+    poolAddress: pool.publicKey,
+    member: member.publicKey,
+    periodIndex: 4n,
+  });
+
+  const splTx = client.buildSettleCycleCommitmentTx!({
+    payer: oracle.publicKey.toBase58(),
+    oracle: oracle.publicKey.toBase58(),
+    member: member.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+    paymentMint: paymentMint.publicKey.toBase58(),
+    productIdHashHex: '11'.repeat(32),
+    periodIndex: 3n,
+    passed: true,
+    shieldConsumed: false,
+    recentBlockhash: '11111111111111111111111111111111',
+    programId: program.publicKey.toBase58(),
+  });
+
+  const splMeta = toMeta(splTx.instructions[0]);
+  assert.equal(splMeta[0]?.pubkey, oracle.publicKey.toBase58());
+  assert.equal(splMeta[0]?.isSigner, true);
+  assert.equal(splMeta[3]?.pubkey, member.publicKey.toBase58());
+  assert.equal(splMeta[7]?.pubkey, paymentMint.publicKey.toBase58());
+  assert.equal(splMeta[7]?.isWritable, true);
+  assert.equal(splMeta[8]?.pubkey, splReserve.toBase58());
+  assert.equal(splMeta[12]?.pubkey, splMemberCycle.toBase58());
+  assert.equal(splMeta.length, 14);
+
+  const solTx = client.buildSettleCycleCommitmentSolTx!({
+    payer: oracle.publicKey.toBase58(),
+    oracle: oracle.publicKey.toBase58(),
+    member: member.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+    productIdHashHex: '22'.repeat(32),
+    periodIndex: 4n,
+    passed: false,
+    shieldConsumed: true,
+    recentBlockhash: '11111111111111111111111111111111',
+    programId: program.publicKey.toBase58(),
+  });
+
+  const solMeta = toMeta(solTx.instructions[0]);
+  assert.equal(solMeta[0]?.pubkey, oracle.publicKey.toBase58());
+  assert.equal(solMeta[0]?.isSigner, true);
+  assert.equal(solMeta[3]?.pubkey, member.publicKey.toBase58());
+  assert.equal(solMeta[7]?.pubkey, solReserve.toBase58());
+  assert.equal(solMeta[8]?.pubkey, member.publicKey.toBase58());
+  assert.equal(solMeta[9]?.pubkey, solMemberCycle.toBase58());
+  assert.equal(solMeta.length, 10);
+});
+
+test('cycle activation and treasury withdrawal builders preserve required writable accounts', () => {
+  const oracle = Keypair.generate();
+  const payer = Keypair.generate();
+  const member = payer;
+  const pool = Keypair.generate();
+  const paymentMint = Keypair.generate();
+  const recipient = Keypair.generate();
+  const program = Keypair.generate();
+
+  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
+  const client = createProtocolClient(connection, program.publicKey.toBase58());
+  const [splReserve] = derivePoolTreasuryReservePda({
+    programId: program.publicKey,
+    poolAddress: pool.publicKey,
+    paymentMint: paymentMint.publicKey,
+  });
+
+  const activateTx = client.buildActivateCycleWithQuoteSplTx!({
+    payer: payer.publicKey.toBase58(),
+    member: member.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+    oracle: oracle.publicKey.toBase58(),
+    paymentMint: paymentMint.publicKey.toBase58(),
+    productIdHashHex: '33'.repeat(32),
+    premiumAmountRaw: 100n,
+    canonicalPremiumAmount: 100n,
+    periodIndex: 1n,
+    commitmentEnabled: true,
+    bondAmountRaw: 25n,
+    shieldFeeRaw: 5n,
+    protocolFeeRaw: 3n,
+    oracleFeeRaw: 2n,
+    netPoolPremiumRaw: 95n,
+    totalAmountRaw: 130n,
+    includedShieldCount: 0,
+    thresholdBps: 7000,
+    expiresAtTs: 1_800_000_000n,
+    nonceHashHex: '44'.repeat(32),
+    quoteMetaHashHex: '55'.repeat(32),
+    quoteMessage: Buffer.from('quote-message'),
+    oracleSecretKey: oracle.secretKey,
+    recentBlockhash: '11111111111111111111111111111111',
+    programId: program.publicKey.toBase58(),
+  });
+
+  const activateMeta = toMeta(activateTx.instructions[1]);
+  assert.equal(activateMeta[12]?.pubkey, paymentMint.publicKey.toBase58());
+  assert.equal(activateMeta[12]?.isWritable, true);
+  assert.equal(activateMeta.at(-2)?.pubkey, SystemProgram.programId.toBase58());
+  assert.equal(activateMeta.at(-1)?.pubkey, SYSVAR_INSTRUCTIONS_PUBKEY.toBase58());
+
+  const activateSolTx = client.buildActivateCycleWithQuoteSolTx!({
+    payer: payer.publicKey.toBase58(),
+    member: member.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+    oracle: oracle.publicKey.toBase58(),
+    productIdHashHex: '66'.repeat(32),
+    premiumAmountRaw: 100n,
+    canonicalPremiumAmount: 100n,
+    periodIndex: 2n,
+    commitmentEnabled: true,
+    bondAmountRaw: 25n,
+    shieldFeeRaw: 5n,
+    protocolFeeRaw: 3n,
+    oracleFeeRaw: 2n,
+    netPoolPremiumRaw: 95n,
+    totalAmountRaw: 130n,
+    includedShieldCount: 0,
+    thresholdBps: 7000,
+    expiresAtTs: 1_800_000_000n,
+    nonceHashHex: '77'.repeat(32),
+    quoteMetaHashHex: '88'.repeat(32),
+    quoteMessage: Buffer.from('quote-message-sol'),
+    oracleSecretKey: oracle.secretKey,
+    recentBlockhash: '11111111111111111111111111111111',
+    programId: program.publicKey.toBase58(),
+  });
+  const activateSolMeta = toMeta(activateSolTx.instructions[1]);
+  assert.equal(activateSolMeta.at(-2)?.pubkey, SystemProgram.programId.toBase58());
+  assert.equal(activateSolMeta.at(-1)?.pubkey, SYSVAR_INSTRUCTIONS_PUBKEY.toBase58());
+
+  const withdrawSplTx = client.buildWithdrawPoolTreasurySplTx!({
+    payer: oracle.publicKey.toBase58(),
+    oracle: oracle.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+    paymentMint: paymentMint.publicKey.toBase58(),
+    recipientTokenAccount: recipient.publicKey.toBase58(),
+    amount: 10n,
+    recentBlockhash: '11111111111111111111111111111111',
+    programId: program.publicKey.toBase58(),
+  });
+  const withdrawSplMeta = toMeta(withdrawSplTx.instructions[0]);
+  assert.equal(withdrawSplMeta[0]?.pubkey, oracle.publicKey.toBase58());
+  assert.equal(withdrawSplMeta[0]?.isSigner, true);
+  assert.equal(withdrawSplMeta[6]?.pubkey, paymentMint.publicKey.toBase58());
+  assert.equal(withdrawSplMeta[6]?.isWritable, true);
+  assert.equal(withdrawSplMeta[7]?.pubkey, splReserve.toBase58());
+  assert.equal(withdrawSplMeta.length, 12);
+
+  const withdrawSolTx = client.buildWithdrawPoolTreasurySolTx!({
+    payer: oracle.publicKey.toBase58(),
+    oracle: oracle.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+    recipientSystemAccount: recipient.publicKey.toBase58(),
+    amount: 10n,
+    recentBlockhash: '11111111111111111111111111111111',
+    programId: program.publicKey.toBase58(),
+  });
+  const withdrawSolMeta = toMeta(withdrawSolTx.instructions[0]);
+  assert.equal(withdrawSolMeta[0]?.pubkey, oracle.publicKey.toBase58());
+  assert.equal(withdrawSolMeta[0]?.isSigner, true);
+  assert.equal(withdrawSolMeta[7]?.pubkey, recipient.publicKey.toBase58());
+  assert.equal(withdrawSolMeta.length, 8);
+});
+
 test('protocol account readers decode protocol setup accounts', async () => {
   const program = Keypair.generate().publicKey;
   const admin = Keypair.generate().publicKey;
@@ -555,6 +754,7 @@ test('protocol client builds deterministic v2 lifecycle transactions', () => {
     quorumM: 2,
     quorumN: 3,
     requireVerifiedSchema: true,
+    oracleFeeBps: 25,
     allowDelegateClaim: false,
     recentBlockhash,
     programId: program.publicKey.toBase58(),
@@ -565,6 +765,7 @@ test('protocol client builds deterministic v2 lifecycle transactions', () => {
     quorumM: 2,
     quorumN: 3,
     requireVerifiedSchema: true,
+    oracleFeeBps: 25,
     allowDelegateClaim: false,
     recentBlockhash,
     programId: program.publicKey.toBase58(),
@@ -681,6 +882,7 @@ test('protocol client v2 readers decode policy and coverage accounts', async () 
       Buffer.from([2]),
       Buffer.from([3]),
       Buffer.from([1]),
+      encodeU16Le(30),
       Buffer.from([0]),
       Buffer.from([8]),
     ]),
@@ -735,6 +937,7 @@ test('protocol client v2 readers decode policy and coverage accounts', async () 
   assert.equal(policy?.quorumM, 2);
   assert.equal(policy?.quorumN, 3);
   assert.equal(policy?.requireVerifiedSchema, true);
+  assert.equal(policy?.oracleFeeBps, 30);
   assert.equal(policy?.allowDelegateClaim, false);
 
   const coverage = await client.fetchCoveragePolicy!({
@@ -963,6 +1166,11 @@ test('protocol client v2 reward/coverage builders match protocol metas', () => {
     cycleHash,
     ruleHash,
   });
+  const [poolTreasuryReservePda] = derivePoolTreasuryReservePda({
+    programId: program.publicKey,
+    poolAddress: pool.publicKey,
+    paymentMint: payoutMint.publicKey,
+  });
   const [coverageProductPda] = deriveCoverageProductPda({
     programId: program.publicKey,
     poolAddress: pool.publicKey,
@@ -1008,6 +1216,7 @@ test('protocol client v2 reward/coverage builders match protocol metas', () => {
     cycleId,
     ruleHashHex,
     schemaKeyHashHex,
+    payoutMint: payoutMint.publicKey.toBase58(),
     attestationDigestHex: 'aa'.repeat(32),
     observedValueHashHex: 'bb'.repeat(32),
     asOfTs: 1234,
@@ -1022,15 +1231,17 @@ test('protocol client v2 reward/coverage builders match protocol metas', () => {
     { pubkey: stakePositionPda.toBase58(), isSigner: false, isWritable: false },
     { pubkey: pool.publicKey.toBase58(), isSigner: false, isWritable: false },
   ]);
-  assert.equal(voteTx.instructions[0].keys.length, 13);
-  assert.equal(voteTx.instructions[0].keys[5].pubkey.toBase58(), poolOraclePolicyPda.toBase58());
-  assert.equal(voteTx.instructions[0].keys[6].pubkey.toBase58(), poolOraclePda.toBase58());
-  assert.equal(voteTx.instructions[0].keys[7].pubkey.toBase58(), membershipPda.toBase58());
-  assert.equal(voteTx.instructions[0].keys[8].pubkey.toBase58(), poolRulePda.toBase58());
-  assert.equal(voteTx.instructions[0].keys[9].pubkey.toBase58(), schemaPda.toBase58());
-  assert.equal(voteTx.instructions[0].keys[10].pubkey.toBase58(), votePda.toBase58());
-  assert.equal(voteTx.instructions[0].keys[11].pubkey.toBase58(), aggregatePda.toBase58());
-  assert.equal(voteTx.instructions[0].keys[12].pubkey.toBase58(), SystemProgram.programId.toBase58());
+  assert.equal(voteTx.instructions[0].keys.length, 15);
+  assert.equal(voteTx.instructions[0].keys[5].pubkey.toBase58(), poolTermsPda.toBase58());
+  assert.equal(voteTx.instructions[0].keys[6].pubkey.toBase58(), poolOraclePolicyPda.toBase58());
+  assert.equal(voteTx.instructions[0].keys[7].pubkey.toBase58(), poolTreasuryReservePda.toBase58());
+  assert.equal(voteTx.instructions[0].keys[8].pubkey.toBase58(), poolOraclePda.toBase58());
+  assert.equal(voteTx.instructions[0].keys[9].pubkey.toBase58(), membershipPda.toBase58());
+  assert.equal(voteTx.instructions[0].keys[10].pubkey.toBase58(), poolRulePda.toBase58());
+  assert.equal(voteTx.instructions[0].keys[11].pubkey.toBase58(), schemaPda.toBase58());
+  assert.equal(voteTx.instructions[0].keys[12].pubkey.toBase58(), votePda.toBase58());
+  assert.equal(voteTx.instructions[0].keys[13].pubkey.toBase58(), aggregatePda.toBase58());
+  assert.equal(voteTx.instructions[0].keys[14].pubkey.toBase58(), SystemProgram.programId.toBase58());
 
   const rewardTx = client.buildSubmitRewardClaimTx!({
     claimant: claimant.publicKey.toBase58(),
@@ -1040,23 +1251,25 @@ test('protocol client v2 reward/coverage builders match protocol metas', () => {
     ruleHashHex,
     intentHashHex,
     payoutAmount: 10n,
+    payoutMint: payoutMint.publicKey.toBase58(),
     recipient: claimant.publicKey.toBase58(),
     recipientSystemAccount: recipientSystemAccount.publicKey.toBase58(),
     recentBlockhash,
     programId: program.publicKey.toBase58(),
   });
-  assert.equal(rewardTx.instructions[0].keys.length, 15);
+  assert.equal(rewardTx.instructions[0].keys.length, 16);
   assert.equal(rewardTx.instructions[0].keys[1].pubkey.toBase58(), configV2Pda.toBase58());
   assert.equal(rewardTx.instructions[0].keys[3].pubkey.toBase58(), poolTermsPda.toBase58());
   assert.equal(rewardTx.instructions[0].keys[4].pubkey.toBase58(), poolOraclePolicyPda.toBase58());
-  assert.equal(rewardTx.instructions[0].keys[5].pubkey.toBase58(), membershipPda.toBase58());
-  assert.equal(rewardTx.instructions[0].keys[6].pubkey.toBase58(), aggregatePda.toBase58());
-  assert.equal(rewardTx.instructions[0].keys[8].pubkey.toBase58(), program.publicKey.toBase58());
+  assert.equal(rewardTx.instructions[0].keys[5].pubkey.toBase58(), poolTreasuryReservePda.toBase58());
+  assert.equal(rewardTx.instructions[0].keys[6].pubkey.toBase58(), membershipPda.toBase58());
+  assert.equal(rewardTx.instructions[0].keys[7].pubkey.toBase58(), aggregatePda.toBase58());
   assert.equal(rewardTx.instructions[0].keys[9].pubkey.toBase58(), program.publicKey.toBase58());
   assert.equal(rewardTx.instructions[0].keys[10].pubkey.toBase58(), program.publicKey.toBase58());
-  assert.equal(rewardTx.instructions[0].keys[12].pubkey.toBase58(), claimRecordV2Pda.toBase58());
-  assert.equal(rewardTx.instructions[0].keys[13].pubkey.toBase58(), tokenProgram);
-  assert.equal(rewardTx.instructions[0].keys[14].pubkey.toBase58(), SystemProgram.programId.toBase58());
+  assert.equal(rewardTx.instructions[0].keys[11].pubkey.toBase58(), program.publicKey.toBase58());
+  assert.equal(rewardTx.instructions[0].keys[13].pubkey.toBase58(), claimRecordV2Pda.toBase58());
+  assert.equal(rewardTx.instructions[0].keys[14].pubkey.toBase58(), tokenProgram);
+  assert.equal(rewardTx.instructions[0].keys[15].pubkey.toBase58(), SystemProgram.programId.toBase58());
 
   const registerProductTx = client.buildRegisterCoverageProductV2Tx!({
     authority: authority.publicKey.toBase58(),

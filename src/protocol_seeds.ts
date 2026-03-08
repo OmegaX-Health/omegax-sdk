@@ -17,6 +17,12 @@ export const SEED_ORACLE_STAKE = 'oracle_stake';
 export const SEED_POOL_ORACLE_POLICY = 'pool_oracle_policy';
 export const SEED_POOL_TERMS = 'pool_terms';
 export const SEED_POOL_ASSET_VAULT = 'pool_asset_vault';
+export const SEED_POOL_ORACLE_PERMISSIONS = 'pool_oracle_permissions';
+export const SEED_MEMBER_CYCLE = 'member_cycle';
+export const SEED_CYCLE_QUOTE_REPLAY = 'cycle_quote_replay';
+export const SEED_POOL_TREASURY_RESERVE = 'pool_treasury_reserve';
+export const SEED_PROTOCOL_FEE_VAULT = 'protocol_fee_vault';
+export const SEED_POOL_ORACLE_FEE_VAULT = 'pool_oracle_fee_vault';
 export const SEED_SCHEMA = 'schema';
 export const SEED_POOL_RULE = 'pool_rule';
 export const SEED_INVITE_ISSUER = 'invite_issuer';
@@ -235,6 +241,117 @@ export function derivePoolAssetVaultPda(params: {
   const mint = asPubkey(params.payoutMint);
   return PublicKey.findProgramAddressSync(
     [Buffer.from(SEED_POOL_ASSET_VAULT), pool.toBuffer(), mint.toBuffer()],
+    program,
+  );
+}
+
+function encodeU64Seed(value: bigint | number): Buffer {
+  const out = Buffer.alloc(8);
+  out.writeBigUInt64LE(typeof value === 'bigint' ? value : BigInt(value));
+  return out;
+}
+
+export function derivePoolOraclePermissionSetPda(params: {
+  programId: string | PublicKey;
+  poolAddress: string | PublicKey;
+  oracle: string | PublicKey;
+}): [PublicKey, number] {
+  const program = asPubkey(params.programId);
+  const pool = asPubkey(params.poolAddress);
+  const oracle = asPubkey(params.oracle);
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from(SEED_POOL_ORACLE_PERMISSIONS), pool.toBuffer(), oracle.toBuffer()],
+    program,
+  );
+}
+
+export function deriveMemberCyclePda(params: {
+  programId: string | PublicKey;
+  poolAddress: string | PublicKey;
+  member: string | PublicKey;
+  periodIndex: bigint | number;
+}): [PublicKey, number] {
+  const program = asPubkey(params.programId);
+  const pool = asPubkey(params.poolAddress);
+  const member = asPubkey(params.member);
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(SEED_MEMBER_CYCLE),
+      pool.toBuffer(),
+      member.toBuffer(),
+      encodeU64Seed(params.periodIndex),
+    ],
+    program,
+  );
+}
+
+export function deriveCycleQuoteReplayPda(params: {
+  programId: string | PublicKey;
+  poolAddress: string | PublicKey;
+  member: string | PublicKey;
+  nonceHash: Uint8Array;
+}): [PublicKey, number] {
+  const program = asPubkey(params.programId);
+  const pool = asPubkey(params.poolAddress);
+  const member = asPubkey(params.member);
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(SEED_CYCLE_QUOTE_REPLAY),
+      pool.toBuffer(),
+      member.toBuffer(),
+      Buffer.from(params.nonceHash),
+    ],
+    program,
+  );
+}
+
+export function derivePoolTreasuryReservePda(params: {
+  programId: string | PublicKey;
+  poolAddress: string | PublicKey;
+  paymentMint: string | PublicKey;
+}): [PublicKey, number] {
+  const program = asPubkey(params.programId);
+  const pool = asPubkey(params.poolAddress);
+  const paymentMint = asPubkey(params.paymentMint);
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(SEED_POOL_TREASURY_RESERVE),
+      pool.toBuffer(),
+      paymentMint.toBuffer(),
+    ],
+    program,
+  );
+}
+
+export function deriveProtocolFeeVaultPda(params: {
+  programId: string | PublicKey;
+  paymentMint: string | PublicKey;
+}): [PublicKey, number] {
+  const program = asPubkey(params.programId);
+  const paymentMint = asPubkey(params.paymentMint);
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from(SEED_PROTOCOL_FEE_VAULT), paymentMint.toBuffer()],
+    program,
+  );
+}
+
+export function derivePoolOracleFeeVaultPda(params: {
+  programId: string | PublicKey;
+  poolAddress: string | PublicKey;
+  oracle: string | PublicKey;
+  paymentMint: string | PublicKey;
+}): [PublicKey, number] {
+  const program = asPubkey(params.programId);
+  const pool = asPubkey(params.poolAddress);
+  const oracle = asPubkey(params.oracle);
+  const paymentMint = asPubkey(params.paymentMint);
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(SEED_POOL_ORACLE_FEE_VAULT),
+      pool.toBuffer(),
+      oracle.toBuffer(),
+      paymentMint.toBuffer(),
+    ],
     program,
   );
 }

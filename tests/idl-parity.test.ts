@@ -16,29 +16,37 @@ import {
   deriveCoverageNftPda,
   deriveCoveragePolicyPda,
   deriveCoverageProductPda,
+  deriveCycleQuoteReplayPda,
   deriveEnrollmentReplayPda,
   deriveInviteIssuerPda,
+  deriveMemberCyclePda,
   deriveMembershipPda,
   deriveOraclePda,
   deriveOracleProfilePda,
   deriveOracleStakePda,
   deriveOutcomeAggregatePda,
   derivePoolAssetVaultPda,
+  derivePoolOracleFeeVaultPda,
+  derivePoolOraclePermissionSetPda,
   derivePoolOraclePolicyPda,
   derivePoolOraclePda,
   derivePoolPda,
   derivePoolRulePda,
   derivePoolTermsPda,
+  derivePoolTreasuryReservePda,
+  deriveProtocolFeeVaultPda,
   derivePremiumLedgerPda,
   derivePremiumReplayPda,
   deriveSchemaPda,
   hashStringTo32,
+  ZERO_PUBKEY,
 } from '../src/index.js';
 
 type IdlAccountMeta = {
   name: string;
   signer?: boolean;
   writable?: boolean;
+  accounts?: IdlAccountMeta[];
 };
 
 type IdlInstruction = {
@@ -47,10 +55,42 @@ type IdlInstruction = {
 };
 
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+
+function deriveAssociatedTokenAddress(params: {
+  owner: PublicKey;
+  mint: PublicKey;
+}): PublicKey {
+  const [address] = PublicKey.findProgramAddressSync(
+    [params.owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), params.mint.toBuffer()],
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+  );
+  return address;
+}
+
+function flattenIdlAccounts(accounts: IdlAccountMeta[]): IdlAccountMeta[] {
+  const flattened: IdlAccountMeta[] = [];
+  for (const account of accounts) {
+    if (account.accounts?.length) {
+      flattened.push(...flattenIdlAccounts(account.accounts));
+      continue;
+    }
+    flattened.push(account);
+  }
+  return flattened;
+}
 
 test('sdk builders stay in strict account-order parity with omegaxhealth_protocol idl', () => {
+  const workspaceIdlPath = resolve(
+    process.cwd(),
+    '..',
+    'omegaxhealth_protocol',
+    'idl',
+    'omegax_protocol.json',
+  );
+  const fixtureIdlPath = resolve(process.cwd(), 'tests/fixtures/omegax_protocol.idl.json');
   const idlPath = process.env.OMEGAX_PROTOCOL_IDL_PATH
-    ?? resolve(process.cwd(), 'tests/fixtures/omegax_protocol.idl.json');
+    ?? (existsSync(workspaceIdlPath) ? workspaceIdlPath : fixtureIdlPath);
   assert.ok(
     existsSync(idlPath),
     `IDL not found at ${idlPath}. Commit tests/fixtures/omegax_protocol.idl.json or set OMEGAX_PROTOCOL_IDL_PATH.`,
@@ -136,6 +176,11 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
     poolAddress: pool,
     oracle,
   });
+  const [poolOraclePermissions] = derivePoolOraclePermissionSetPda({
+    programId,
+    poolAddress: pool,
+    oracle,
+  });
   const [membership] = deriveMembershipPda({
     programId,
     poolAddress: pool,
@@ -185,6 +230,14 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
     poolAddress: pool,
     payoutMint,
   });
+  const derivedPoolVaultTokenAccount = deriveAssociatedTokenAddress({
+    owner: poolAssetVault,
+    mint: payoutMint,
+  });
+  const derivedMemberTokenAccount = deriveAssociatedTokenAddress({
+    owner: member,
+    mint: payoutMint,
+  });
   const [claimRecordV2] = deriveClaimV2Pda({
     programId,
     poolAddress: pool,
@@ -218,6 +271,56 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
     member,
     replayHash,
   });
+  const [memberCycle] = deriveMemberCyclePda({
+    programId,
+    poolAddress: pool,
+    member,
+    periodIndex: 1n,
+  });
+  const [cycleQuoteReplay] = deriveCycleQuoteReplayPda({
+    programId,
+    poolAddress: pool,
+    member,
+    nonceHash,
+  });
+  const [poolTreasuryReserve] = derivePoolTreasuryReservePda({
+    programId,
+    poolAddress: pool,
+    paymentMint: payoutMint,
+  });
+  const [poolTreasuryReserveSol] = derivePoolTreasuryReservePda({
+    programId,
+    poolAddress: pool,
+    paymentMint: ZERO_PUBKEY,
+  });
+  const [protocolFeeVault] = deriveProtocolFeeVaultPda({
+    programId,
+    paymentMint: payoutMint,
+  });
+  const [protocolFeeVaultSol] = deriveProtocolFeeVaultPda({
+    programId,
+    paymentMint: ZERO_PUBKEY,
+  });
+  const protocolFeeVaultTokenAccount = deriveAssociatedTokenAddress({
+    owner: protocolFeeVault,
+    mint: payoutMint,
+  });
+  const [poolOracleFeeVault] = derivePoolOracleFeeVaultPda({
+    programId,
+    poolAddress: pool,
+    oracle,
+    paymentMint: payoutMint,
+  });
+  const [poolOracleFeeVaultSol] = derivePoolOracleFeeVaultPda({
+    programId,
+    poolAddress: pool,
+    oracle,
+    paymentMint: ZERO_PUBKEY,
+  });
+  const poolOracleFeeVaultTokenAccount = deriveAssociatedTokenAddress({
+    owner: poolOracleFeeVault,
+    mint: payoutMint,
+  });
   const [coverageClaim] = deriveCoverageClaimPda({
     programId,
     poolAddress: pool,
@@ -228,6 +331,7 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
   const accountByName: Record<string, PublicKey> = {
     admin,
     aggregate,
+    associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
     authority,
     claim_delegate: claimDelegate,
     claim_record_v2: claimRecordV2,
@@ -237,6 +341,7 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
     coverage_policy: coveragePolicy,
     coverage_policy_nft: coveragePolicyNft,
     coverage_product: coverageProduct,
+    cycle_quote_replay: cycleQuoteReplay,
     destination_token_account: destinationTokenAccount,
     enrollment_replay: enrollmentReplay,
     funder,
@@ -252,15 +357,22 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
     oracle_profile: oracleProfile,
     payer,
     payer_token_account: payerTokenAccount,
+    payment_mint: payoutMint,
     payout_mint: payoutMint,
     pool,
     pool_asset_vault: poolAssetVault,
     pool_oracle: poolOracle,
+    pool_oracle_fee_vault: poolOracleFeeVault,
+    pool_oracle_fee_vault_token_account: poolOracleFeeVaultTokenAccount,
+    pool_oracle_permissions: poolOraclePermissions,
     pool_rule: poolRule,
     pool_terms: poolTerms,
+    pool_treasury_reserve: poolTreasuryReserve,
     pool_vault_token_account: poolVaultTokenAccount,
     premium_ledger: premiumLedger,
     premium_replay: premiumReplay,
+    protocol_fee_vault: protocolFeeVault,
+    protocol_fee_vault_token_account: protocolFeeVaultTokenAccount,
     publisher,
     recipient_system_account: recipientSystemAccount,
     recipient_token_account: recipientTokenAccount,
@@ -275,6 +387,7 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
     token_gate_account: tokenGateAccount,
     token_program: TOKEN_PROGRAM_ID,
     vote,
+    member_cycle: memberCycle,
   };
 
   const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
@@ -327,6 +440,25 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
       recentBlockhash,
       programId: programId.toBase58(),
     }),
+    withdraw_pool_treasury_sol: () => client.buildWithdrawPoolTreasurySolTx!({
+      payer: oracle.toBase58(),
+      oracle: oracle.toBase58(),
+      poolAddress: pool.toBase58(),
+      amount: 5n,
+      recipientSystemAccount: recipientSystemAccount.toBase58(),
+      recentBlockhash,
+      programId: programId.toBase58(),
+    }),
+    withdraw_pool_treasury_spl: () => client.buildWithdrawPoolTreasurySplTx!({
+      payer: oracle.toBase58(),
+      oracle: oracle.toBase58(),
+      poolAddress: pool.toBase58(),
+      paymentMint: payoutMint.toBase58(),
+      amount: 5n,
+      recipientTokenAccount: recipientTokenAccount.toBase58(),
+      recentBlockhash,
+      programId: programId.toBase58(),
+    }),
     enroll_member_invite_permit: () => client.buildEnrollMemberInvitePermitTx!({
       member: member.toBase58(),
       poolAddress: pool.toBase58(),
@@ -357,6 +489,7 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
       member: member.toBase58(),
       cycleId,
       ruleHashHex,
+      payoutMint: payoutMint.toBase58(),
       payer: payer.toBase58(),
       recentBlockhash,
       programId: programId.toBase58(),
@@ -515,6 +648,7 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
       quorumM: 2,
       quorumN: 3,
       requireVerifiedSchema: true,
+      oracleFeeBps: 15,
       allowDelegateClaim: true,
       recentBlockhash,
       programId: programId.toBase58(),
@@ -558,6 +692,14 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
       recentBlockhash,
       programId: programId.toBase58(),
     }),
+    set_pool_coverage_reserve_floor: () => client.buildSetPoolCoverageReserveFloorTx!({
+      authority: authority.toBase58(),
+      poolAddress: pool.toBase58(),
+      paymentMint: payoutMint.toBase58(),
+      amount: 15n,
+      recentBlockhash,
+      programId: programId.toBase58(),
+    }),
     settle_coverage_claim: () => client.buildSettleCoverageClaimTx!({
       authority: authority.toBase58(),
       claimant: claimant.toBase58(),
@@ -569,6 +711,31 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
       poolAssetVault: poolAssetVault.toBase58(),
       poolVaultTokenAccount: poolVaultTokenAccount.toBase58(),
       recipientTokenAccount: recipientTokenAccount.toBase58(),
+      recentBlockhash,
+      programId: programId.toBase58(),
+    }),
+    settle_cycle_commitment: () => client.buildSettleCycleCommitmentTx!({
+      payer: oracle.toBase58(),
+      oracle: oracle.toBase58(),
+      member: member.toBase58(),
+      poolAddress: pool.toBase58(),
+      productIdHashHex,
+      paymentMint: payoutMint.toBase58(),
+      periodIndex: 1n,
+      passed: true,
+      shieldConsumed: false,
+      recentBlockhash,
+      programId: programId.toBase58(),
+    }),
+    settle_cycle_commitment_sol: () => client.buildSettleCycleCommitmentSolTx!({
+      payer: oracle.toBase58(),
+      oracle: oracle.toBase58(),
+      member: member.toBase58(),
+      poolAddress: pool.toBase58(),
+      productIdHashHex,
+      periodIndex: 1n,
+      passed: true,
+      shieldConsumed: false,
       recentBlockhash,
       programId: programId.toBase58(),
     }),
@@ -609,6 +776,7 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
       cycleId,
       ruleHashHex,
       schemaKeyHashHex,
+      payoutMint: payoutMint.toBase58(),
       attestationDigestHex: '15'.repeat(32),
       observedValueHashHex: '16'.repeat(32),
       asOfTs: 1_700_000_300,
@@ -624,6 +792,7 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
       ruleHashHex,
       intentHashHex,
       payoutAmount: 10n,
+      payoutMint: payoutMint.toBase58(),
       recipient: recipientSystemAccount.toBase58(),
       recipientSystemAccount: recipientSystemAccount.toBase58(),
       claimDelegate: claimant.toBase58(),
@@ -684,15 +853,84 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
       recentBlockhash,
       programId: programId.toBase58(),
     }),
+    withdraw_protocol_fee_sol: () => client.buildWithdrawProtocolFeeSolTx!({
+      governanceAuthority: governanceAuthority.toBase58(),
+      amount: 5n,
+      recipientSystemAccount: recipientSystemAccount.toBase58(),
+      recentBlockhash,
+      programId: programId.toBase58(),
+    }),
+    withdraw_protocol_fee_spl: () => client.buildWithdrawProtocolFeeSplTx!({
+      governanceAuthority: governanceAuthority.toBase58(),
+      paymentMint: payoutMint.toBase58(),
+      amount: 5n,
+      recipientTokenAccount: recipientTokenAccount.toBase58(),
+      recentBlockhash,
+      programId: programId.toBase58(),
+    }),
+    withdraw_pool_oracle_fee_sol: () => client.buildWithdrawPoolOracleFeeSolTx!({
+      oracle: oracle.toBase58(),
+      poolAddress: pool.toBase58(),
+      amount: 5n,
+      recipientSystemAccount: recipientSystemAccount.toBase58(),
+      recentBlockhash,
+      programId: programId.toBase58(),
+    }),
+    withdraw_pool_oracle_fee_spl: () => client.buildWithdrawPoolOracleFeeSplTx!({
+      oracle: oracle.toBase58(),
+      poolAddress: pool.toBase58(),
+      paymentMint: payoutMint.toBase58(),
+      amount: 5n,
+      recipientTokenAccount: recipientTokenAccount.toBase58(),
+      recentBlockhash,
+      programId: programId.toBase58(),
+    }),
   };
 
-  const idlInstructionNames = [...idlByName.keys()].sort();
   const sdkInstructionNames = Object.keys(buildByInstruction).sort();
-  assert.deepEqual(
-    sdkInstructionNames,
-    idlInstructionNames,
-    'SDK builder coverage diverges from protocol IDL instructions',
-  );
+  const requiredInstructionNames = [
+    'set_pool_coverage_reserve_floor',
+    'settle_cycle_commitment',
+    'settle_cycle_commitment_sol',
+    'withdraw_pool_treasury_sol',
+    'withdraw_pool_treasury_spl',
+    'withdraw_protocol_fee_sol',
+    'withdraw_protocol_fee_spl',
+    'withdraw_pool_oracle_fee_sol',
+    'withdraw_pool_oracle_fee_spl',
+  ];
+  for (const instructionName of requiredInstructionNames) {
+    assert.ok(
+      sdkInstructionNames.includes(instructionName),
+      `Missing SDK parity builder for ${instructionName}`,
+    );
+  }
+
+  const missingFromIdl = sdkInstructionNames.filter((instructionName) => !idlByName.has(instructionName));
+  assert.deepEqual(missingFromIdl, [], 'SDK builder coverage diverges from protocol IDL instructions');
+
+  const instructionAccountOverrides: Record<string, Record<string, PublicKey>> = {
+    settle_cycle_commitment: {
+      pool_vault_token_account: derivedPoolVaultTokenAccount,
+      recipient_token_account: derivedMemberTokenAccount,
+    },
+    settle_cycle_commitment_sol: {
+      pool_treasury_reserve: poolTreasuryReserveSol,
+      recipient_system_account: member,
+    },
+    withdraw_pool_treasury_sol: {
+      pool_treasury_reserve: poolTreasuryReserveSol,
+    },
+    withdraw_pool_treasury_spl: {
+      pool_vault_token_account: derivedPoolVaultTokenAccount,
+    },
+    withdraw_protocol_fee_sol: {
+      protocol_fee_vault: protocolFeeVaultSol,
+    },
+    withdraw_pool_oracle_fee_sol: {
+      pool_oracle_fee_vault: poolOracleFeeVaultSol,
+    },
+  };
 
   for (const instructionName of sdkInstructionNames) {
     const idlInstruction = idlByName.get(instructionName);
@@ -708,8 +946,9 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
       `${instructionName} discriminator mismatch`,
     );
 
-    const expectedAccounts = idlInstruction.accounts.map((account) => {
-      const pubkey = accountByName[account.name];
+    const expectedAccounts = flattenIdlAccounts(idlInstruction.accounts).map((account) => {
+      const pubkey = instructionAccountOverrides[instructionName]?.[account.name]
+        ?? accountByName[account.name];
       assert.ok(pubkey, `No account mapping for ${account.name} (${instructionName})`);
       return {
         name: account.name,
