@@ -1,12 +1,17 @@
 import {
+  AddressLookupTableAccount,
   Connection,
+  ComputeBudgetProgram,
   Ed25519Program,
   PublicKey,
   SYSVAR_INSTRUCTIONS_PUBKEY,
   SystemProgram,
   Transaction,
+  TransactionMessage,
   TransactionInstruction,
+  VersionedTransaction,
 } from '@solana/web3.js';
+import { blake3 } from '@noble/hashes/blake3.js';
 
 import type {
   BuildAttestPremiumPaidOffchainTxParams,
@@ -32,6 +37,7 @@ import type {
   BuildMigratePoolV1ToV2TxParams,
   BuildPayPremiumOnchainTxParams,
   BuildRegisterCoverageProductV2TxParams,
+  BuildUpsertCoverageProductPaymentOptionTxParams,
   BuildRegisterInviteIssuerTxParams,
   BuildRegisterOutcomeSchemaTxParams,
   BuildRegisterOracleTxParams,
@@ -42,6 +48,7 @@ import type {
   BuildSetClaimDelegateTxParams,
   BuildSetCycleWindowTxParams,
   BuildSetPoolOraclePolicyTxParams,
+  BuildSetPoolOraclePermissionsTxParams,
   BuildSetPoolOracleTxParams,
   BuildSetPoolTermsHashTxParams,
   BuildSetPoolStatusTxParams,
@@ -77,6 +84,7 @@ import type {
   ProtocolCoverageClaimRecordAccount,
   ProtocolCoveragePolicyPositionNftAccount,
   ProtocolCoverageProductAccount,
+  ProtocolCoverageProductPaymentOptionAccount,
   ProtocolCycleQuoteReplayAccount,
   ProtocolAttestationVoteAccount,
   ProtocolClaimRecordV2Account,
@@ -135,6 +143,7 @@ import {
   deriveConfigV2Pda,
   deriveCoverageClaimPda,
   deriveCoverageProductPda,
+  deriveCoverageProductPaymentOptionPda,
   deriveCoverageNftPda,
   deriveCoveragePolicyPda,
   deriveCycleOutcomePda,
@@ -197,6 +206,7 @@ const IX_FINALIZE_UNSTAKE = anchorDiscriminator('global', 'finalize_unstake');
 const IX_SLASH_ORACLE = anchorDiscriminator('global', 'slash_oracle');
 const IX_CREATE_POOL_V2 = anchorDiscriminator('global', 'create_pool_v2');
 const IX_SET_POOL_ORACLE_POLICY = anchorDiscriminator('global', 'set_pool_oracle_policy');
+const IX_SET_POOL_ORACLE_PERMISSIONS = anchorDiscriminator('global', 'set_pool_oracle_permissions');
 const IX_SET_POOL_COVERAGE_RESERVE_FLOOR = anchorDiscriminator('global', 'set_pool_coverage_reserve_floor');
 const IX_SET_POOL_TERMS_HASH = anchorDiscriminator('global', 'set_pool_terms_hash');
 const IX_REGISTER_OUTCOME_SCHEMA = anchorDiscriminator('global', 'register_outcome_schema');
@@ -211,6 +221,8 @@ const IX_FUND_POOL_SOL = anchorDiscriminator('global', 'fund_pool_sol');
 const IX_FUND_POOL_SPL = anchorDiscriminator('global', 'fund_pool_spl');
 const IX_SUBMIT_REWARD_CLAIM = anchorDiscriminator('global', 'submit_reward_claim');
 const IX_REGISTER_COVERAGE_PRODUCT_V2 = anchorDiscriminator('global', 'register_coverage_product_v2');
+const IX_UPSERT_COVERAGE_PRODUCT_PAYMENT_OPTION =
+  anchorDiscriminator('global', 'upsert_coverage_product_payment_option');
 const IX_UPDATE_COVERAGE_PRODUCT_V2 = anchorDiscriminator('global', 'update_coverage_product_v2');
 const IX_SUBSCRIBE_COVERAGE_PRODUCT_V2 = anchorDiscriminator('global', 'subscribe_coverage_product_v2');
 const IX_ISSUE_COVERAGE_POLICY_FROM_PRODUCT_V2 = anchorDiscriminator('global', 'issue_coverage_policy_from_product_v2');
@@ -258,6 +270,8 @@ const ACCOUNT_CLAIM_RECORD_V2 = anchorDiscriminator('account', 'ClaimRecordV2');
 const ACCOUNT_COVERAGE_CLAIM_RECORD = anchorDiscriminator('account', 'CoverageClaimRecord');
 const ACCOUNT_COVERAGE_POLICY_POSITION_NFT = anchorDiscriminator('account', 'CoveragePolicyPositionNft');
 const ACCOUNT_COVERAGE_PRODUCT = anchorDiscriminator('account', 'CoverageProduct');
+const ACCOUNT_COVERAGE_PRODUCT_PAYMENT_OPTION =
+  anchorDiscriminator('account', 'CoverageProductPaymentOption');
 const ACCOUNT_ENROLLMENT_PERMIT_REPLAY = anchorDiscriminator('account', 'EnrollmentPermitReplay');
 const ACCOUNT_ATTESTATION_VOTE = anchorDiscriminator('account', 'AttestationVote');
 const ACCOUNT_COVERAGE_POLICY = anchorDiscriminator('account', 'CoveragePolicy');
@@ -360,6 +374,46 @@ export function buildCycleQuoteMessage(fields: ProtocolCycleQuoteFields): Buffer
     Buffer.from(fromHex(fields.nonceHashHex, 32)),
     Buffer.from(fromHex(fields.quoteMetaHashHex, 32)),
   ]);
+}
+
+function asCycleQuoteMessage(input: ProtocolCycleQuoteFields | Uint8Array): Buffer {
+  if (input instanceof Uint8Array) {
+    return Buffer.from(input);
+  }
+  return buildCycleQuoteMessage(input);
+}
+
+export function buildCycleQuoteHash(input: ProtocolCycleQuoteFields | Uint8Array): Buffer {
+  return Buffer.from(blake3(asCycleQuoteMessage(input)));
+}
+
+export function buildCycleQuoteSignatureMessage(
+  input: ProtocolCycleQuoteFields | Uint8Array,
+): Buffer {
+  return Buffer.concat([
+    Buffer.from('omegax:cycle_quote_sig:v1', 'utf8'),
+    buildCycleQuoteHash(input),
+  ]);
+}
+
+export function compileTransactionToV0(
+  transaction: Transaction,
+  lookupTableAccounts: AddressLookupTableAccount[],
+): VersionedTransaction {
+  if (!transaction.feePayer) {
+    throw new Error('transaction fee payer is required to compile a v0 transaction');
+  }
+  if (!transaction.recentBlockhash) {
+    throw new Error('transaction recentBlockhash is required to compile a v0 transaction');
+  }
+
+  const message = new TransactionMessage({
+    payerKey: transaction.feePayer,
+    recentBlockhash: transaction.recentBlockhash,
+    instructions: transaction.instructions,
+  }).compileToV0Message(lookupTableAccounts);
+
+  return new VersionedTransaction(message);
 }
 
 function hasDiscriminator(data: Buffer, discriminator: Buffer): boolean {
@@ -1570,6 +1624,38 @@ function decodeCoverageProductAccount(
   };
 }
 
+function decodeCoverageProductPaymentOptionAccount(
+  address: string,
+  data: Buffer,
+): ProtocolCoverageProductPaymentOptionAccount {
+  if (!hasDiscriminator(data, ACCOUNT_COVERAGE_PRODUCT_PAYMENT_OPTION)) {
+    throw new Error('account discriminator mismatch for CoverageProductPaymentOption');
+  }
+
+  let offset = 8;
+  const pool = pubkeyFromData(data, offset);
+  offset += 32;
+  const productIdHash = data.subarray(offset, offset + 32);
+  offset += 32;
+  const paymentMint = pubkeyFromData(data, offset);
+  offset += 32;
+  const paymentAmount = readU64Le(data, offset);
+  offset += 8;
+  const active = data.readUInt8(offset) === 1;
+  offset += 1;
+  const bump = data.readUInt8(offset);
+
+  return {
+    address,
+    pool,
+    productIdHashHex: toHex(productIdHash),
+    paymentMint,
+    paymentAmount,
+    active,
+    bump,
+  };
+}
+
 function decodeCoveragePolicyPositionNftAccount(
   address: string,
   data: Buffer,
@@ -1972,6 +2058,15 @@ function encodeSetPoolOraclePolicyData(params: BuildSetPoolOraclePolicyTxParams)
   ]);
 }
 
+function encodeSetPoolOraclePermissionsData(
+  params: BuildSetPoolOraclePermissionsTxParams,
+): Buffer {
+  const permissions = params.permissions >>> 0;
+  const out = Buffer.alloc(4);
+  out.writeUInt32LE(permissions, 0);
+  return Buffer.concat([IX_SET_POOL_ORACLE_PERMISSIONS, out]);
+}
+
 function encodeSetPoolCoverageReserveFloorData(
   params: BuildSetPoolCoverageReserveFloorTxParams,
 ): Buffer {
@@ -2127,6 +2222,17 @@ function encodeRegisterCoverageProductV2Data(params: BuildRegisterCoverageProduc
   ]);
 }
 
+function encodeUpsertCoverageProductPaymentOptionData(
+  params: BuildUpsertCoverageProductPaymentOptionTxParams,
+): Buffer {
+  return Buffer.concat([
+    IX_UPSERT_COVERAGE_PRODUCT_PAYMENT_OPTION,
+    asPubkey(params.paymentMint).toBuffer(),
+    encodeU64Le(params.paymentAmount),
+    Buffer.from([params.active ? 1 : 0]),
+  ]);
+}
+
 function encodeUpdateCoverageProductV2Data(params: BuildUpdateCoverageProductV2TxParams): Buffer {
   return Buffer.concat([
     IX_UPDATE_COVERAGE_PRODUCT_V2,
@@ -2229,26 +2335,6 @@ function encodeMigratePoolV1ToV2Data(params: BuildMigratePoolV1ToV2TxParams): Bu
   ]);
 }
 
-function deriveCoverageProductPaymentOptionPda(params: {
-  programId: string | PublicKey;
-  poolAddress: string | PublicKey;
-  productIdHashHex: string;
-  paymentMint: string | PublicKey;
-}): [PublicKey, number] {
-  const program = asPubkey(params.programId);
-  const pool = asPubkey(params.poolAddress);
-  const paymentMint = asPubkey(params.paymentMint);
-  return PublicKey.findProgramAddressSync(
-    [
-      Buffer.from('coverage_product_payment_option'),
-      pool.toBuffer(),
-      Buffer.from(fromHex(params.productIdHashHex, 32)),
-      paymentMint.toBuffer(),
-    ],
-    program,
-  );
-}
-
 function buildActivateCycleWithQuoteSolTransaction(
   params: BuildActivateCycleWithQuoteSolTxParams,
 ): Transaction {
@@ -2279,7 +2365,7 @@ function buildActivateCycleWithQuoteSolTransaction(
   const [coverageProductPaymentOption] = deriveCoverageProductPaymentOptionPda({
     programId,
     poolAddress,
-    productIdHashHex: params.productIdHashHex,
+    productIdHash: fromHex(params.productIdHashHex, 32),
     paymentMint: zeroPubkey,
   });
   const [coveragePolicy] = deriveCoveragePolicyPda({ programId, poolAddress, member });
@@ -2314,7 +2400,7 @@ function buildActivateCycleWithQuoteSolTransaction(
   });
   const ed25519Instruction = Ed25519Program.createInstructionWithPrivateKey({
     privateKey: params.oracleSecretKey,
-    message: params.quoteMessage,
+    message: buildCycleQuoteSignatureMessage(params.quoteMessage),
   });
   const instruction = new TransactionInstruction({
     programId,
@@ -2346,6 +2432,7 @@ function buildActivateCycleWithQuoteSolTransaction(
       IX_ACTIVATE_CYCLE_WITH_QUOTE_SOL,
       Buffer.from(fromHex(params.productIdHashHex, 32)),
       encodeU64Le(params.periodIndex),
+      Buffer.from(fromHex(params.nonceHashHex, 32)),
       encodeU64Le(params.premiumAmountRaw),
       encodeU64Le(params.canonicalPremiumAmount),
       Buffer.from([params.commitmentEnabled ? 1 : 0]),
@@ -2358,14 +2445,21 @@ function buildActivateCycleWithQuoteSolTransaction(
       Buffer.from([params.includedShieldCount]),
       encodeU16Le(params.thresholdBps),
       encodeI64Le(params.expiresAtTs),
-      Buffer.from(fromHex(params.nonceHashHex, 32)),
       Buffer.from(fromHex(params.quoteMetaHashHex, 32)),
     ]),
   });
-  return new Transaction({
+  const transaction = new Transaction({
     feePayer: payer,
     recentBlockhash: params.recentBlockhash,
-  }).add(ed25519Instruction, instruction);
+  });
+  if (typeof params.computeUnitLimit === 'number') {
+    transaction.add(
+      ComputeBudgetProgram.setComputeUnitLimit({
+        units: params.computeUnitLimit,
+      }),
+    );
+  }
+  return transaction.add(ed25519Instruction, instruction);
 }
 
 function buildActivateCycleWithQuoteSplTransaction(
@@ -2398,7 +2492,7 @@ function buildActivateCycleWithQuoteSplTransaction(
   const [coverageProductPaymentOption] = deriveCoverageProductPaymentOptionPda({
     programId,
     poolAddress,
-    productIdHashHex: params.productIdHashHex,
+    productIdHash: fromHex(params.productIdHashHex, 32),
     paymentMint,
   });
   const [coveragePolicy] = deriveCoveragePolicyPda({ programId, poolAddress, member });
@@ -2456,7 +2550,7 @@ function buildActivateCycleWithQuoteSplTransaction(
   });
   const ed25519Instruction = Ed25519Program.createInstructionWithPrivateKey({
     privateKey: params.oracleSecretKey,
-    message: params.quoteMessage,
+    message: buildCycleQuoteSignatureMessage(params.quoteMessage),
   });
   const instruction = new TransactionInstruction({
     programId,
@@ -2496,6 +2590,7 @@ function buildActivateCycleWithQuoteSplTransaction(
       IX_ACTIVATE_CYCLE_WITH_QUOTE_SPL,
       Buffer.from(fromHex(params.productIdHashHex, 32)),
       encodeU64Le(params.periodIndex),
+      Buffer.from(fromHex(params.nonceHashHex, 32)),
       encodeU64Le(params.premiumAmountRaw),
       encodeU64Le(params.canonicalPremiumAmount),
       Buffer.from([params.commitmentEnabled ? 1 : 0]),
@@ -2508,14 +2603,19 @@ function buildActivateCycleWithQuoteSplTransaction(
       Buffer.from([params.includedShieldCount]),
       encodeU16Le(params.thresholdBps),
       encodeI64Le(params.expiresAtTs),
-      Buffer.from(fromHex(params.nonceHashHex, 32)),
       Buffer.from(fromHex(params.quoteMetaHashHex, 32)),
     ]),
   });
   return new Transaction({
     feePayer: payer,
     recentBlockhash: params.recentBlockhash,
-  }).add(ed25519Instruction, instruction);
+  }).add(
+    ComputeBudgetProgram.setComputeUnitLimit({
+      units: params.computeUnitLimit ?? 400_000,
+    }),
+    ed25519Instruction,
+    instruction,
+  );
 }
 
 function buildSettleCycleCommitmentTransaction(
@@ -3723,6 +3823,46 @@ export function createProtocolClient(connection: Connection, programIdInput: str
       }).add(instruction);
     },
 
+    buildSetPoolOraclePermissionsTx(
+      params: BuildSetPoolOraclePermissionsTxParams,
+    ): Transaction {
+      const authority = new PublicKey(params.authority);
+      const poolAddress = new PublicKey(params.poolAddress);
+      const oracle = new PublicKey(params.oracle);
+      const [oracleEntryPda] = deriveOraclePda({
+        programId,
+        oracle,
+      });
+      const [poolOraclePda] = derivePoolOraclePda({
+        programId,
+        poolAddress,
+        oracle,
+      });
+      const [poolOraclePermissionsPda] = derivePoolOraclePermissionSetPda({
+        programId,
+        poolAddress,
+        oracle,
+      });
+      const instruction = new TransactionInstruction({
+        programId,
+        keys: [
+          { pubkey: authority, isSigner: true, isWritable: true },
+          { pubkey: poolAddress, isSigner: false, isWritable: false },
+          { pubkey: oracle, isSigner: false, isWritable: false },
+          { pubkey: oracleEntryPda, isSigner: false, isWritable: false },
+          { pubkey: poolOraclePda, isSigner: false, isWritable: false },
+          { pubkey: poolOraclePermissionsPda, isSigner: false, isWritable: true },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        ],
+        data: encodeSetPoolOraclePermissionsData(params),
+      });
+
+      return new Transaction({
+        feePayer: authority,
+        recentBlockhash: params.recentBlockhash,
+      }).add(instruction);
+    },
+
     buildSetPoolCoverageReserveFloorTx(
       params: BuildSetPoolCoverageReserveFloorTxParams,
     ): Transaction {
@@ -4163,6 +4303,45 @@ export function createProtocolClient(connection: Connection, programIdInput: str
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         ],
         data: encodeRegisterCoverageProductV2Data(params),
+      });
+
+      return new Transaction({
+        feePayer: authority,
+        recentBlockhash: params.recentBlockhash,
+      }).add(instruction);
+    },
+
+    buildUpsertCoverageProductPaymentOptionTx(
+      params: BuildUpsertCoverageProductPaymentOptionTxParams,
+    ): Transaction {
+      const authority = new PublicKey(params.authority);
+      const poolAddress = new PublicKey(params.poolAddress);
+      const paymentMint = new PublicKey(params.paymentMint);
+      const productIdHash = fromHex(params.productIdHashHex, 32);
+      const [configV2Pda] = deriveConfigV2Pda(programId);
+      const [coverageProductPda] = deriveCoverageProductPda({
+        programId,
+        poolAddress,
+        productIdHash,
+      });
+      const [coverageProductPaymentOptionPda] = deriveCoverageProductPaymentOptionPda({
+        programId,
+        poolAddress,
+        productIdHash,
+        paymentMint,
+      });
+      const instruction = new TransactionInstruction({
+        programId,
+        keys: [
+          { pubkey: authority, isSigner: true, isWritable: true },
+          { pubkey: configV2Pda, isSigner: false, isWritable: false },
+          { pubkey: poolAddress, isSigner: false, isWritable: false },
+          { pubkey: coverageProductPda, isSigner: false, isWritable: true },
+          { pubkey: paymentMint, isSigner: false, isWritable: false },
+          { pubkey: coverageProductPaymentOptionPda, isSigner: false, isWritable: true },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        ],
+        data: encodeUpsertCoverageProductPaymentOptionData(params),
       });
 
       return new Transaction({
@@ -5023,6 +5202,22 @@ export function createProtocolClient(connection: Connection, programIdInput: str
       const account = await connection.getAccountInfo(pda, 'confirmed');
       if (!account) return null;
       return decodeCoverageProductAccount(pda.toBase58(), account.data);
+    },
+
+    async fetchCoverageProductPaymentOption(params: {
+      poolAddress: string;
+      productIdHashHex: string;
+      paymentMint: string;
+    }): Promise<ProtocolCoverageProductPaymentOptionAccount | null> {
+      const [pda] = deriveCoverageProductPaymentOptionPda({
+        programId,
+        poolAddress: params.poolAddress,
+        productIdHash: fromHex(params.productIdHashHex, 32),
+        paymentMint: params.paymentMint,
+      });
+      const account = await connection.getAccountInfo(pda, 'confirmed');
+      if (!account) return null;
+      return decodeCoverageProductPaymentOptionAccount(pda.toBase58(), account.data);
     },
 
     async fetchCoveragePolicy(params: {

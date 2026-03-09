@@ -1,4 +1,3 @@
-import bs58 from 'bs58';
 import nacl from 'tweetnacl';
 import {
   PublicKey,
@@ -25,6 +24,15 @@ import {
   hashStringTo32,
 } from './utils.js';
 import {
+  decodeSolanaTransaction,
+  type SolanaTransaction,
+  solanaTransactionFirstSignature,
+  solanaTransactionIntentMessageBytes,
+  solanaTransactionMessageBytes,
+  solanaTransactionRequiredSigner,
+  solanaTransactionSignerSignature,
+} from './transactions.js';
+import {
   deriveClaimDelegatePda,
   deriveClaimPda,
   deriveClaimV2Pda,
@@ -39,6 +47,10 @@ import {
 
 const SUBMIT_CLAIM_DISCRIMINATOR = anchorDiscriminator('global', 'submit_claim');
 const SUBMIT_REWARD_CLAIM_DISCRIMINATOR = anchorDiscriminator('global', 'submit_reward_claim');
+
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
 
 function validateRewardClaimOptionalAccounts(params: {
   poolAssetVault?: string;
@@ -269,19 +281,12 @@ export function buildUnsignedRewardClaimTx(
   };
 }
 
-function firstSignatureBase58(tx: Transaction): string | null {
-  if (tx.signatures.length === 0) return null;
-  const first = tx.signatures[0];
-  if (!first?.signature) return null;
-  return bs58.encode(first.signature);
-}
-
 export function validateSignedClaimTx(
   params: ValidateSignedClaimTxParams,
 ): ValidateSignedClaimTxResult {
-  let tx: Transaction;
+  let tx: SolanaTransaction;
   try {
-    tx = Transaction.from(Buffer.from(params.signedTxBase64, 'base64'));
+    tx = decodeSolanaTransaction(params.signedTxBase64);
   } catch {
     return {
       valid: false,
@@ -293,35 +298,37 @@ export function validateSignedClaimTx(
 
   if (typeof params.expectedUnsignedTxBase64 === 'string' && params.expectedUnsignedTxBase64.length > 0) {
     try {
-      const expectedUnsignedTx = Transaction.from(
-        Buffer.from(params.expectedUnsignedTxBase64, 'base64'),
+      const expectedUnsignedTx = decodeSolanaTransaction(
+        params.expectedUnsignedTxBase64,
       );
-      const signedMessageBytes = tx.serializeMessage();
-      const expectedMessageBytes = expectedUnsignedTx.serializeMessage();
+      const signedMessageBytes = solanaTransactionMessageBytes(tx);
+      const expectedMessageBytes = solanaTransactionMessageBytes(expectedUnsignedTx);
 
-      if (
-        signedMessageBytes.length !== expectedMessageBytes.length
-        || !signedMessageBytes.every((value, index) => value === expectedMessageBytes[index])
-      ) {
-        return {
-          valid: false,
-          txSignature: firstSignatureBase58(tx),
-          reason: 'intent_message_mismatch',
-          signer: tx.feePayer?.toBase58() ?? null,
-        };
+      if (!bytesEqual(signedMessageBytes, expectedMessageBytes)) {
+        const signedIntentBytes = solanaTransactionIntentMessageBytes(tx);
+        const expectedIntentBytes = solanaTransactionIntentMessageBytes(expectedUnsignedTx);
+
+        if (!bytesEqual(signedIntentBytes, expectedIntentBytes)) {
+          return {
+            valid: false,
+            txSignature: solanaTransactionFirstSignature(tx),
+            reason: 'intent_message_mismatch',
+            signer: solanaTransactionRequiredSigner(tx),
+          };
+        }
       }
     } catch {
       return {
         valid: false,
-        txSignature: firstSignatureBase58(tx),
+        txSignature: solanaTransactionFirstSignature(tx),
         reason: 'intent_message_mismatch',
-        signer: tx.feePayer?.toBase58() ?? null,
+        signer: solanaTransactionRequiredSigner(tx),
       };
     }
   }
 
   const expectedSigner = params.requiredSigner.trim();
-  const signer = tx.feePayer?.toBase58() ?? null;
+  const signer = solanaTransactionRequiredSigner(tx);
   if (!signer) {
     return {
       valid: false,
@@ -334,32 +341,32 @@ export function validateSignedClaimTx(
   if (signer !== expectedSigner) {
     return {
       valid: false,
-      txSignature: firstSignatureBase58(tx),
+      txSignature: solanaTransactionFirstSignature(tx),
       reason: 'required_signer_mismatch',
       signer,
     };
   }
 
-  const expectedPubkey = tx.signatures.find((s) => s.publicKey.toBase58() === expectedSigner);
-  if (!expectedPubkey || !expectedPubkey.signature) {
+  const requiredSignature = solanaTransactionSignerSignature(tx, expectedSigner);
+  if (!requiredSignature) {
     return {
       valid: false,
-      txSignature: firstSignatureBase58(tx),
+      txSignature: solanaTransactionFirstSignature(tx),
       reason: 'missing_required_signature',
       signer,
     };
   }
 
   const ok = nacl.sign.detached.verify(
-    tx.serializeMessage(),
-    expectedPubkey.signature,
+    solanaTransactionMessageBytes(tx),
+    requiredSignature,
     new PublicKey(expectedSigner).toBytes(),
   );
 
   if (!ok) {
     return {
       valid: false,
-      txSignature: firstSignatureBase58(tx),
+      txSignature: solanaTransactionFirstSignature(tx),
       reason: 'invalid_required_signature',
       signer,
     };
@@ -367,7 +374,7 @@ export function validateSignedClaimTx(
 
   return {
     valid: true,
-    txSignature: firstSignatureBase58(tx),
+    txSignature: solanaTransactionFirstSignature(tx),
     reason: null,
     signer,
   };

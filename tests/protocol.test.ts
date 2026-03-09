@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import {
+  AddressLookupTableAccount,
   Keypair,
   PublicKey,
   SYSVAR_INSTRUCTIONS_PUBKEY,
@@ -11,6 +12,10 @@ import {
 
 import {
   anchorDiscriminator,
+  buildCycleQuoteHash,
+  buildCycleQuoteMessage,
+  buildCycleQuoteSignatureMessage,
+  compileTransactionToV0,
   createConnection,
   createProtocolClient,
   deriveAttestationVotePda,
@@ -20,6 +25,7 @@ import {
   deriveCoverageClaimPda,
   deriveCoverageNftPda,
   deriveCoverageProductPda,
+  deriveCoverageProductPaymentOptionPda,
   deriveCoveragePolicyPda,
   deriveCycleWindowPda,
   deriveEnrollmentReplayPda,
@@ -31,6 +37,7 @@ import {
   deriveOutcomeAggregatePda,
   derivePoolAddress,
   derivePoolAssetVaultPda,
+  derivePoolOraclePermissionSetPda,
   derivePoolOraclePolicyPda,
   derivePoolOraclePda,
   derivePoolPda,
@@ -489,6 +496,28 @@ test('cycle activation and treasury withdrawal builders preserve required writab
     paymentMint: paymentMint.publicKey,
   });
 
+  const splQuoteFields = {
+    poolAddress: pool.publicKey.toBase58(),
+    member: member.publicKey.toBase58(),
+    productIdHashHex: '33'.repeat(32),
+    paymentMint: paymentMint.publicKey.toBase58(),
+    premiumAmountRaw: 100n,
+    canonicalPremiumAmount: 100n,
+    periodIndex: 1n,
+    commitmentEnabled: true,
+    bondAmountRaw: 25n,
+    shieldFeeRaw: 5n,
+    protocolFeeRaw: 3n,
+    oracleFeeRaw: 2n,
+    netPoolPremiumRaw: 95n,
+    totalAmountRaw: 130n,
+    includedShieldCount: 0,
+    thresholdBps: 7000,
+    expiresAtTs: 1_800_000_000n,
+    nonceHashHex: '44'.repeat(32),
+    quoteMetaHashHex: '55'.repeat(32),
+  };
+  const splQuoteMessage = buildCycleQuoteMessage(splQuoteFields);
   const activateTx = client.buildActivateCycleWithQuoteSplTx!({
     payer: payer.publicKey.toBase58(),
     member: member.publicKey.toBase58(),
@@ -511,18 +540,73 @@ test('cycle activation and treasury withdrawal builders preserve required writab
     expiresAtTs: 1_800_000_000n,
     nonceHashHex: '44'.repeat(32),
     quoteMetaHashHex: '55'.repeat(32),
-    quoteMessage: Buffer.from('quote-message'),
+    quoteMessage: splQuoteMessage,
     oracleSecretKey: oracle.secretKey,
     recentBlockhash: '11111111111111111111111111111111',
     programId: program.publicKey.toBase58(),
   });
 
-  const activateMeta = toMeta(activateTx.instructions[1]);
+  const activateMeta = toMeta(activateTx.instructions[2]);
   assert.equal(activateMeta[12]?.pubkey, paymentMint.publicKey.toBase58());
   assert.equal(activateMeta[12]?.isWritable, true);
   assert.equal(activateMeta.at(-2)?.pubkey, SystemProgram.programId.toBase58());
   assert.equal(activateMeta.at(-1)?.pubkey, SYSVAR_INSTRUCTIONS_PUBKEY.toBase58());
+  assert.equal(activateTx.instructions[1].data.readUInt16LE(12), 57);
+  assert.deepEqual(
+    activateTx.instructions[1].data.subarray(
+      activateTx.instructions[1].data.readUInt16LE(10),
+      activateTx.instructions[1].data.readUInt16LE(10) + activateTx.instructions[1].data.readUInt16LE(12),
+    ),
+    buildCycleQuoteSignatureMessage(splQuoteMessage),
+  );
+  assert.deepEqual(buildCycleQuoteHash(splQuoteMessage), buildCycleQuoteHash(splQuoteFields));
+  assert.throws(
+    () => activateTx.serialize({ requireAllSignatures: false, verifySignatures: false }),
+    /Transaction too large/,
+    'legacy SPL activation should require a lookup-table-backed v0 transaction',
+  );
+  const splLookupAddresses = Array.from(
+    new Map(
+      activateTx.instructions
+        .flatMap((ix) => [ix.programId, ...ix.keys.filter((key) => !key.isSigner).map((key) => key.pubkey)])
+        .map((key) => [key.toBase58(), key]),
+    ).values(),
+  );
+  const splLookupTable = new AddressLookupTableAccount({
+    key: Keypair.generate().publicKey,
+    state: {
+      deactivationSlot: 0n,
+      lastExtendedSlot: 0,
+      lastExtendedSlotStartIndex: 0,
+      authority: payer.publicKey,
+      addresses: splLookupAddresses,
+    } as any,
+  });
+  const v0ActivateTx = compileTransactionToV0(activateTx, [splLookupTable]);
+  assert.ok(v0ActivateTx.message.addressTableLookups.length > 0);
+  assert.ok(v0ActivateTx.serialize().length < 1232);
 
+  const solQuoteFields = {
+    poolAddress: pool.publicKey.toBase58(),
+    member: member.publicKey.toBase58(),
+    productIdHashHex: '66'.repeat(32),
+    paymentMint: ZERO_PUBKEY,
+    premiumAmountRaw: 100n,
+    canonicalPremiumAmount: 100n,
+    periodIndex: 2n,
+    commitmentEnabled: true,
+    bondAmountRaw: 25n,
+    shieldFeeRaw: 5n,
+    protocolFeeRaw: 3n,
+    oracleFeeRaw: 2n,
+    netPoolPremiumRaw: 95n,
+    totalAmountRaw: 130n,
+    includedShieldCount: 0,
+    thresholdBps: 7000,
+    expiresAtTs: 1_800_000_000n,
+    nonceHashHex: '77'.repeat(32),
+    quoteMetaHashHex: '88'.repeat(32),
+  };
   const activateSolTx = client.buildActivateCycleWithQuoteSolTx!({
     payer: payer.publicKey.toBase58(),
     member: member.publicKey.toBase58(),
@@ -544,7 +628,7 @@ test('cycle activation and treasury withdrawal builders preserve required writab
     expiresAtTs: 1_800_000_000n,
     nonceHashHex: '77'.repeat(32),
     quoteMetaHashHex: '88'.repeat(32),
-    quoteMessage: Buffer.from('quote-message-sol'),
+    quoteMessage: buildCycleQuoteMessage(solQuoteFields),
     oracleSecretKey: oracle.secretKey,
     recentBlockhash: '11111111111111111111111111111111',
     programId: program.publicKey.toBase58(),
@@ -552,6 +636,11 @@ test('cycle activation and treasury withdrawal builders preserve required writab
   const activateSolMeta = toMeta(activateSolTx.instructions[1]);
   assert.equal(activateSolMeta.at(-2)?.pubkey, SystemProgram.programId.toBase58());
   assert.equal(activateSolMeta.at(-1)?.pubkey, SYSVAR_INSTRUCTIONS_PUBKEY.toBase58());
+  assert.equal(activateSolTx.instructions[0].data.readUInt16LE(12), 57);
+  assert.ok(
+    activateSolTx.serialize({ requireAllSignatures: false, verifySignatures: false }).length < 1232,
+    'SOL activation transaction should stay under the legacy transaction size limit',
+  );
 
   const withdrawSplTx = client.buildWithdrawPoolTreasurySplTx!({
     payer: oracle.publicKey.toBase58(),
@@ -1672,4 +1761,76 @@ test('protocol client v2 readers decode extended parity accounts', async () => {
   });
   assert.equal(coverageClaim?.claimant, claimant.toBase58());
   assert.equal(coverageClaim?.eventHashHex, eventHash.toString('hex'));
+});
+
+test('public SDK exposes pool oracle permission and coverage payment option setup builders', () => {
+  const authority = Keypair.generate();
+  const oracle = Keypair.generate();
+  const pool = Keypair.generate();
+  const paymentMint = Keypair.generate();
+  const program = Keypair.generate();
+  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
+  const client = createProtocolClient(connection, program.publicKey.toBase58());
+
+  const [oracleEntry] = deriveOraclePda({
+    programId: program.publicKey,
+    oracle: oracle.publicKey,
+  });
+  const [poolOracle] = derivePoolOraclePda({
+    programId: program.publicKey,
+    poolAddress: pool.publicKey,
+    oracle: oracle.publicKey,
+  });
+  const [poolOraclePermissions] = derivePoolOraclePermissionSetPda({
+    programId: program.publicKey,
+    poolAddress: pool.publicKey,
+    oracle: oracle.publicKey,
+  });
+  const [configV2] = deriveConfigV2Pda(program.publicKey);
+  const productIdHashHex = '77'.repeat(32);
+  const [coverageProduct] = deriveCoverageProductPda({
+    programId: program.publicKey,
+    poolAddress: pool.publicKey,
+    productIdHash: Buffer.from(productIdHashHex, 'hex'),
+  });
+  const [coverageProductPaymentOption] = deriveCoverageProductPaymentOptionPda({
+    programId: program.publicKey,
+    poolAddress: pool.publicKey,
+    productIdHash: Buffer.from(productIdHashHex, 'hex'),
+    paymentMint: paymentMint.publicKey,
+  });
+
+  const setPermissionsTx = client.buildSetPoolOraclePermissionsTx!({
+    authority: authority.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+    oracle: oracle.publicKey.toBase58(),
+    permissions: 63,
+    recentBlockhash: '11111111111111111111111111111111',
+    programId: program.publicKey.toBase58(),
+  });
+  const setPermissionsMeta = toMeta(setPermissionsTx.instructions[0]);
+  assert.equal(setPermissionsMeta[0]?.pubkey, authority.publicKey.toBase58());
+  assert.equal(setPermissionsMeta[2]?.pubkey, oracle.publicKey.toBase58());
+  assert.equal(setPermissionsMeta[3]?.pubkey, oracleEntry.toBase58());
+  assert.equal(setPermissionsMeta[4]?.pubkey, poolOracle.toBase58());
+  assert.equal(setPermissionsMeta[5]?.pubkey, poolOraclePermissions.toBase58());
+  assert.equal(setPermissionsMeta.length, 7);
+
+  const paymentOptionTx = client.buildUpsertCoverageProductPaymentOptionTx!({
+    authority: authority.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+    productIdHashHex,
+    paymentMint: paymentMint.publicKey.toBase58(),
+    paymentAmount: 42n,
+    active: true,
+    recentBlockhash: '11111111111111111111111111111111',
+    programId: program.publicKey.toBase58(),
+  });
+  const paymentOptionMeta = toMeta(paymentOptionTx.instructions[0]);
+  assert.equal(paymentOptionMeta[0]?.pubkey, authority.publicKey.toBase58());
+  assert.equal(paymentOptionMeta[1]?.pubkey, configV2.toBase58());
+  assert.equal(paymentOptionMeta[3]?.pubkey, coverageProduct.toBase58());
+  assert.equal(paymentOptionMeta[4]?.pubkey, paymentMint.publicKey.toBase58());
+  assert.equal(paymentOptionMeta[5]?.pubkey, coverageProductPaymentOption.toBase58());
+  assert.equal(paymentOptionMeta.length, 7);
 });

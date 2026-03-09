@@ -10,6 +10,7 @@ import {
   normalizeClaimSimulationFailure,
   validateSignedClaimTx,
 } from '../src/claims.js';
+import { compileTransactionToV0 } from '../src/protocol.js';
 import {
   deriveClaimV2Pda,
   deriveConfigV2Pda,
@@ -188,6 +189,49 @@ test('validateSignedClaimTx validates required signer signature', () => {
   assert.ok(valid.txSignature);
 });
 
+test('validateSignedClaimTx accepts versioned signed tx when message matches prepared intent', () => {
+  const claimant = Keypair.generate();
+  const program = Keypair.generate();
+  const pool = Keypair.generate();
+
+  const intent = buildUnsignedClaimTx({
+    intentId: 'intent-versioned',
+    claimantWallet: claimant.publicKey.toBase58(),
+    cycleId: 'cycle-versioned',
+    outcomeId: 'outcome-versioned',
+    attestationRefs: ['att-versioned'],
+    recentBlockhash: '11111111111111111111111111111111',
+    expiresAtIso: '2026-12-31T00:00:00.000Z',
+    programId: program.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+  });
+
+  const unsignedLegacyTx = Transaction.from(
+    Buffer.from(intent.unsignedTxBase64, 'base64'),
+  );
+  const unsignedVersionedTx = compileTransactionToV0(unsignedLegacyTx, []);
+  const expectedUnsignedTxBase64 = Buffer.from(
+    unsignedVersionedTx.serialize(),
+  ).toString('base64');
+
+  const signedVersionedTx = compileTransactionToV0(unsignedLegacyTx, []);
+  signedVersionedTx.sign([claimant]);
+  const signedTxBase64 = Buffer.from(signedVersionedTx.serialize()).toString(
+    'base64',
+  );
+
+  const result = validateSignedClaimTx({
+    signedTxBase64,
+    requiredSigner: claimant.publicKey.toBase58(),
+    expectedUnsignedTxBase64,
+  });
+
+  assert.equal(result.valid, true);
+  assert.equal(result.reason, null);
+  assert.equal(result.signer, claimant.publicKey.toBase58());
+  assert.ok(result.txSignature);
+});
+
 test('validateSignedClaimTx enforces signed tx message match with prepared intent', () => {
   const claimant = Keypair.generate();
   const program = Keypair.generate();
@@ -249,6 +293,38 @@ test('validateSignedClaimTx accepts signed tx when message matches prepared inte
   });
 
   const tx = Transaction.from(Buffer.from(intent.unsignedTxBase64, 'base64'));
+  tx.sign(claimant);
+  const signedTxBase64 = tx.serialize().toString('base64');
+
+  const result = validateSignedClaimTx({
+    signedTxBase64,
+    requiredSigner: claimant.publicKey.toBase58(),
+    expectedUnsignedTxBase64: intent.unsignedTxBase64,
+  });
+
+  assert.equal(result.valid, true);
+  assert.equal(result.reason, null);
+});
+
+test('validateSignedClaimTx accepts signed tx when only the recent blockhash changes', () => {
+  const claimant = Keypair.generate();
+  const program = Keypair.generate();
+  const pool = Keypair.generate();
+
+  const intent = buildUnsignedClaimTx({
+    intentId: 'intent-blockhash-refresh',
+    claimantWallet: claimant.publicKey.toBase58(),
+    cycleId: 'cycle-blockhash-refresh',
+    outcomeId: 'outcome-blockhash-refresh',
+    attestationRefs: ['att-blockhash-refresh'],
+    recentBlockhash: '11111111111111111111111111111111',
+    expiresAtIso: '2026-12-31T00:00:00.000Z',
+    programId: program.publicKey.toBase58(),
+    poolAddress: pool.publicKey.toBase58(),
+  });
+
+  const tx = Transaction.from(Buffer.from(intent.unsignedTxBase64, 'base64'));
+  tx.recentBlockhash = Keypair.generate().publicKey.toBase58();
   tx.sign(claimant);
   const signedTxBase64 = tx.serialize().toString('base64');
 

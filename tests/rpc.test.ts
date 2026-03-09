@@ -1,9 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { Keypair, SystemProgram, Transaction, VersionedTransaction } from '@solana/web3.js';
 
 import {
   OMEGAX_NETWORKS,
   createConnection,
+  createRpcClient,
+  compileTransactionToV0,
   getOmegaXNetworkInfo,
 } from '../src/index.js';
 
@@ -89,4 +92,111 @@ test('network helpers throw explicit errors for unsupported network input', () =
     () => createConnection({ network: 'testnet' as any }),
     /Unsupported OmegaX network "testnet"/,
   );
+});
+
+test('createRpcClient simulates versioned transactions without legacy decoding assumptions', async () => {
+  const payer = Keypair.generate();
+  const recipient = Keypair.generate();
+  const legacyTx = new Transaction({
+    feePayer: payer.publicKey,
+    recentBlockhash: '11111111111111111111111111111111',
+  }).add(
+    SystemProgram.transfer({
+      fromPubkey: payer.publicKey,
+      toPubkey: recipient.publicKey,
+      lamports: 1,
+    }),
+  );
+  const signedVersionedTx = compileTransactionToV0(legacyTx, []);
+  signedVersionedTx.sign([payer]);
+
+  let simulatedTx: unknown = null;
+  const rpc = createRpcClient({
+    async getLatestBlockhash() {
+      return {
+        blockhash: '11111111111111111111111111111111',
+        lastValidBlockHeight: 1,
+      };
+    },
+    async simulateTransaction(transaction: unknown) {
+      simulatedTx = transaction;
+      return {
+        value: {
+          err: null,
+          logs: ['ok'],
+          unitsConsumed: 1234,
+        },
+      };
+    },
+  } as any);
+
+  const result = await rpc.simulateSignedTx({
+    signedTxBase64: Buffer.from(signedVersionedTx.serialize()).toString('base64'),
+    sigVerify: true,
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.logs, ['ok']);
+  assert.equal(result.unitsConsumed, 1234);
+  assert.ok(simulatedTx instanceof VersionedTransaction);
+});
+
+test('createRpcClient retries signed simulation without sigVerify when RPC rejects argument combination', async () => {
+  const payer = Keypair.generate();
+  const recipient = Keypair.generate();
+  const tx = new Transaction({
+    feePayer: payer.publicKey,
+    recentBlockhash: '11111111111111111111111111111111',
+  }).add(
+    SystemProgram.transfer({
+      fromPubkey: payer.publicKey,
+      toPubkey: recipient.publicKey,
+      lamports: 1,
+    }),
+  );
+  tx.sign(payer);
+
+  const simulationOptions: unknown[] = [];
+  const rpc = createRpcClient({
+    async getLatestBlockhash() {
+      return {
+        blockhash: '11111111111111111111111111111111',
+        lastValidBlockHeight: 1,
+      };
+    },
+    async simulateTransaction(_transaction: unknown, options: unknown) {
+      simulationOptions.push(options);
+      if (simulationOptions.length === 1) {
+        throw new Error('Invalid arguments');
+      }
+      return {
+        value: {
+          err: null,
+          logs: ['retry-ok'],
+          unitsConsumed: 4321,
+        },
+      };
+    },
+  } as any);
+
+  const result = await rpc.simulateSignedTx({
+    signedTxBase64: tx.serialize().toString('base64'),
+    sigVerify: true,
+    replaceRecentBlockhash: true,
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.logs, ['retry-ok']);
+  assert.equal(result.unitsConsumed, 4321);
+  assert.equal(simulationOptions.length, 2);
+  assert.deepEqual(simulationOptions[0], {
+    commitment: 'confirmed',
+    replaceRecentBlockhash: true,
+    sigVerify: true,
+  });
+  assert.deepEqual(simulationOptions[1], {
+    commitment: 'confirmed',
+    replaceRecentBlockhash: true,
+    sigVerify: false,
+  });
 });

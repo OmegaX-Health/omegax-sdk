@@ -34,6 +34,7 @@ export const SEED_CLAIM_V2 = 'claim_v2';
 export const SEED_COVERAGE_POLICY = 'coverage_policy';
 export const SEED_COVERAGE_NFT = 'coverage_nft';
 export const SEED_COVERAGE_PRODUCT = 'coverage_product';
+export const SEED_COVERAGE_PRODUCT_PAYMENT_OPTION = 'coverage_product_payment_option';
 export const SEED_PREMIUM_LEDGER = 'premium_ledger';
 export const SEED_PREMIUM_REPLAY = 'premium_replay';
 export const SEED_COVERAGE_CLAIM = 'coverage_claim';
@@ -241,6 +242,26 @@ export function derivePoolAssetVaultPda(params: {
   const mint = asPubkey(params.payoutMint);
   return PublicKey.findProgramAddressSync(
     [Buffer.from(SEED_POOL_ASSET_VAULT), pool.toBuffer(), mint.toBuffer()],
+    program,
+  );
+}
+
+export function deriveCoverageProductPaymentOptionPda(params: {
+  programId: string | PublicKey;
+  poolAddress: string | PublicKey;
+  productIdHash: Uint8Array;
+  paymentMint: string | PublicKey;
+}): [PublicKey, number] {
+  const program = asPubkey(params.programId);
+  const pool = asPubkey(params.poolAddress);
+  const mint = asPubkey(params.paymentMint);
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(SEED_COVERAGE_PRODUCT_PAYMENT_OPTION),
+      pool.toBuffer(),
+      Buffer.from(params.productIdHash),
+      mint.toBuffer(),
+    ],
     program,
   );
 }

@@ -1,7 +1,6 @@
 import {
   Connection,
   type Commitment,
-  Transaction,
 } from '@solana/web3.js';
 
 import type {
@@ -14,6 +13,23 @@ import type {
   SimulateSignedTxResult,
 } from './types.js';
 import { normalizeClaimSimulationFailure } from './claims.js';
+import {
+  decodeSolanaTransaction,
+  type SolanaTransaction,
+} from './transactions.js';
+
+function shouldRetrySignedSimulationWithoutSigVerify(params: {
+  error: unknown;
+  replaceRecentBlockhash: boolean;
+  sigVerify: boolean;
+}): boolean {
+  const message = params.error instanceof Error ? params.error.message : String(params.error);
+  return (
+    params.sigVerify
+    && params.replaceRecentBlockhash
+    && /invalid arguments/i.test(message)
+  );
+}
 
 export type OmegaXNetwork = 'devnet' | 'mainnet';
 export type OmegaXNetworkInput = OmegaXNetwork | 'mainnet-beta';
@@ -122,9 +138,9 @@ export function createRpcClient(connection: Connection): RpcClient {
     },
 
     async simulateSignedTx(params: SimulateSignedTxParams): Promise<SimulateSignedTxResult> {
-      let tx: Transaction;
+      let tx: SolanaTransaction;
       try {
-        tx = Transaction.from(Buffer.from(params.signedTxBase64, 'base64'));
+        tx = decodeSolanaTransaction(params.signedTxBase64);
       } catch (error) {
         return {
           ok: false,
@@ -135,11 +151,49 @@ export function createRpcClient(connection: Connection): RpcClient {
         };
       }
 
-      const result = await (connection as any).simulateTransaction(tx, {
+      const replaceRecentBlockhash = params.replaceRecentBlockhash ?? true;
+      const sigVerify = params.sigVerify ?? true;
+      const baseOptions = {
         commitment: params.commitment ?? 'confirmed',
-        replaceRecentBlockhash: params.replaceRecentBlockhash ?? true,
-        sigVerify: params.sigVerify ?? true,
-      });
+        replaceRecentBlockhash,
+        sigVerify,
+      };
+
+      let result;
+      try {
+        result = await (connection as any).simulateTransaction(tx, baseOptions);
+      } catch (error) {
+        if (
+          !shouldRetrySignedSimulationWithoutSigVerify({
+            error,
+            replaceRecentBlockhash,
+            sigVerify,
+          })
+        ) {
+          return {
+            ok: false,
+            logs: [],
+            unitsConsumed: null,
+            err: error,
+            failure: normalizeClaimSimulationFailure({ err: error, logs: [] }),
+          };
+        }
+
+        try {
+          result = await (connection as any).simulateTransaction(tx, {
+            ...baseOptions,
+            sigVerify: false,
+          });
+        } catch (retryError) {
+          return {
+            ok: false,
+            logs: [],
+            unitsConsumed: null,
+            err: retryError,
+            failure: normalizeClaimSimulationFailure({ err: retryError, logs: [] }),
+          };
+        }
+      }
 
       const logs = result.value.logs ?? [];
       const unitsConsumed = typeof result.value.unitsConsumed === 'number'

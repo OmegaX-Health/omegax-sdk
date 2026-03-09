@@ -16,6 +16,7 @@ import {
   deriveCoverageNftPda,
   deriveCoveragePolicyPda,
   deriveCoverageProductPda,
+  deriveCoverageProductPaymentOptionPda,
   deriveCycleQuoteReplayPda,
   deriveEnrollmentReplayPda,
   deriveInviteIssuerPda,
@@ -250,6 +251,12 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
     poolAddress: pool,
     productIdHash,
   });
+  const [coverageProductPaymentOption] = deriveCoverageProductPaymentOptionPda({
+    programId,
+    poolAddress: pool,
+    productIdHash,
+    paymentMint: payoutMint,
+  });
   const [coveragePolicy] = deriveCoveragePolicyPda({
     programId,
     poolAddress: pool,
@@ -341,6 +348,7 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
     coverage_policy: coveragePolicy,
     coverage_policy_nft: coveragePolicyNft,
     coverage_product: coverageProduct,
+    coverage_product_payment_option: coverageProductPaymentOption,
     cycle_quote_replay: cycleQuoteReplay,
     destination_token_account: destinationTokenAccount,
     enrollment_replay: enrollmentReplay,
@@ -574,6 +582,16 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
       recentBlockhash,
       programId: programId.toBase58(),
     }),
+    upsert_coverage_product_payment_option: () => client.buildUpsertCoverageProductPaymentOptionTx!({
+      authority: authority.toBase58(),
+      poolAddress: pool.toBase58(),
+      productIdHashHex,
+      paymentMint: payoutMint.toBase58(),
+      paymentAmount: 30n,
+      active: true,
+      recentBlockhash,
+      programId: programId.toBase58(),
+    }),
     register_invite_issuer: () => client.buildRegisterInviteIssuerTx!({
       issuer: issuer.toBase58(),
       organizationRef: 'omega-org',
@@ -650,6 +668,14 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
       requireVerifiedSchema: true,
       oracleFeeBps: 15,
       allowDelegateClaim: true,
+      recentBlockhash,
+      programId: programId.toBase58(),
+    }),
+    set_pool_oracle_permissions: () => client.buildSetPoolOraclePermissionsTx!({
+      authority: authority.toBase58(),
+      poolAddress: pool.toBase58(),
+      oracle: oracle.toBase58(),
+      permissions: 63,
       recentBlockhash,
       programId: programId.toBase58(),
     }),
@@ -889,9 +915,11 @@ test('sdk builders stay in strict account-order parity with omegaxhealth_protoco
 
   const sdkInstructionNames = Object.keys(buildByInstruction).sort();
   const requiredInstructionNames = [
+    'set_pool_oracle_permissions',
     'set_pool_coverage_reserve_floor',
     'settle_cycle_commitment',
     'settle_cycle_commitment_sol',
+    'upsert_coverage_product_payment_option',
     'withdraw_pool_treasury_sol',
     'withdraw_pool_treasury_spl',
     'withdraw_protocol_fee_sol',

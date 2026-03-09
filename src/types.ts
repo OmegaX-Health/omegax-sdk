@@ -473,6 +473,7 @@ export interface BuildActivateCycleWithQuoteSolTxParams {
   quoteMetaHashHex: string;
   quoteMessage: Uint8Array;
   oracleSecretKey: Uint8Array;
+  computeUnitLimit?: number;
   recentBlockhash: string;
   programId: string;
 }
@@ -501,6 +502,7 @@ export interface BuildActivateCycleWithQuoteSplTxParams {
   quoteMetaHashHex: string;
   quoteMessage: Uint8Array;
   oracleSecretKey: Uint8Array;
+  computeUnitLimit?: number;
   recentBlockhash: string;
   programId: string;
 }
@@ -664,6 +666,7 @@ export interface ProtocolClient {
   buildSlashOracleTx?: (params: BuildSlashOracleTxParams) => Transaction;
   buildCreatePoolV2Tx?: (params: BuildCreatePoolV2TxParams) => Transaction;
   buildSetPoolOraclePolicyTx?: (params: BuildSetPoolOraclePolicyTxParams) => Transaction;
+  buildSetPoolOraclePermissionsTx?: (params: BuildSetPoolOraclePermissionsTxParams) => Transaction;
   buildSetPoolTermsHashTx?: (params: BuildSetPoolTermsHashTxParams) => Transaction;
   buildRegisterOutcomeSchemaTx?: (params: BuildRegisterOutcomeSchemaTxParams) => Transaction;
   buildVerifyOutcomeSchemaTx?: (params: BuildVerifyOutcomeSchemaTxParams) => Transaction;
@@ -680,6 +683,9 @@ export interface ProtocolClient {
   buildSubmitRewardClaimTx?: (params: BuildSubmitRewardClaimTxParams) => Transaction;
   buildRegisterCoverageProductV2Tx?: (params: BuildRegisterCoverageProductV2TxParams) => Transaction;
   buildUpdateCoverageProductV2Tx?: (params: BuildUpdateCoverageProductV2TxParams) => Transaction;
+  buildUpsertCoverageProductPaymentOptionTx?: (
+    params: BuildUpsertCoverageProductPaymentOptionTxParams,
+  ) => Transaction;
   buildSubscribeCoverageProductV2Tx?: (params: BuildSubscribeCoverageProductV2TxParams) => Transaction;
   buildIssueCoveragePolicyFromProductV2Tx?: (params: BuildIssueCoveragePolicyFromProductV2TxParams) => Transaction;
   buildCreateCoveragePolicyTx?: (params: BuildCreateCoveragePolicyTxParams) => Transaction;
@@ -739,6 +745,11 @@ export interface ProtocolClient {
     poolAddress: string;
     productIdHashHex: string;
   }) => Promise<ProtocolCoverageProductAccount | null>;
+  fetchCoverageProductPaymentOption?: (params: {
+    poolAddress: string;
+    productIdHashHex: string;
+    paymentMint: string;
+  }) => Promise<ProtocolCoverageProductPaymentOptionAccount | null>;
   fetchCoveragePolicy?: (params: { poolAddress: string; member: string }) => Promise<ProtocolCoveragePolicyAccount | null>;
   fetchCoveragePolicyPositionNft?: (params: {
     poolAddress: string;
@@ -1051,6 +1062,16 @@ export interface ProtocolCoverageProductAccount {
   bump: number;
 }
 
+export interface ProtocolCoverageProductPaymentOptionAccount {
+  address: string;
+  pool: string;
+  productIdHashHex: string;
+  paymentMint: string;
+  paymentAmount: bigint;
+  active: boolean;
+  bump: number;
+}
+
 export interface ProtocolCoveragePolicyPositionNftAccount {
   address: string;
   pool: string;
@@ -1223,6 +1244,15 @@ export interface BuildSetPoolOraclePolicyTxParams {
   requireVerifiedSchema: boolean;
   oracleFeeBps: number;
   allowDelegateClaim: boolean;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildSetPoolOraclePermissionsTxParams {
+  authority: string;
+  poolAddress: string;
+  oracle: string;
+  permissions: number;
   recentBlockhash: string;
   programId: string;
 }
@@ -1468,6 +1498,17 @@ export interface BuildRegisterCoverageProductV2TxParams {
   premiumDueEverySecs: number;
   premiumGraceSecs: number;
   premiumAmount: bigint;
+  active: boolean;
+  recentBlockhash: string;
+  programId: string;
+}
+
+export interface BuildUpsertCoverageProductPaymentOptionTxParams {
+  authority: string;
+  poolAddress: string;
+  productIdHashHex: string;
+  paymentMint: string;
+  paymentAmount: bigint;
   active: boolean;
   recentBlockhash: string;
   programId: string;
