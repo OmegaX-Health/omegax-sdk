@@ -13,6 +13,7 @@ jobs:
       contents: read
       id-token: write
     steps:
+      # v5 runs on the current GitHub-hosted JavaScript runtime and avoids the Node 20 deprecation warning.
       - name: Checkout
         uses: actions/checkout@v5
 
