@@ -14,7 +14,7 @@ async function listFilesRecursively(rootPath, extension) {
   for (const entry of entries) {
     const fullPath = join(rootPath, entry.name);
     if (entry.isDirectory()) {
-      files.push(...await listFilesRecursively(fullPath, extension));
+      files.push(...(await listFilesRecursively(fullPath, extension)));
       continue;
     }
     if (entry.isFile() && fullPath.endsWith(extension)) {
@@ -60,7 +60,10 @@ async function main() {
   const sourcePaths = await listFilesRecursively(SOURCE_ROOT, '.ts');
 
   const sourceTextByFile = await Promise.all(
-    sourcePaths.map(async (path) => ({ path, text: await readFile(path, 'utf8') })),
+    sourcePaths.map(async (path) => ({
+      path,
+      text: await readFile(path, 'utf8'),
+    })),
   );
 
   const symbols = await collectDocumentedSymbols(docPaths);
@@ -83,7 +86,9 @@ async function main() {
     return;
   }
 
-  console.log(`Documentation symbol check passed (${symbols.length} callable references verified).`);
+  console.log(
+    `Documentation symbol check passed (${symbols.length} callable references verified).`,
+  );
 }
 
 main().catch((error) => {

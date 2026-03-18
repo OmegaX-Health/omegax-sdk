@@ -2,7 +2,13 @@
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -21,9 +27,9 @@ const artifactsRoot = resolve(sdkRoot, 'artifacts');
 const keepArtifacts = process.env.OMEGAX_E2E_KEEP_ARTIFACTS === '1';
 const skipBuild = process.env.OMEGAX_PROTOCOL_SKIP_BUILD === '1';
 const protocolProgramId =
-  process.env.PROTOCOL_PROGRAM_ID
-  ?? process.env.NEXT_PUBLIC_PROTOCOL_PROGRAM_ID
-  ?? 'Bn6eixac1QEEVErGBvBjxAd6pgB9e2q4XHvAkinQ5y1B';
+  process.env.PROTOCOL_PROGRAM_ID ??
+  process.env.NEXT_PUBLIC_PROTOCOL_PROGRAM_ID ??
+  'Bn6eixac1QEEVErGBvBjxAd6pgB9e2q4XHvAkinQ5y1B';
 const zeroPubkey = new PublicKey('11111111111111111111111111111111');
 
 function nowStamp() {
@@ -41,7 +47,9 @@ async function freePort(excludedPorts = new Set()) {
       server.listen(0, '127.0.0.1', () => {
         const address = server.address();
         if (!address || typeof address === 'string') {
-          server.close(() => rejectPort(new Error('Unable to allocate a local port')));
+          server.close(() =>
+            rejectPort(new Error('Unable to allocate a local port')),
+          );
           return;
         }
         server.close((error) => {
@@ -59,7 +67,9 @@ async function freePort(excludedPorts = new Set()) {
     }
   }
 
-  throw new Error('Unable to allocate a free local port outside the excluded set');
+  throw new Error(
+    'Unable to allocate a free local port outside the excluded set',
+  );
 }
 
 async function freeRpcPortPair() {
@@ -203,7 +213,9 @@ async function waitForRpc(rpcUrl) {
     await new Promise((resolveSleep) => setTimeout(resolveSleep, 500));
   }
 
-  throw new Error(`Timed out waiting for validator RPC at ${rpcUrl}: ${lastError}`);
+  throw new Error(
+    `Timed out waiting for validator RPC at ${rpcUrl}: ${lastError}`,
+  );
 }
 
 async function runCommand(params) {
@@ -282,15 +294,11 @@ async function runPhase(params) {
     protocolPaths.programSoPath,
   );
 
-  const validator = spawn(
-    'solana-test-validator',
-    validatorArgs,
-    {
-      cwd: protocolRepo,
-      env: process.env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  );
+  const validator = spawn('solana-test-validator', validatorArgs, {
+    cwd: protocolRepo,
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
 
   validator.stdout.pipe(logStream);
   validator.stderr.pipe(logStream);
@@ -317,7 +325,11 @@ async function runPhase(params) {
 
     const targetDir = resolve(artifactsRoot, `${params.name}-${nowStamp()}`);
     mkdirSync(targetDir, { recursive: true });
-    writeFileSync(resolve(targetDir, 'validator.log'), readFileSync(logPath, 'utf8'), 'utf8');
+    writeFileSync(
+      resolve(targetDir, 'validator.log'),
+      readFileSync(logPath, 'utf8'),
+      'utf8',
+    );
   };
 
   process.once('exit', () => {
@@ -348,7 +360,9 @@ async function runPhase(params) {
 
 async function main() {
   if (!existsSync(protocolPaths.e2eTestPath)) {
-    throw new Error(`Protocol E2E suite not found at ${protocolPaths.e2eTestPath}`);
+    throw new Error(
+      `Protocol E2E suite not found at ${protocolPaths.e2eTestPath}`,
+    );
   }
 
   if (!skipBuild) {
@@ -361,13 +375,17 @@ async function main() {
   }
 
   if (!existsSync(protocolPaths.programSoPath)) {
-    throw new Error(`Compiled program is missing at ${protocolPaths.programSoPath}`);
+    throw new Error(
+      `Compiled program is missing at ${protocolPaths.programSoPath}`,
+    );
   }
 
   await runPhase({
     name: 'sdk-localnet-smoke',
     run: async (context) => {
-      console.log(`[omegax-sdk] Running SDK localnet smoke against ${context.rpcUrl}`);
+      console.log(
+        `[omegax-sdk] Running SDK localnet smoke against ${context.rpcUrl}`,
+      );
       await runCommand({
         command: 'node',
         args: [
@@ -398,7 +416,9 @@ async function main() {
             artifactsRoot,
             `sdk-protocol-surface-summary-${nowStamp()}.json`,
           );
-      console.log(`[omegax-sdk] Running protocol surface matrix through SDK adapter against ${context.rpcUrl}`);
+      console.log(
+        `[omegax-sdk] Running protocol surface matrix through SDK adapter against ${context.rpcUrl}`,
+      );
       await runCommand({
         command: 'node',
         args: [
@@ -423,7 +443,8 @@ async function main() {
           OMEGAX_E2E_WS_URL: context.wsUrl,
           OMEGAX_E2E_FAUCET_PORT: String(context.faucetPort),
           OMEGAX_E2E_DYNAMIC_PORT_RANGE: context.dynamicPortRange,
-          OMEGAX_E2E_LEGACY_SCHEMA_ADDRESS: context.legacySchemaFixture?.schemaAddress ?? '',
+          OMEGAX_E2E_LEGACY_SCHEMA_ADDRESS:
+            context.legacySchemaFixture?.schemaAddress ?? '',
           OMEGAX_E2E_LEGACY_SCHEMA_KEY_HASH_HEX:
             context.legacySchemaFixture?.schemaKeyHashHex ?? '',
         },

@@ -6,7 +6,13 @@ import type {
   OracleKmsSignerAdapter,
   OutcomeAttestation,
 } from './types.js';
-import { newId, nowIso, sha256Hex, stableStringify, toIsoString } from './utils.js';
+import {
+  newId,
+  nowIso,
+  sha256Hex,
+  stableStringify,
+  toIsoString,
+} from './utils.js';
 
 export type AttestOutcomeParams = {
   userId: string;
@@ -15,7 +21,9 @@ export type AttestOutcomeParams = {
   asOfIso: string;
   payload: Record<string, unknown>;
   signer: OracleSigner;
-  submitAttestation?: (attestation: OutcomeAttestation) => Promise<{ txSignature?: string }>;
+  submitAttestation?: (
+    attestation: OutcomeAttestation,
+  ) => Promise<{ txSignature?: string }>;
 };
 
 export type AttestOutcomeResult = {
@@ -28,7 +36,8 @@ export function createOracleSignerFromEnv(params?: {
   secretKeyBase58Env?: string;
 }): OracleSigner {
   const keyIdEnv = params?.keyIdEnv ?? 'ORACLE_SIGNER_KEY_ID';
-  const secretKeyEnv = params?.secretKeyBase58Env ?? 'ORACLE_SIGNER_SECRET_KEY_BASE58';
+  const secretKeyEnv =
+    params?.secretKeyBase58Env ?? 'ORACLE_SIGNER_SECRET_KEY_BASE58';
 
   const keyId = String(process.env[keyIdEnv] || '').trim();
   const secretKeyBase58 = String(process.env[secretKeyEnv] || '').trim();
@@ -56,7 +65,9 @@ export function createOracleSignerFromEnv(params?: {
   };
 }
 
-export function createOracleSignerFromKmsAdapter(adapter: OracleKmsSignerAdapter): OracleSigner {
+export function createOracleSignerFromKmsAdapter(
+  adapter: OracleKmsSignerAdapter,
+): OracleSigner {
   return {
     keyId: adapter.keyId,
     publicKeyBase58: adapter.publicKeyBase58,
@@ -91,7 +102,9 @@ function canonicalAttestationBody(params: {
   };
 }
 
-export async function attestOutcome(params: AttestOutcomeParams): Promise<AttestOutcomeResult> {
+export async function attestOutcome(
+  params: AttestOutcomeParams,
+): Promise<AttestOutcomeResult> {
   const id = newId('att');
   const issuedAtIso = nowIso();
 
@@ -120,7 +133,8 @@ export async function attestOutcome(params: AttestOutcomeParams): Promise<Attest
   let txSignature: string | null = null;
   if (params.submitAttestation) {
     const result = await params.submitAttestation(attestation);
-    txSignature = typeof result?.txSignature === 'string' ? result.txSignature : null;
+    txSignature =
+      typeof result?.txSignature === 'string' ? result.txSignature : null;
   }
 
   return {

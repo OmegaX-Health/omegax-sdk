@@ -15,11 +15,7 @@ import type {
   ValidateSignedClaimTxParams,
   ValidateSignedClaimTxResult,
 } from './types.js';
-import {
-  anchorDiscriminator,
-  encodeU64Le,
-  fromHex,
-} from './utils.js';
+import { fromHex } from './utils.js';
 import {
   decodeSolanaTransaction,
   type SolanaTransaction,
@@ -40,46 +36,16 @@ import {
   deriveMembershipPda,
   ZERO_PUBKEY,
 } from './protocol_seeds.js';
-
-const SUBMIT_REWARD_CLAIM_DISCRIMINATOR = anchorDiscriminator('global', 'submit_reward_claim');
+import {
+  encodeSubmitRewardClaimPayload,
+  validateRewardClaimOptionalAccounts,
+} from './internal/reward-claim.js';
 
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-function validateRewardClaimOptionalAccounts(params: {
-  memberCycle?: string;
-  cohortSettlementRoot?: string;
-  poolAssetVault?: string;
-  poolVaultTokenAccount?: string;
-  recipientTokenAccount?: string;
-}): void {
-  const providedCount = [
-    params.poolAssetVault,
-    params.poolVaultTokenAccount,
-    params.recipientTokenAccount,
-  ].filter((value) => typeof value === 'string' && value.length > 0).length;
-
-  if (providedCount !== 0 && providedCount !== 3) {
-    throw new Error(
-      'poolAssetVault, poolVaultTokenAccount, and recipientTokenAccount must be provided together',
-    );
-  }
-}
-
-function serializeSubmitRewardClaimPayload(params: BuildUnsignedRewardClaimTxParams): Buffer {
-  const cycleHash = fromHex(params.cycleHashHex, 32);
-  const ruleHash = fromHex(params.ruleHashHex, 32);
-  const intentHash = fromHex(params.intentHashHex, 32);
-  return Buffer.concat([
-    SUBMIT_REWARD_CLAIM_DISCRIMINATOR,
-    new PublicKey(params.member).toBuffer(),
-    Buffer.from(cycleHash),
-    Buffer.from(ruleHash),
-    Buffer.from(intentHash),
-    encodeU64Le(params.payoutAmount),
-    new PublicKey(params.recipient).toBuffer(),
-  ]);
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
 }
 
 export function buildUnsignedRewardClaimTx(
@@ -166,13 +132,29 @@ export function buildUnsignedRewardClaimTx(
       isSigner: false,
       isWritable: params.cohortSettlementRoot != null,
     },
-    { pubkey: new PublicKey(params.recipientSystemAccount), isSigner: false, isWritable: true },
+    {
+      pubkey: new PublicKey(params.recipientSystemAccount),
+      isSigner: false,
+      isWritable: true,
+    },
     { pubkey: claimDelegateAccount, isSigner: false, isWritable: false },
     { pubkey: poolAssetVaultAccount, isSigner: false, isWritable: false },
-    { pubkey: poolVaultTokenAccount, isSigner: false, isWritable: params.poolVaultTokenAccount != null },
-    { pubkey: recipientTokenAccount, isSigner: false, isWritable: params.recipientTokenAccount != null },
+    {
+      pubkey: poolVaultTokenAccount,
+      isSigner: false,
+      isWritable: params.poolVaultTokenAccount != null,
+    },
+    {
+      pubkey: recipientTokenAccount,
+      isSigner: false,
+      isWritable: params.recipientTokenAccount != null,
+    },
     { pubkey: claimRecordPda, isSigner: false, isWritable: true },
-    { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
+    {
+      pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+      isSigner: false,
+      isWritable: false,
+    },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     {
       pubkey: params.includePoolCompliancePolicy
@@ -186,7 +168,7 @@ export function buildUnsignedRewardClaimTx(
   const instruction = new TransactionInstruction({
     keys,
     programId,
-    data: serializeSubmitRewardClaimPayload(params),
+    data: encodeSubmitRewardClaimPayload(params),
   });
 
   const tx = new Transaction({
@@ -199,7 +181,9 @@ export function buildUnsignedRewardClaimTx(
     .toString('base64');
 
   return {
-    intentHashHex: Buffer.from(fromHex(params.intentHashHex, 32)).toString('hex'),
+    intentHashHex: Buffer.from(fromHex(params.intentHashHex, 32)).toString(
+      'hex',
+    ),
     unsignedTxBase64,
     requiredSigner: claimant.toBase58(),
   };
@@ -220,17 +204,22 @@ export function validateSignedClaimTx(
     };
   }
 
-  if (typeof params.expectedUnsignedTxBase64 === 'string' && params.expectedUnsignedTxBase64.length > 0) {
+  if (
+    typeof params.expectedUnsignedTxBase64 === 'string' &&
+    params.expectedUnsignedTxBase64.length > 0
+  ) {
     try {
       const expectedUnsignedTx = decodeSolanaTransaction(
         params.expectedUnsignedTxBase64,
       );
       const signedMessageBytes = solanaTransactionMessageBytes(tx);
-      const expectedMessageBytes = solanaTransactionMessageBytes(expectedUnsignedTx);
+      const expectedMessageBytes =
+        solanaTransactionMessageBytes(expectedUnsignedTx);
 
       if (!bytesEqual(signedMessageBytes, expectedMessageBytes)) {
         const signedIntentBytes = solanaTransactionIntentMessageBytes(tx);
-        const expectedIntentBytes = solanaTransactionIntentMessageBytes(expectedUnsignedTx);
+        const expectedIntentBytes =
+          solanaTransactionIntentMessageBytes(expectedUnsignedTx);
 
         if (!bytesEqual(signedIntentBytes, expectedIntentBytes)) {
           return {
@@ -271,7 +260,10 @@ export function validateSignedClaimTx(
     };
   }
 
-  const requiredSignature = solanaTransactionSignerSignature(tx, expectedSigner);
+  const requiredSignature = solanaTransactionSignerSignature(
+    tx,
+    expectedSigner,
+  );
   if (!requiredSignature) {
     return {
       valid: false,
@@ -333,25 +325,28 @@ export function normalizeClaimSimulationFailure(params: {
   const haystack = `${logsText}\n${errText}`;
 
   if (
-    haystack.includes('insufficientpoolliquidity')
-    || haystack.includes('insufficient funds')
-    || haystack.includes('insufficient lamports')
+    haystack.includes('insufficientpoolliquidity') ||
+    haystack.includes('insufficient funds') ||
+    haystack.includes('insufficient lamports')
   ) {
     return {
       code: 'simulation_failed_insufficient_funds',
       message: 'Pool does not have sufficient liquidity for this claim.',
     };
   }
-  if (haystack.includes('poolnotactive') || haystack.includes('pool is not active')) {
+  if (
+    haystack.includes('poolnotactive') ||
+    haystack.includes('pool is not active')
+  ) {
     return {
       code: 'simulation_failed_pool_paused',
       message: 'Pool is paused or not active for claims.',
     };
   }
   if (
-    haystack.includes('membershipnotactive')
-    || haystack.includes('membership member mismatch')
-    || haystack.includes('membership')
+    haystack.includes('membershipnotactive') ||
+    haystack.includes('membership member mismatch') ||
+    haystack.includes('membership')
   ) {
     return {
       code: 'simulation_failed_membership_invalid',
@@ -369,9 +364,9 @@ export function normalizeClaimRpcFailure(error: unknown): ClaimFailureDetail {
   const message = error instanceof Error ? error.message : String(error);
   const normalized = lower(message);
   if (
-    normalized.includes('timeout')
-    || normalized.includes('timed out')
-    || normalized.includes('blockhash not found')
+    normalized.includes('timeout') ||
+    normalized.includes('timed out') ||
+    normalized.includes('blockhash not found')
   ) {
     return {
       code: 'rpc_timeout',

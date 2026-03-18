@@ -11,7 +11,8 @@ test('attestOutcome produces verifiable signature', async () => {
   const signer = {
     keyId: 'oracle-test-key',
     publicKeyBase58: bs58.encode(kp.publicKey),
-    sign: async (message: Uint8Array) => nacl.sign.detached(message, kp.secretKey),
+    sign: async (message: Uint8Array) =>
+      nacl.sign.detached(message, kp.secretKey),
   };
 
   const { attestation } = await attestOutcome({

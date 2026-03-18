@@ -8,8 +8,9 @@ const adapterUrl = pathToFileURL(
 
 export async function resolve(specifier, context, nextResolve) {
   if (
-    (specifier === '../frontend/lib/protocol.ts' || specifier === '../../frontend/lib/protocol.ts')
-    && context.parentURL?.includes('/omegax-protocol/')
+    (specifier === '../frontend/lib/protocol.ts' ||
+      specifier === '../../frontend/lib/protocol.ts') &&
+    context.parentURL?.includes('/omegax-protocol/')
   ) {
     return {
       url: adapterUrl,

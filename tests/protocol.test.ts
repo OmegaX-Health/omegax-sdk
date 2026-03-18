@@ -12,21 +12,26 @@ import {
   anchorDiscriminator,
   createConnection,
   createProtocolClient,
+  deriveClaimDelegatePda,
   deriveConfigPda,
+  deriveCoverageClaimPda,
   deriveMembershipPda,
   deriveOraclePda,
   deriveOracleProfilePda,
   derivePoolAddress,
+  derivePoolCompliancePolicyPda,
   derivePoolOraclePda,
   derivePoolPda,
   derivePolicyPositionNftPda,
   derivePolicyPositionPda,
   derivePolicySeriesPda,
+  derivePoolRiskConfigPda,
   encodeI64Le,
   encodeString,
   encodeU16Le,
   encodeU64Le,
 } from '../src/index.js';
+import { createAccountReaderConnectionStub } from './support/protocol-account-reader.js';
 
 function toMeta(ix: TransactionInstruction) {
   return ix.keys.map((key) => ({
@@ -83,7 +88,7 @@ test('buildRegisterOracleTx rejects more than 16 schema hashes', () => {
   const client = createProtocolClient(connection, program.publicKey.toBase58());
 
   assert.throws(() => {
-    client.buildRegisterOracleTx!({
+    client.buildRegisterOracleTx({
       admin: admin.publicKey.toBase58(),
       oraclePubkey: oracle.publicKey.toBase58(),
       oracleType: 1,
@@ -93,11 +98,46 @@ test('buildRegisterOracleTx rejects more than 16 schema hashes', () => {
       appUrl: 'https://app.oracle.one',
       logoUri: 'https://oracle.one/logo.png',
       webhookUrl: 'https://oracle.one/webhook',
-      supportedSchemaKeyHashesHex: Array.from({ length: 17 }, () => '11'.repeat(32)),
+      supportedSchemaKeyHashesHex: Array.from({ length: 17 }, () =>
+        '11'.repeat(32),
+      ),
       recentBlockhash: '11111111111111111111111111111111',
       programId: program.publicKey.toBase58(),
     });
   });
+});
+
+test('protocol governance builders reject zero minimum oracle stake', () => {
+  const admin = Keypair.generate();
+  const program = Keypair.generate();
+  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
+  const client = createProtocolClient(connection, program.publicKey.toBase58());
+
+  assert.throws(() => {
+    client.buildInitializeProtocolTx({
+      admin: admin.publicKey.toBase58(),
+      protocolFeeBps: 25,
+      governanceRealm: Keypair.generate().publicKey.toBase58(),
+      governanceConfig: Keypair.generate().publicKey.toBase58(),
+      defaultStakeMint: Keypair.generate().publicKey.toBase58(),
+      minOracleStake: 0n,
+      recentBlockhash: '11111111111111111111111111111111',
+      programId: program.publicKey.toBase58(),
+    });
+  }, /minOracleStake must be greater than 0/);
+
+  assert.throws(() => {
+    client.buildSetProtocolParamsTx({
+      governanceAuthority: admin.publicKey.toBase58(),
+      protocolFeeBps: 25,
+      allowedPayoutMintsHashHex: '11'.repeat(32),
+      defaultStakeMint: Keypair.generate().publicKey.toBase58(),
+      minOracleStake: 0n,
+      emergencyPaused: false,
+      recentBlockhash: '11111111111111111111111111111111',
+      programId: program.publicKey.toBase58(),
+    });
+  }, /minOracleStake must be greater than 0/);
 });
 
 test('buildSubmitRewardClaimTx rejects partial SPL payout accounts', () => {
@@ -109,7 +149,7 @@ test('buildSubmitRewardClaimTx rejects partial SPL payout accounts', () => {
   const client = createProtocolClient(connection, program.publicKey.toBase58());
 
   assert.throws(() => {
-    client.buildSubmitRewardClaimTx!({
+    client.buildSubmitRewardClaimTx({
       claimant: claimant.publicKey.toBase58(),
       poolAddress: pool.publicKey.toBase58(),
       member: member.publicKey.toBase58(),
@@ -136,7 +176,7 @@ test('buildSubmitOutcomeAttestationVoteTx validates attestation digest hex stric
   const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
   const client = createProtocolClient(connection, program.publicKey.toBase58());
 
-  const tx = client.buildSubmitOutcomeAttestationVoteTx!({
+  const tx = client.buildSubmitOutcomeAttestationVoteTx({
     oracle: oracle.publicKey.toBase58(),
     poolAddress: pool.publicKey.toBase58(),
     seriesRefHashHex: '11'.repeat(32),
@@ -158,7 +198,7 @@ test('buildSubmitOutcomeAttestationVoteTx validates attestation digest hex stric
   );
 
   assert.throws(() => {
-    client.buildSubmitOutcomeAttestationVoteTx!({
+    client.buildSubmitOutcomeAttestationVoteTx({
       oracle: oracle.publicKey.toBase58(),
       poolAddress: pool.publicKey.toBase58(),
       seriesRefHashHex: '11'.repeat(32),
@@ -276,13 +316,7 @@ test('protocol account readers decode current setup accounts', async () => {
     ]),
   );
 
-  const connection = {
-    async getAccountInfo(pubkey: PublicKey) {
-      const data = accounts.get(pubkey.toBase58());
-      if (!data) return null;
-      return { data } as any;
-    },
-  } as any;
+  const connection = createAccountReaderConnectionStub(accounts);
 
   const client = createProtocolClient(connection, program.toBase58());
 
@@ -310,7 +344,10 @@ test('protocol account readers decode current setup accounts', async () => {
     member: member.toBase58(),
   });
   assert.equal(membership?.status, 'active');
-  assert.equal(membership?.subjectCommitmentHex, Buffer.alloc(32, 7).toString('hex'));
+  assert.equal(
+    membership?.subjectCommitmentHex,
+    Buffer.alloc(32, 7).toString('hex'),
+  );
 });
 
 test('protocol client canonical oracle and pool-admin builders match protocol metas', () => {
@@ -337,7 +374,7 @@ test('protocol client canonical oracle and pool-admin builders match protocol me
     oracle: oracle.publicKey,
   });
 
-  const registerTx = client.buildRegisterOracleTx!({
+  const registerTx = client.buildRegisterOracleTx({
     admin: admin.publicKey.toBase58(),
     oraclePubkey: oracle.publicKey.toBase58(),
     oracleType: 1,
@@ -355,7 +392,11 @@ test('protocol client canonical oracle and pool-admin builders match protocol me
     { pubkey: admin.publicKey.toBase58(), isSigner: true, isWritable: true },
     { pubkey: oracleEntryPda.toBase58(), isSigner: false, isWritable: true },
     { pubkey: oracleProfilePda.toBase58(), isSigner: false, isWritable: true },
-    { pubkey: SystemProgram.programId.toBase58(), isSigner: false, isWritable: false },
+    {
+      pubkey: SystemProgram.programId.toBase58(),
+      isSigner: false,
+      isWritable: false,
+    },
   ]);
   assert.equal(
     Buffer.compare(
@@ -365,7 +406,7 @@ test('protocol client canonical oracle and pool-admin builders match protocol me
     0,
   );
 
-  const claimTx = client.buildClaimOracleTx!({
+  const claimTx = client.buildClaimOracleTx({
     oracle: oracle.publicKey.toBase58(),
     recentBlockhash,
     programId: program.publicKey.toBase58(),
@@ -376,7 +417,7 @@ test('protocol client canonical oracle and pool-admin builders match protocol me
     { pubkey: oracleProfilePda.toBase58(), isSigner: false, isWritable: true },
   ]);
 
-  const updateTx = client.buildUpdateOracleProfileTx!({
+  const updateTx = client.buildUpdateOracleProfileTx({
     authority: admin.publicKey.toBase58(),
     oracle: oracle.publicKey.toBase58(),
     oracleType: 2,
@@ -402,7 +443,7 @@ test('protocol client canonical oracle and pool-admin builders match protocol me
     0,
   );
 
-  const setPoolStatusTx = client.buildSetPoolStatusTx!({
+  const setPoolStatusTx = client.buildSetPoolStatusTx({
     authority: authority.publicKey.toBase58(),
     poolAddress: poolAddress.toBase58(),
     status: 1,
@@ -410,7 +451,11 @@ test('protocol client canonical oracle and pool-admin builders match protocol me
     programId: program.publicKey.toBase58(),
   });
   assert.deepEqual(toMeta(setPoolStatusTx.instructions[0]), [
-    { pubkey: authority.publicKey.toBase58(), isSigner: true, isWritable: false },
+    {
+      pubkey: authority.publicKey.toBase58(),
+      isSigner: true,
+      isWritable: false,
+    },
     { pubkey: poolAddress.toBase58(), isSigner: false, isWritable: true },
   ]);
   assert.equal(
@@ -421,7 +466,7 @@ test('protocol client canonical oracle and pool-admin builders match protocol me
     0,
   );
 
-  const setPoolOracleTx = client.buildSetPoolOracleTx!({
+  const setPoolOracleTx = client.buildSetPoolOracleTx({
     authority: authority.publicKey.toBase58(),
     poolAddress: poolAddress.toBase58(),
     oracle: oracle.publicKey.toBase58(),
@@ -430,11 +475,19 @@ test('protocol client canonical oracle and pool-admin builders match protocol me
     programId: program.publicKey.toBase58(),
   });
   assert.deepEqual(toMeta(setPoolOracleTx.instructions[0]), [
-    { pubkey: authority.publicKey.toBase58(), isSigner: true, isWritable: true },
+    {
+      pubkey: authority.publicKey.toBase58(),
+      isSigner: true,
+      isWritable: true,
+    },
     { pubkey: poolAddress.toBase58(), isSigner: false, isWritable: false },
     { pubkey: oracleEntryPda.toBase58(), isSigner: false, isWritable: false },
     { pubkey: poolOraclePda.toBase58(), isSigner: false, isWritable: true },
-    { pubkey: SystemProgram.programId.toBase58(), isSigner: false, isWritable: false },
+    {
+      pubkey: SystemProgram.programId.toBase58(),
+      isSigner: false,
+      isWritable: false,
+    },
   ]);
   assert.equal(
     Buffer.compare(
@@ -480,7 +533,7 @@ test('policy series builders use canonical naming and current PDAs', () => {
     member: member.publicKey,
   });
 
-  const createTx = client.buildCreatePolicySeriesTx!({
+  const createTx = client.buildCreatePolicySeriesTx({
     authority: authority.publicKey.toBase58(),
     poolAddress: pool.toBase58(),
     seriesRefHashHex,
@@ -506,11 +559,19 @@ test('policy series builders use canonical naming and current PDAs', () => {
     programId: program.publicKey.toBase58(),
   });
   assert.deepEqual(toMeta(createTx.instructions[0]), [
-    { pubkey: authority.publicKey.toBase58(), isSigner: true, isWritable: true },
+    {
+      pubkey: authority.publicKey.toBase58(),
+      isSigner: true,
+      isWritable: true,
+    },
     { pubkey: configPda.toBase58(), isSigner: false, isWritable: false },
     { pubkey: pool.toBase58(), isSigner: false, isWritable: false },
     { pubkey: policySeriesPda.toBase58(), isSigner: false, isWritable: true },
-    { pubkey: SystemProgram.programId.toBase58(), isSigner: false, isWritable: false },
+    {
+      pubkey: SystemProgram.programId.toBase58(),
+      isSigner: false,
+      isWritable: false,
+    },
   ]);
   assert.equal(
     Buffer.compare(
@@ -520,7 +581,7 @@ test('policy series builders use canonical naming and current PDAs', () => {
     0,
   );
 
-  const subscribeTx = client.buildSubscribePolicySeriesTx!({
+  const subscribeTx = client.buildSubscribePolicySeriesTx({
     member: member.publicKey.toBase58(),
     poolAddress: pool.toBase58(),
     seriesRefHashHex,
@@ -535,13 +596,109 @@ test('policy series builders use canonical naming and current PDAs', () => {
     { pubkey: membershipPda.toBase58(), isSigner: false, isWritable: false },
     { pubkey: policySeriesPda.toBase58(), isSigner: false, isWritable: false },
     { pubkey: policyPositionPda.toBase58(), isSigner: false, isWritable: true },
-    { pubkey: policyPositionNftPda.toBase58(), isSigner: false, isWritable: true },
-    { pubkey: SystemProgram.programId.toBase58(), isSigner: false, isWritable: false },
+    {
+      pubkey: policyPositionNftPda.toBase58(),
+      isSigner: false,
+      isWritable: true,
+    },
+    {
+      pubkey: SystemProgram.programId.toBase58(),
+      isSigner: false,
+      isWritable: false,
+    },
   ]);
   assert.equal(
     Buffer.compare(
       subscribeTx.instructions[0].data.subarray(0, 8),
       anchorDiscriminator('global', 'subscribe_policy_series'),
+    ),
+    0,
+  );
+});
+
+test('coverage claim builders keep canonical claim and policy account ordering', () => {
+  const claimant = Keypair.generate();
+  const member = Keypair.generate();
+  const pool = Keypair.generate().publicKey;
+  const program = Keypair.generate();
+  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
+  const client = createProtocolClient(connection, program.publicKey.toBase58());
+  const recentBlockhash = '11111111111111111111111111111111';
+  const seriesRefHashHex = '12'.repeat(32);
+  const intentHashHex = '34'.repeat(32);
+  const seriesRefHash = Buffer.from(seriesRefHashHex, 'hex');
+  const intentHash = Buffer.from(intentHashHex, 'hex');
+
+  const [configPda] = deriveConfigPda(program.publicKey);
+  const [policySeriesPda] = derivePolicySeriesPda({
+    programId: program.publicKey,
+    poolAddress: pool,
+    seriesRefHash,
+  });
+  const [policyPositionPda] = derivePolicyPositionPda({
+    programId: program.publicKey,
+    poolAddress: pool,
+    seriesRefHash,
+    member: member.publicKey,
+  });
+  const [poolRiskConfigPda] = derivePoolRiskConfigPda({
+    programId: program.publicKey,
+    poolAddress: pool,
+  });
+  const [claimDelegatePda] = deriveClaimDelegatePda({
+    programId: program.publicKey,
+    poolAddress: pool,
+    member: member.publicKey,
+  });
+  const [coverageClaimPda] = deriveCoverageClaimPda({
+    programId: program.publicKey,
+    poolAddress: pool,
+    seriesRefHash,
+    member: member.publicKey,
+    intentHash,
+  });
+  const [poolCompliancePolicyPda] = derivePoolCompliancePolicyPda({
+    programId: program.publicKey,
+    poolAddress: pool,
+  });
+
+  const submitTx = client.buildSubmitCoverageClaimTx({
+    claimant: claimant.publicKey.toBase58(),
+    poolAddress: pool.toBase58(),
+    member: member.publicKey.toBase58(),
+    seriesRefHashHex,
+    intentHashHex,
+    eventHashHex: '56'.repeat(32),
+    recentBlockhash,
+    programId: program.publicKey.toBase58(),
+    claimDelegate: claimDelegatePda.toBase58(),
+    includePoolCompliancePolicy: true,
+  });
+
+  assert.deepEqual(toMeta(submitTx.instructions[0]), [
+    { pubkey: claimant.publicKey.toBase58(), isSigner: true, isWritable: true },
+    { pubkey: configPda.toBase58(), isSigner: false, isWritable: false },
+    { pubkey: pool.toBase58(), isSigner: false, isWritable: false },
+    { pubkey: policySeriesPda.toBase58(), isSigner: false, isWritable: false },
+    { pubkey: policyPositionPda.toBase58(), isSigner: false, isWritable: true },
+    { pubkey: poolRiskConfigPda.toBase58(), isSigner: false, isWritable: true },
+    { pubkey: claimDelegatePda.toBase58(), isSigner: false, isWritable: false },
+    { pubkey: coverageClaimPda.toBase58(), isSigner: false, isWritable: true },
+    {
+      pubkey: poolCompliancePolicyPda.toBase58(),
+      isSigner: false,
+      isWritable: false,
+    },
+    {
+      pubkey: SystemProgram.programId.toBase58(),
+      isSigner: false,
+      isWritable: false,
+    },
+  ]);
+  assert.equal(
+    Buffer.compare(
+      submitTx.instructions[0].data.subarray(0, 8),
+      anchorDiscriminator('global', 'submit_coverage_claim'),
     ),
     0,
   );

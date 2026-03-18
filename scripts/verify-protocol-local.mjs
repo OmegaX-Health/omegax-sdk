@@ -59,7 +59,9 @@ async function run(command, args, env = process.env) {
           return;
         }
         rejectRun(
-          new Error(`${command} ${args.join(' ')} failed with code=${code ?? 'null'} signal=${signal ?? 'null'}`),
+          new Error(
+            `${command} ${args.join(' ')} failed with code=${code ?? 'null'} signal=${signal ?? 'null'}`,
+          ),
         );
       });
     });
@@ -95,8 +97,8 @@ export function buildVerificationSummary(params) {
     protocolWorkspaceState: params.protocolWorkspaceState,
     finalProtocolWorkspaceState: params.finalProtocolWorkspaceState,
     workspaceStateStable:
-      params.protocolWorkspaceState.workspaceFingerprint
-      === params.finalProtocolWorkspaceState.workspaceFingerprint,
+      params.protocolWorkspaceState.workspaceFingerprint ===
+      params.finalProtocolWorkspaceState.workspaceFingerprint,
     commands: params.commands,
     surfaceSummaryPath: params.surfaceSummaryPath,
     surfaceSummaryExists: existsSync(params.surfaceSummaryPath),
@@ -109,13 +111,22 @@ export async function verifyProtocolLocal() {
   mkdirSync(artifactsRoot, { recursive: true });
 
   const stamp = nowStamp();
-  const surfaceSummaryPath = resolve(artifactsRoot, `sdk-protocol-surface-summary-${stamp}.json`);
-  const verificationSummaryPath = resolve(artifactsRoot, `sdk-protocol-verify-summary-${stamp}.json`);
+  const surfaceSummaryPath = resolve(
+    artifactsRoot,
+    `sdk-protocol-surface-summary-${stamp}.json`,
+  );
+  const verificationSummaryPath = resolve(
+    artifactsRoot,
+    `sdk-protocol-verify-summary-${stamp}.json`,
+  );
   const protocolRepo = resolveProtocolRepo(sdkRoot);
   ensureProtocolWorkspace(protocolRepo);
 
   const protocolWorkspaceState = readProtocolWorkspaceState(protocolRepo);
-  for (const line of formatProtocolWorkspaceStateLines({ protocolRepo, workspaceState: protocolWorkspaceState })) {
+  for (const line of formatProtocolWorkspaceStateLines({
+    protocolRepo,
+    workspaceState: protocolWorkspaceState,
+  })) {
     console.log(line);
   }
 
@@ -144,7 +155,8 @@ export async function verifyProtocolLocal() {
 
   const finalProtocolWorkspaceState = readProtocolWorkspaceState(protocolRepo);
   const workspaceStateStable =
-    protocolWorkspaceState.workspaceFingerprint === finalProtocolWorkspaceState.workspaceFingerprint;
+    protocolWorkspaceState.workspaceFingerprint ===
+    finalProtocolWorkspaceState.workspaceFingerprint;
 
   if (!workspaceStateStable && verificationError === null) {
     verificationError = [
@@ -164,16 +176,23 @@ export async function verifyProtocolLocal() {
     surfaceSummaryPath,
     verificationError,
   });
-  writeFileSync(verificationSummaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
-  console.log(`[omegax-sdk] Verification summary written to ${verificationSummaryPath}`);
+  writeFileSync(
+    verificationSummaryPath,
+    `${JSON.stringify(summary, null, 2)}\n`,
+    'utf8',
+  );
+  console.log(
+    `[omegax-sdk] Verification summary written to ${verificationSummaryPath}`,
+  );
 
   if (verificationError !== null) {
     throw new Error(verificationError);
   }
 }
 
-const isDirectRun = Boolean(process.argv[1])
-  && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isDirectRun =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isDirectRun) {
   verifyProtocolLocal().catch((error) => {

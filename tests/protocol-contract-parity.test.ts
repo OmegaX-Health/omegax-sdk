@@ -11,7 +11,10 @@ type ProtocolContract = {
   pdaSeeds: Record<string, string[]>;
 };
 
-const protocolRepo = resolve(process.cwd(), process.env.OMEGAX_PROTOCOL_REPO ?? '../omegax-protocol');
+const protocolRepo = resolve(
+  process.cwd(),
+  process.env.OMEGAX_PROTOCOL_REPO ?? '../omegax-protocol',
+);
 const contractPath = resolve(protocolRepo, 'shared/protocol_contract.json');
 const hasLiveProtocolContract = existsSync(contractPath);
 

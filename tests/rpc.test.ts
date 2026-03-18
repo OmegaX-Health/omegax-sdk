@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Keypair, SystemProgram, Transaction, VersionedTransaction } from '@solana/web3.js';
+import {
+  Keypair,
+  SystemProgram,
+  Transaction,
+  VersionedTransaction,
+} from '@solana/web3.js';
 
 import {
   OMEGAX_NETWORKS,
@@ -8,7 +13,9 @@ import {
   createRpcClient,
   compileTransactionToV0,
   getOmegaXNetworkInfo,
+  type OmegaXNetworkInput,
 } from '../src/index.js';
+import { createRpcConnectionStub } from './support/rpc-connection.js';
 
 test('createConnection preserves URL overload behavior', () => {
   const connection = createConnection('http://127.0.0.1:8899', 'processed');
@@ -18,11 +25,20 @@ test('createConnection preserves URL overload behavior', () => {
 
 test('createConnection defaults to devnet when called with options or no args', () => {
   const defaultConnection = createConnection();
-  assert.equal(defaultConnection.rpcEndpoint, OMEGAX_NETWORKS.devnet.defaultRpcUrl);
+  assert.equal(
+    defaultConnection.rpcEndpoint,
+    OMEGAX_NETWORKS.devnet.defaultRpcUrl,
+  );
   assert.equal(defaultConnection.commitment, 'confirmed');
 
-  const optionsConnection = createConnection({ network: 'devnet', commitment: 'finalized' });
-  assert.equal(optionsConnection.rpcEndpoint, OMEGAX_NETWORKS.devnet.defaultRpcUrl);
+  const optionsConnection = createConnection({
+    network: 'devnet',
+    commitment: 'finalized',
+  });
+  assert.equal(
+    optionsConnection.rpcEndpoint,
+    OMEGAX_NETWORKS.devnet.defaultRpcUrl,
+  );
   assert.equal(optionsConnection.commitment, 'finalized');
 });
 
@@ -64,7 +80,10 @@ test('createConnection can suppress mainnet coming-soon warnings', () => {
   };
 
   try {
-    const connection = createConnection({ network: 'mainnet', warnOnComingSoon: false });
+    const connection = createConnection({
+      network: 'mainnet',
+      warnOnComingSoon: false,
+    });
     assert.equal(connection.rpcEndpoint, OMEGAX_NETWORKS.mainnet.defaultRpcUrl);
   } finally {
     console.warn = originalWarn;
@@ -84,12 +103,14 @@ test('getOmegaXNetworkInfo normalizes mainnet-beta alias', () => {
 });
 
 test('network helpers throw explicit errors for unsupported network input', () => {
+  const invalidNetwork = 'testnet' as unknown as OmegaXNetworkInput;
+
   assert.throws(
-    () => getOmegaXNetworkInfo('testnet' as any),
+    () => getOmegaXNetworkInfo(invalidNetwork),
     /Unsupported OmegaX network "testnet"/,
   );
   assert.throws(
-    () => createConnection({ network: 'testnet' as any }),
+    () => createConnection({ network: invalidNetwork }),
     /Unsupported OmegaX network "testnet"/,
   );
 });
@@ -111,27 +132,25 @@ test('createRpcClient simulates versioned transactions without stale decoding as
   signedVersionedTx.sign([payer]);
 
   let simulatedTx: unknown = null;
-  const rpc = createRpcClient({
-    async getLatestBlockhash() {
-      return {
-        blockhash: '11111111111111111111111111111111',
-        lastValidBlockHeight: 1,
-      };
-    },
-    async simulateTransaction(transaction: unknown) {
-      simulatedTx = transaction;
-      return {
-        value: {
-          err: null,
-          logs: ['ok'],
-          unitsConsumed: 1234,
-        },
-      };
-    },
-  } as any);
+  const rpc = createRpcClient(
+    createRpcConnectionStub({
+      async simulateTransaction(transaction: unknown) {
+        simulatedTx = transaction;
+        return {
+          value: {
+            err: null,
+            logs: ['ok'],
+            unitsConsumed: 1234,
+          },
+        };
+      },
+    }),
+  );
 
   const result = await rpc.simulateSignedTx({
-    signedTxBase64: Buffer.from(signedVersionedTx.serialize()).toString('base64'),
+    signedTxBase64: Buffer.from(signedVersionedTx.serialize()).toString(
+      'base64',
+    ),
     sigVerify: true,
   });
 
@@ -157,27 +176,23 @@ test('createRpcClient retries signed simulation without sigVerify when RPC rejec
   tx.sign(payer);
 
   const simulationOptions: unknown[] = [];
-  const rpc = createRpcClient({
-    async getLatestBlockhash() {
-      return {
-        blockhash: '11111111111111111111111111111111',
-        lastValidBlockHeight: 1,
-      };
-    },
-    async simulateTransaction(_transaction: unknown, options: unknown) {
-      simulationOptions.push(options);
-      if (simulationOptions.length === 1) {
-        throw new Error('Invalid arguments');
-      }
-      return {
-        value: {
-          err: null,
-          logs: ['retry-ok'],
-          unitsConsumed: 4321,
-        },
-      };
-    },
-  } as any);
+  const rpc = createRpcClient(
+    createRpcConnectionStub({
+      async simulateTransaction(_transaction: unknown, options: unknown) {
+        simulationOptions.push(options);
+        if (simulationOptions.length === 1) {
+          throw new Error('Invalid arguments');
+        }
+        return {
+          value: {
+            err: null,
+            logs: ['retry-ok'],
+            unitsConsumed: 4321,
+          },
+        };
+      },
+    }),
+  );
 
   const result = await rpc.simulateSignedTx({
     signedTxBase64: tx.serialize().toString('base64'),
@@ -217,21 +232,23 @@ test('createRpcClient retries signed simulation without sigVerify when RPC rejec
   tx.sign(payer);
 
   const simulationOptions: unknown[] = [];
-  const rpc = createRpcClient({
-    async simulateTransaction(_transaction: unknown, options: unknown) {
-      simulationOptions.push(options);
-      if (simulationOptions.length === 1) {
-        throw new Error('Invalid arguments');
-      }
-      return {
-        value: {
-          err: null,
-          logs: ['retry-ok-no-blockhash-replace'],
-          unitsConsumed: 2222,
-        },
-      };
-    },
-  } as any);
+  const rpc = createRpcClient(
+    createRpcConnectionStub({
+      async simulateTransaction(_transaction: unknown, options: unknown) {
+        simulationOptions.push(options);
+        if (simulationOptions.length === 1) {
+          throw new Error('Invalid arguments');
+        }
+        return {
+          value: {
+            err: null,
+            logs: ['retry-ok-no-blockhash-replace'],
+            unitsConsumed: 2222,
+          },
+        };
+      },
+    }),
+  );
 
   const result = await rpc.simulateSignedTx({
     signedTxBase64: tx.serialize().toString('base64'),

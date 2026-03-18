@@ -1,7 +1,7 @@
 name: Bug report
 description: Report a reproducible SDK bug
-title: "[Bug]: "
-labels: ["bug"]
+title: '[Bug]: '
+labels: ['bug']
 body:
   - type: markdown
     attributes:
@@ -19,7 +19,7 @@ body:
     id: node
     attributes:
       label: Node.js version
-      placeholder: "20.x"
+      placeholder: '20.x'
     validations:
       required: true
   - type: textarea

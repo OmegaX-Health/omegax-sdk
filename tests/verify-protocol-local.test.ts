@@ -10,7 +10,9 @@ import {
 } from '../scripts/verify-protocol-local.mjs';
 
 test('verification reporting uses workspace-state language and avoids stale status wording', () => {
-  const surfaceSummaryRoot = mkdtempSync(join(tmpdir(), 'omegax-sdk-verify-summary-'));
+  const surfaceSummaryRoot = mkdtempSync(
+    join(tmpdir(), 'omegax-sdk-verify-summary-'),
+  );
   const surfaceSummaryPath = join(surfaceSummaryRoot, 'surface-summary.json');
   writeFileSync(surfaceSummaryPath, JSON.stringify({ ok: true }), 'utf8');
 
@@ -27,7 +29,8 @@ test('verification reporting uses workspace-state language and avoids stale stat
         untracked: 3,
         tracked: 3,
       },
-      porcelain: ' M shared/protocol_contract.json\n?? e2e/support/new-scenario.ts',
+      porcelain:
+        ' M shared/protocol_contract.json\n?? e2e/support/new-scenario.ts',
     };
 
     const lines = formatProtocolWorkspaceStateLines({
@@ -38,7 +41,10 @@ test('verification reporting uses workspace-state language and avoids stale stat
     const deprecatedStatusWord = ['dir', 'ty'].join('');
     assert.match(rendered, /Protocol workspace changes: present/);
     assert.match(rendered, /Protocol workspace fingerprint: fingerprint-123/);
-    assert.doesNotMatch(rendered.toLowerCase(), new RegExp(deprecatedStatusWord));
+    assert.doesNotMatch(
+      rendered.toLowerCase(),
+      new RegExp(deprecatedStatusWord),
+    );
 
     const summary = buildVerificationSummary({
       protocolRepo: '/tmp/omegax-protocol',
@@ -50,7 +56,10 @@ test('verification reporting uses workspace-state language and avoids stale stat
     });
     assert.equal(summary.surfaceSummaryExists, true);
     assert.equal(summary.workspaceStateStable, true);
-    assert.doesNotMatch(JSON.stringify(summary).toLowerCase(), new RegExp(deprecatedStatusWord));
+    assert.doesNotMatch(
+      JSON.stringify(summary).toLowerCase(),
+      new RegExp(deprecatedStatusWord),
+    );
   } finally {
     rmSync(surfaceSummaryRoot, { recursive: true, force: true });
   }

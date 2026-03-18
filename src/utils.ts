@@ -9,8 +9,8 @@ export function stableStringify(value: unknown): string {
     return `[${value.map(stableStringify).join(',')}]`;
   }
 
-  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-    a.localeCompare(b),
+  const entries = Object.entries(value as Record<string, unknown>).sort(
+    ([a], [b]) => a.localeCompare(b),
   );
   return `{${entries
     .map(([key, v]) => `${JSON.stringify(key)}:${stableStringify(v)}`)
@@ -93,7 +93,10 @@ export function readI64Le(buffer: Buffer, offset: number): bigint {
   return buffer.readBigInt64LE(offset);
 }
 
-export function readString(buffer: Buffer, offset: number): { value: string; offset: number } {
+export function readString(
+  buffer: Buffer,
+  offset: number,
+): { value: string; offset: number } {
   const length = readU32Le(buffer, offset);
   const start = offset + 4;
   const end = start + length;
@@ -111,7 +114,9 @@ export function fromHex(value: string, expectedLength?: number): Uint8Array {
   const normalized = value.trim().replace(/^0x/i, '');
 
   if (normalized.length % 2 !== 0) {
-    throw new Error('invalid hex string: expected an even number of characters');
+    throw new Error(
+      'invalid hex string: expected an even number of characters',
+    );
   }
   if (!/^[0-9a-fA-F]*$/.test(normalized)) {
     throw new Error('invalid hex string: contains non-hex characters');
@@ -119,7 +124,9 @@ export function fromHex(value: string, expectedLength?: number): Uint8Array {
 
   const bytes = Buffer.from(normalized, 'hex');
   if (typeof expectedLength === 'number' && bytes.length !== expectedLength) {
-    throw new Error(`invalid hex length: expected ${expectedLength}, got ${bytes.length}`);
+    throw new Error(
+      `invalid hex length: expected ${expectedLength}, got ${bytes.length}`,
+    );
   }
   return new Uint8Array(bytes);
 }

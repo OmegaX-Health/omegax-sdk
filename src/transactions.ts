@@ -1,13 +1,12 @@
 import bs58 from 'bs58';
-import {
-  PublicKey,
-  Transaction,
-  VersionedTransaction,
-} from '@solana/web3.js';
+import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 
 export type SolanaTransaction = Transaction | VersionedTransaction;
 
-function decodeShortVecLength(bytes: Uint8Array, offset = 0): {
+function decodeShortVecLength(
+  bytes: Uint8Array,
+  offset = 0,
+): {
   length: number;
   bytesRead: number;
 } {
@@ -51,7 +50,9 @@ export function decodeSolanaTransaction(
   input: string | Uint8Array | Buffer,
 ): SolanaTransaction {
   const bytes =
-    typeof input === 'string' ? Buffer.from(input, 'base64') : Buffer.from(input);
+    typeof input === 'string'
+      ? Buffer.from(input, 'base64')
+      : Buffer.from(input);
   const { length: signatureCount, bytesRead } = decodeShortVecLength(bytes);
   const messageOffset = bytesRead + signatureCount * 64;
   if (messageOffset >= bytes.length) {
@@ -128,10 +129,14 @@ export function solanaTransactionMessageBase64(
   input: SolanaTransaction | string | Uint8Array | Buffer,
 ): string {
   const transaction =
-    typeof input === 'string' || input instanceof Uint8Array || Buffer.isBuffer(input)
+    typeof input === 'string' ||
+    input instanceof Uint8Array ||
+    Buffer.isBuffer(input)
       ? decodeSolanaTransaction(input)
       : input;
-  return Buffer.from(solanaTransactionMessageBytes(transaction)).toString('base64');
+  return Buffer.from(solanaTransactionMessageBytes(transaction)).toString(
+    'base64',
+  );
 }
 
 export function solanaTransactionRequiredSigner(
@@ -168,7 +173,9 @@ export function solanaTransactionSignerSignature(
     const entry = transaction.signatures.find(
       (candidate) => candidate.publicKey.toBase58() === signer,
     );
-    return signatureIsPresent(entry?.signature) ? (entry?.signature as Uint8Array) : null;
+    return signatureIsPresent(entry?.signature)
+      ? (entry?.signature as Uint8Array)
+      : null;
   }
 
   const accountKeys = versionedStaticAccountKeys(transaction);
@@ -177,8 +184,9 @@ export function solanaTransactionSignerSignature(
   );
   if (signerIndex < 0) return null;
 
-  const header = (transaction.message as { header?: { numRequiredSignatures?: number } })
-    .header;
+  const header = (
+    transaction.message as { header?: { numRequiredSignatures?: number } }
+  ).header;
   const requiredSignerCount = header?.numRequiredSignatures ?? 0;
   if (signerIndex >= requiredSignerCount) {
     return null;

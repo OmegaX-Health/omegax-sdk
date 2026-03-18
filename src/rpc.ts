@@ -1,7 +1,4 @@
-import {
-  Connection,
-  type Commitment,
-} from '@solana/web3.js';
+import { Connection, type Commitment } from '@solana/web3.js';
 
 import type {
   BroadcastSignedTxParams,
@@ -12,10 +9,10 @@ import type {
   SimulateSignedTxParams,
   SimulateSignedTxResult,
 } from './types.js';
+import { simulateSignedTransactionViaConnection } from './internal/rpc.js';
 import { normalizeClaimSimulationFailure } from './claims.js';
 import {
   decodeSolanaTransaction,
-  serializeSolanaTransaction,
   type SolanaTransaction,
 } from './transactions.js';
 
@@ -23,60 +20,9 @@ function shouldRetrySignedSimulationWithoutSigVerify(params: {
   error: unknown;
   sigVerify: boolean;
 }): boolean {
-  const message = params.error instanceof Error ? params.error.message : String(params.error);
-  return (
-    params.sigVerify
-    && /invalid arguments/i.test(message)
-  );
-}
-
-async function simulateSignedTransaction(
-  connection: Connection,
-  transaction: SolanaTransaction,
-  options: {
-    commitment: 'processed' | 'confirmed' | 'finalized';
-    replaceRecentBlockhash: boolean;
-    sigVerify: boolean;
-  },
-): Promise<{
-  value: {
-    err: unknown | null;
-    logs?: string[] | null;
-    unitsConsumed?: number | null;
-  };
-}> {
-  const rpcRequest = (connection as {
-    _rpcRequest?: (methodName: string, args: unknown[]) => Promise<{
-      error?: { message?: string };
-      result?: {
-        value: {
-          err: unknown | null;
-          logs?: string[] | null;
-          unitsConsumed?: number | null;
-        };
-      };
-    }>;
-  })._rpcRequest;
-
-  if (typeof rpcRequest !== 'function') {
-    return await (connection as any).simulateTransaction(transaction, options);
-  }
-
-  const unsafe = await rpcRequest.call(connection, 'simulateTransaction', [
-    serializeSolanaTransaction(transaction).toString('base64'),
-    {
-      encoding: 'base64',
-      ...options,
-    },
-  ]);
-
-  if (unsafe?.error) {
-    throw new Error(unsafe.error.message ?? 'failed to simulate transaction');
-  }
-  if (!unsafe?.result?.value) {
-    throw new Error('failed to simulate transaction: missing RPC result');
-  }
-  return unsafe.result;
+  const message =
+    params.error instanceof Error ? params.error.message : String(params.error);
+  return params.sigVerify && /invalid arguments/i.test(message);
 }
 
 export type OmegaXNetwork = 'devnet' | 'mainnet';
@@ -113,25 +59,36 @@ export const OMEGAX_NETWORKS: Record<OmegaXNetwork, OmegaXNetworkInfo> = {
     defaultRpcUrl: 'https://api.mainnet-beta.solana.com',
     isAvailable: false,
     status: 'coming_soon',
-    statusMessage: 'OmegaX mainnet support is coming soon. Please use devnet beta for now.',
+    statusMessage:
+      'OmegaX mainnet support is coming soon. Please use devnet beta for now.',
   },
 };
 
-function normalizeOmegaXNetwork(input: OmegaXNetworkInput | undefined): OmegaXNetwork {
-  const normalized = String(input ?? 'devnet').trim().toLowerCase();
+function normalizeOmegaXNetwork(
+  input: OmegaXNetworkInput | undefined,
+): OmegaXNetwork {
+  const normalized = String(input ?? 'devnet')
+    .trim()
+    .toLowerCase();
   if (normalized === 'devnet') return 'devnet';
-  if (normalized === 'mainnet' || normalized === 'mainnet-beta') return 'mainnet';
+  if (normalized === 'mainnet' || normalized === 'mainnet-beta')
+    return 'mainnet';
   throw new Error(
     `Unsupported OmegaX network "${String(input)}". Supported networks: "devnet", "mainnet".`,
   );
 }
 
-export function getOmegaXNetworkInfo(input: OmegaXNetworkInput = 'devnet'): OmegaXNetworkInfo {
+export function getOmegaXNetworkInfo(
+  input: OmegaXNetworkInput = 'devnet',
+): OmegaXNetworkInfo {
   const network = normalizeOmegaXNetwork(input);
   return { ...OMEGAX_NETWORKS[network] };
 }
 
-export function createConnection(rpcUrl: string, commitment?: Commitment): Connection;
+export function createConnection(
+  rpcUrl: string,
+  commitment?: Commitment,
+): Connection;
 export function createConnection(options?: OmegaXConnectionOptions): Connection;
 export function createConnection(
   rpcUrlOrOptions: string | OmegaXConnectionOptions = { network: 'devnet' },
@@ -160,7 +117,9 @@ export function createRpcClient(connection: Connection): RpcClient {
       return latest.blockhash;
     },
 
-    async broadcastSignedTx(params: BroadcastSignedTxParams): Promise<BroadcastSignedTxResult> {
+    async broadcastSignedTx(
+      params: BroadcastSignedTxParams,
+    ): Promise<BroadcastSignedTxResult> {
       const raw = Buffer.from(params.signedTxBase64, 'base64');
       const signature = await connection.sendRawTransaction(raw, {
         skipPreflight: params.skipPreflight ?? false,
@@ -168,7 +127,10 @@ export function createRpcClient(connection: Connection): RpcClient {
       });
 
       const commitment = params.commitment ?? 'confirmed';
-      const confirmation = await connection.confirmTransaction(signature, commitment);
+      const confirmation = await connection.confirmTransaction(
+        signature,
+        commitment,
+      );
 
       if (confirmation.value.err) {
         return {
@@ -185,7 +147,9 @@ export function createRpcClient(connection: Connection): RpcClient {
       };
     },
 
-    async simulateSignedTx(params: SimulateSignedTxParams): Promise<SimulateSignedTxResult> {
+    async simulateSignedTx(
+      params: SimulateSignedTxParams,
+    ): Promise<SimulateSignedTxResult> {
       let tx: SolanaTransaction;
       try {
         tx = decodeSolanaTransaction(params.signedTxBase64);
@@ -209,7 +173,11 @@ export function createRpcClient(connection: Connection): RpcClient {
 
       let result;
       try {
-        result = await simulateSignedTransaction(connection, tx, baseOptions);
+        result = await simulateSignedTransactionViaConnection(
+          connection,
+          tx,
+          baseOptions,
+        );
       } catch (error) {
         if (
           !shouldRetrySignedSimulationWithoutSigVerify({
@@ -227,25 +195,33 @@ export function createRpcClient(connection: Connection): RpcClient {
         }
 
         try {
-          result = await simulateSignedTransaction(connection, tx, {
-            ...baseOptions,
-            sigVerify: false,
-          });
+          result = await simulateSignedTransactionViaConnection(
+            connection,
+            tx,
+            {
+              ...baseOptions,
+              sigVerify: false,
+            },
+          );
         } catch (retryError) {
           return {
             ok: false,
             logs: [],
             unitsConsumed: null,
             err: retryError,
-            failure: normalizeClaimSimulationFailure({ err: retryError, logs: [] }),
+            failure: normalizeClaimSimulationFailure({
+              err: retryError,
+              logs: [],
+            }),
           };
         }
       }
 
       const logs = result.value.logs ?? [];
-      const unitsConsumed = typeof result.value.unitsConsumed === 'number'
-        ? result.value.unitsConsumed
-        : null;
+      const unitsConsumed =
+        typeof result.value.unitsConsumed === 'number'
+          ? result.value.unitsConsumed
+          : null;
       if (result.value.err) {
         return {
           ok: false,
@@ -268,7 +244,9 @@ export function createRpcClient(connection: Connection): RpcClient {
       };
     },
 
-    async getSignatureStatus(params: GetSignatureStatusParams): Promise<GetSignatureStatusResult> {
+    async getSignatureStatus(
+      params: GetSignatureStatusParams,
+    ): Promise<GetSignatureStatusResult> {
       const response = await connection.getSignatureStatuses(
         [params.signature],
         {

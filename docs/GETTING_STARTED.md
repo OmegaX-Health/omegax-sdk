@@ -28,7 +28,8 @@ import {
   PROTOCOL_PROGRAM_ID,
 } from '@omegax/protocol-sdk';
 
-const network = (process.env.OMEGAX_NETWORK as 'devnet' | 'mainnet' | undefined) ?? 'devnet';
+const network =
+  (process.env.OMEGAX_NETWORK as 'devnet' | 'mainnet' | undefined) ?? 'devnet';
 const networkInfo = getOmegaXNetworkInfo(network);
 
 const connection = createConnection({
@@ -51,7 +52,7 @@ Example: open enrollment.
 ```ts
 const recentBlockhash = await rpc.getRecentBlockhash();
 
-const tx = protocol.buildEnrollMemberOpenTx!({
+const tx = protocol.buildEnrollMemberOpenTx({
   member: '<member-pubkey>',
   poolAddress: '<pool-pubkey>',
   subjectCommitmentHex: '<32-byte-hex>',
@@ -67,7 +68,10 @@ const tx = protocol.buildEnrollMemberOpenTx!({
 ```ts
 const signedTx = await wallet.signTransaction(tx);
 const signedTxBase64 = Buffer.from(signedTx.serialize()).toString('base64');
-const broadcast = await rpc.broadcastSignedTx({ signedTxBase64, commitment: 'confirmed' });
+const broadcast = await rpc.broadcastSignedTx({
+  signedTxBase64,
+  commitment: 'confirmed',
+});
 ```
 
 ### Option B: backend signer (`Keypair`)
@@ -75,14 +79,20 @@ const broadcast = await rpc.broadcastSignedTx({ signedTxBase64, commitment: 'con
 ```ts
 tx.sign(serverKeypair);
 const signedTxBase64 = tx.serialize().toString('base64');
-const broadcast = await rpc.broadcastSignedTx({ signedTxBase64, commitment: 'confirmed' });
+const broadcast = await rpc.broadcastSignedTx({
+  signedTxBase64,
+  commitment: 'confirmed',
+});
 ```
 
 ## 6) Optional simulation before broadcast
 
 ```ts
 const signedTxBase64 = tx.serialize().toString('base64');
-const simulation = await rpc.simulateSignedTx({ signedTxBase64, sigVerify: true });
+const simulation = await rpc.simulateSignedTx({
+  signedTxBase64,
+  sigVerify: true,
+});
 if (!simulation.ok) {
   console.error(simulation.failure);
 }
@@ -91,7 +101,7 @@ if (!simulation.ok) {
 ## 7) Verify resulting state
 
 ```ts
-const membership = await protocol.fetchMembershipRecord!({
+const membership = await protocol.fetchMembershipRecord({
   poolAddress: '<pool-pubkey>',
   member: '<member-pubkey>',
 });

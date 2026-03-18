@@ -7,12 +7,15 @@ This is the maintainer flow for publishing a public release.
 - Repo is public and release workflows are enabled.
 - npm scope access exists for `@omegax`.
 - `NPM_TOKEN` is configured in GitHub Actions secrets.
-- Version in `package.json` is final (example: `0.5.0`).
+- Version in `package.json` is final (example: `0.6.0`).
 
 ## 1) Local pre-release checks
 
 ```bash
 npm ci
+npm run typecheck
+npm run lint
+npm run format:check
 npm run build
 npm test
 npm run docs:check
@@ -58,8 +61,8 @@ Release workflow validates tag/version match:
 
 Example:
 
-- `package.json`: `0.5.0`
-- git tag: `v0.5.0`
+- `package.json`: `0.6.0`
+- git tag: `v0.6.0`
 
 ## 4) Publish via GitHub Actions
 
@@ -67,8 +70,8 @@ Example:
 2. Create and push tag:
 
 ```bash
-git tag v0.5.0
-git push origin v0.5.0
+git tag v0.6.0
+git push origin v0.6.0
 ```
 
 3. Watch `.github/workflows/release.yml`.
@@ -76,6 +79,9 @@ git push origin v0.5.0
 Workflow sequence:
 
 - `npm ci`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run format:check`
 - `npm run build`
 - `npm test`
 - tag/version guard
@@ -91,7 +97,7 @@ Then smoke test in a clean directory:
 
 ```bash
 npm init -y
-npm install @omegax/protocol-sdk@0.5.0
+npm install @omegax/protocol-sdk@0.6.0
 node --input-type=module -e "const m=await import('@omegax/protocol-sdk'); console.log(Object.keys(m).length)"
 ```
 
@@ -100,6 +106,9 @@ node --input-type=module -e "const m=await import('@omegax/protocol-sdk'); conso
 When protocol IDL changes:
 
 ```bash
+npm run typecheck
+npm run lint
+npm run format:check
 npm run sync:idl-fixture
 npm test
 ```

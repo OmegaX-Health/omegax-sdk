@@ -57,9 +57,10 @@ function parsePorcelainPath(line) {
   const renamedPath = rawPath.includes(' -> ')
     ? rawPath.slice(rawPath.lastIndexOf(' -> ') + 4)
     : rawPath;
-  const unquotedPath = renamedPath.startsWith('"') && renamedPath.endsWith('"')
-    ? renamedPath.slice(1, -1)
-    : renamedPath;
+  const unquotedPath =
+    renamedPath.startsWith('"') && renamedPath.endsWith('"')
+      ? renamedPath.slice(1, -1)
+      : renamedPath;
   return normalizeRelativePath(unquotedPath);
 }
 
@@ -83,7 +84,9 @@ function existingRegularFile(repoRoot, relativePath) {
 }
 
 function gitPathList(repoRoot, args) {
-  return splitNullDelimited(gitOutput(repoRoot, args, { encoding: 'utf8' }) ?? '')
+  return splitNullDelimited(
+    gitOutput(repoRoot, args, { encoding: 'utf8' }) ?? '',
+  )
     .map(normalizeRelativePath)
     .filter((relativePath) => relativePath.length > 0)
     .filter((relativePath) => !isGeneratedWorkspacePath(relativePath));
@@ -94,14 +97,29 @@ function trackedPathList(repoRoot, args) {
 }
 
 function untrackedFileList(repoRoot, args) {
-  return gitPathList(repoRoot, args)
-    .filter((relativePath) => existingRegularFile(repoRoot, relativePath));
+  return gitPathList(repoRoot, args).filter((relativePath) =>
+    existingRegularFile(repoRoot, relativePath),
+  );
 }
 
 function summarizeWorkspaceChanges(repoRoot) {
-  const stagedFiles = trackedPathList(repoRoot, ['diff', '--cached', '--name-only', '-z']);
-  const unstagedFiles = trackedPathList(repoRoot, ['diff', '--name-only', '-z']);
-  const untrackedFiles = untrackedFileList(repoRoot, ['ls-files', '--others', '--exclude-standard', '-z']);
+  const stagedFiles = trackedPathList(repoRoot, [
+    'diff',
+    '--cached',
+    '--name-only',
+    '-z',
+  ]);
+  const unstagedFiles = trackedPathList(repoRoot, [
+    'diff',
+    '--name-only',
+    '-z',
+  ]);
+  const untrackedFiles = untrackedFileList(repoRoot, [
+    'ls-files',
+    '--others',
+    '--exclude-standard',
+    '-z',
+  ]);
 
   return {
     source: 'git',
@@ -121,15 +139,29 @@ function computeTrackedDiff(repoRoot, commit) {
     return '';
   }
 
-  return gitOutput(
-    repoRoot,
-    ['diff', '--no-ext-diff', '--binary', commit, '--', ...changedTrackedFiles],
-    { encoding: 'utf8' },
-  ) ?? '';
+  return (
+    gitOutput(
+      repoRoot,
+      [
+        'diff',
+        '--no-ext-diff',
+        '--binary',
+        commit,
+        '--',
+        ...changedTrackedFiles,
+      ],
+      { encoding: 'utf8' },
+    ) ?? ''
+  );
 }
 
 function computeUntrackedEntries(repoRoot) {
-  return untrackedFileList(repoRoot, ['ls-files', '--others', '--exclude-standard', '-z'])
+  return untrackedFileList(repoRoot, [
+    'ls-files',
+    '--others',
+    '--exclude-standard',
+    '-z',
+  ])
     .sort()
     .map((relativePath) => {
       const absolutePath = resolve(repoRoot, relativePath);
@@ -200,10 +232,22 @@ export function ensureProtocolWorkspace(repoRoot) {
 }
 
 export function readProtocolWorkspaceState(repoRoot) {
-  const commit = (gitOutput(repoRoot, ['rev-parse', 'HEAD'], { encoding: 'utf8' }) ?? '').trim() || null;
-  const branch = (gitOutput(repoRoot, ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' }) ?? '').trim() || null;
+  const commit =
+    (
+      gitOutput(repoRoot, ['rev-parse', 'HEAD'], { encoding: 'utf8' }) ?? ''
+    ).trim() || null;
+  const branch =
+    (
+      gitOutput(repoRoot, ['rev-parse', '--abbrev-ref', 'HEAD'], {
+        encoding: 'utf8',
+      }) ?? ''
+    ).trim() || null;
   const porcelain = filterPorcelain(
-    (gitOutput(repoRoot, ['status', '--short', '--untracked-files=all'], { encoding: 'utf8' }) ?? '').trim(),
+    (
+      gitOutput(repoRoot, ['status', '--short', '--untracked-files=all'], {
+        encoding: 'utf8',
+      }) ?? ''
+    ).trim(),
   );
 
   if (commit || branch || porcelain) {
@@ -214,7 +258,10 @@ export function readProtocolWorkspaceState(repoRoot) {
     return {
       branch,
       commit,
-      hasLocalChanges: changeSummary.staged > 0 || changeSummary.unstaged > 0 || changeSummary.untracked > 0,
+      hasLocalChanges:
+        changeSummary.staged > 0 ||
+        changeSummary.unstaged > 0 ||
+        changeSummary.untracked > 0,
       workspaceFingerprint: fingerprintFromGitWorkspace({
         commit,
         trackedDiff,

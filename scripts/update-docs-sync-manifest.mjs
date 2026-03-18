@@ -25,17 +25,22 @@ function assertCommitSha(value) {
 }
 
 async function main() {
-  const manifestPath = resolve(parseArg('manifest') ?? 'docs/OMEGAX_DOCS_SYNC.json');
+  const manifestPath = resolve(
+    parseArg('manifest') ?? 'docs/OMEGAX_DOCS_SYNC.json',
+  );
   const packagePath = resolve('package.json');
   const docsRepoPath = resolve(parseArg('docs-repo') ?? '../omegax-docs');
-  const syncedBy = parseArg('synced-by') ?? String(process.env.USER ?? '').trim();
+  const syncedBy =
+    parseArg('synced-by') ?? String(process.env.USER ?? '').trim();
 
   if (!syncedBy || syncedBy.length < 2) {
     throw new Error('Missing synced-by. Pass --synced-by=<name> or set USER.');
   }
 
   const explicitCommit = parseArg('docs-commit');
-  const docsCommit = explicitCommit ? explicitCommit : readGitHeadCommit(docsRepoPath);
+  const docsCommit = explicitCommit
+    ? explicitCommit
+    : readGitHeadCommit(docsRepoPath);
   assertCommitSha(docsCommit);
 
   const [packageRaw, manifestRaw] = await Promise.all([
@@ -51,7 +56,11 @@ async function main() {
   manifest.syncedAt = new Date().toISOString();
   manifest.syncedBy = syncedBy;
 
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  await writeFile(
+    manifestPath,
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    'utf8',
+  );
 
   console.log(`Updated ${manifestPath}`);
   console.log(`sdkVersion: ${manifest.sdkVersion}`);

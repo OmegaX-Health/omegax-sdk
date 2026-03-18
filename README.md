@@ -61,7 +61,11 @@ npm install @omegax/protocol-sdk
 ### 1) Create clients
 
 ```ts
-import { createConnection, createProtocolClient, createRpcClient } from '@omegax/protocol-sdk';
+import {
+  createConnection,
+  createProtocolClient,
+  createRpcClient,
+} from '@omegax/protocol-sdk';
 
 const connection = createConnection({
   network: 'devnet',
@@ -77,7 +81,7 @@ const rpc = createRpcClient(connection);
 ### 2) Build an unsigned reward-claim transaction
 
 ```ts
-const tx = protocol.buildSubmitRewardClaimTx!({
+const tx = protocol.buildSubmitRewardClaimTx({
   claimant: '<claimant-pubkey>',
   poolAddress: '<pool-pubkey>',
   member: '<member-pubkey>',
@@ -183,6 +187,9 @@ For the normal local workspace layout, this reads from:
 Run the full local compatibility gate before pushing SDK changes that may affect protocol behavior:
 
 ```bash
+npm run typecheck
+npm run lint
+npm run format:check
 npm run verify:protocol:local
 ```
 
@@ -204,12 +211,15 @@ npm run sdk:check
 
 Latest fixture sync metadata:
 
-- Source commit: `e32313b5c49fb06a609252f845845fcf2d49e98d`
-- Fixture SHA-256: `da54336ff190407d1dfa89ae8ca976c1f025cf3c53ffdabb853b661c157e4ee9`
+- Source commit: `5b8ae12f572c66b4daa0f52cf0bf533e151f557a`
+- Fixture SHA-256: `273ba886c5454572e3a88f60ae9101a719d7deefce7b549b5a93786cbf04c19b`
 
 ## Development commands
 
 ```bash
+npm run typecheck
+npm run lint
+npm run format:check
 npm run build
 npm test
 npm pack --dry-run

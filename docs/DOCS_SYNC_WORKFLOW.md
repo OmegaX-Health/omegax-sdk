@@ -22,6 +22,9 @@ This workflow keeps SDK docs and the public docs portal on parity without duplic
 2. Run local checks:
 
 ```bash
+npm run typecheck
+npm run lint
+npm run format:check
 npm run docs:check
 npm run docs:sync:check
 ```
@@ -50,6 +53,9 @@ npm run docs:sync:check:strict
 ## CI and release enforcement
 
 - PR/CI gate:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run format:check`
   - `npm run docs:check`
   - `npm run docs:sync:check` (structure/version parity; allows `PENDING` sync metadata)
 - Release gate:

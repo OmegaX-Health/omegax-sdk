@@ -34,7 +34,9 @@ async function airdrop(connection, address, lamports) {
 
 function signToBase64(tx, signers) {
   tx.partialSign(...signers);
-  return Buffer.from(tx.serialize({ requireAllSignatures: true, verifySignatures: true })).toString('base64');
+  return Buffer.from(
+    tx.serialize({ requireAllSignatures: true, verifySignatures: true }),
+  ).toString('base64');
 }
 
 async function simulateAndBroadcast(params) {
@@ -51,7 +53,11 @@ async function simulateAndBroadcast(params) {
   );
 
   const broadcast = await params.rpc.broadcastSignedTx({ signedTxBase64 });
-  assert.equal(broadcast.status, 'confirmed', `${params.label} did not confirm`);
+  assert.equal(
+    broadcast.status,
+    'confirmed',
+    `${params.label} did not confirm`,
+  );
 }
 
 test('sdk live localnet smoke exercises rpc helpers and readers', async () => {
@@ -89,13 +95,13 @@ test('sdk live localnet smoke exercises rpc helpers and readers', async () => {
     label: 'initialize_protocol',
     rpc,
     signers: [admin],
-    tx: protocol.buildInitializeProtocolTx!({
+    tx: protocol.buildInitializeProtocolTx({
       admin: admin.publicKey.toBase58(),
       protocolFeeBps: 300,
       governanceRealm,
       governanceConfig,
       defaultStakeMint,
-      minOracleStake: 0n,
+      minOracleStake: 1n,
       recentBlockhash: await rpc.getRecentBlockhash(),
       programId,
     }),
@@ -105,11 +111,12 @@ test('sdk live localnet smoke exercises rpc helpers and readers', async () => {
     label: 'set_protocol_params',
     rpc,
     signers: [admin],
-    tx: protocol.buildSetProtocolParamsTx!({
+    tx: protocol.buildSetProtocolParamsTx({
       governanceAuthority: admin.publicKey.toBase58(),
       protocolFeeBps: 300,
       allowedPayoutMintsHashHex,
-      minOracleStake: 0n,
+      defaultStakeMint,
+      minOracleStake: 1n,
       emergencyPaused: false,
       recentBlockhash: await rpc.getRecentBlockhash(),
       programId,
@@ -120,7 +127,7 @@ test('sdk live localnet smoke exercises rpc helpers and readers', async () => {
     label: 'register_oracle',
     rpc,
     signers: [admin],
-    tx: protocol.buildRegisterOracleTx!({
+    tx: protocol.buildRegisterOracleTx({
       admin: admin.publicKey.toBase58(),
       oraclePubkey: oracle.publicKey.toBase58(),
       oracleType: 4,
@@ -140,7 +147,7 @@ test('sdk live localnet smoke exercises rpc helpers and readers', async () => {
     label: 'claim_oracle',
     rpc,
     signers: [oracle],
-    tx: protocol.buildClaimOracleTx!({
+    tx: protocol.buildClaimOracleTx({
       oracle: oracle.publicKey.toBase58(),
       recentBlockhash: await rpc.getRecentBlockhash(),
       programId,
@@ -151,7 +158,7 @@ test('sdk live localnet smoke exercises rpc helpers and readers', async () => {
     label: 'create_pool',
     rpc,
     signers: [poolAuthority],
-    tx: protocol.buildCreatePoolTx!({
+    tx: protocol.buildCreatePoolTx({
       authority: poolAuthority.publicKey.toBase58(),
       poolId,
       organizationRef: 'sdk-smoke',
@@ -188,7 +195,7 @@ test('sdk live localnet smoke exercises rpc helpers and readers', async () => {
     label: 'set_pool_oracle_policy',
     rpc,
     signers: [poolAuthority],
-    tx: protocol.buildSetPoolOraclePolicyTx!({
+    tx: protocol.buildSetPoolOraclePolicyTx({
       authority: poolAuthority.publicKey.toBase58(),
       poolAddress: poolAddress.toBase58(),
       quorumM: 1,
@@ -202,21 +209,25 @@ test('sdk live localnet smoke exercises rpc helpers and readers', async () => {
     }),
   });
 
-  const config = await protocol.fetchProtocolConfig!();
+  const config = await protocol.fetchProtocolConfig();
   assert.ok(config, 'expected live ProtocolConfig account');
   assert.equal(config.admin, admin.publicKey.toBase58());
   assert.equal(config.defaultStakeMint, defaultStakeMint);
   assert.equal(config.protocolFeeBps, 300);
   assert.equal(config.allowedPayoutMintsHashHex, allowedPayoutMintsHashHex);
 
-  const oracleProfile = await protocol.fetchOracleProfile!(oracle.publicKey.toBase58());
+  const oracleProfile = await protocol.fetchOracleProfile(
+    oracle.publicKey.toBase58(),
+  );
   assert.ok(oracleProfile, 'expected live OracleProfile account');
   assert.equal(oracleProfile.oracle, oracle.publicKey.toBase58());
   assert.equal(oracleProfile.admin, admin.publicKey.toBase58());
   assert.equal(oracleProfile.displayName, 'SDK Smoke Oracle');
   assert.equal(oracleProfile.claimed, true);
 
-  const oracleEntry = await protocol.fetchOracleRegistryEntry(oracle.publicKey.toBase58());
+  const oracleEntry = await protocol.fetchOracleRegistryEntry(
+    oracle.publicKey.toBase58(),
+  );
   assert.ok(oracleEntry, 'expected live OracleRegistryEntry account');
   assert.equal(oracleEntry.oracle, oracle.publicKey.toBase58());
   assert.equal(oracleEntry.active, true);
@@ -228,12 +239,14 @@ test('sdk live localnet smoke exercises rpc helpers and readers', async () => {
   assert.equal(pool.organizationRef, 'sdk-smoke');
   assert.equal(pool.statusCode, 1);
 
-  const poolTerms = await protocol.fetchPoolTerms!(poolAddress.toBase58());
+  const poolTerms = await protocol.fetchPoolTerms(poolAddress.toBase58());
   assert.ok(poolTerms, 'expected live PoolTerms account');
   assert.equal(poolTerms.pool, poolAddress.toBase58());
   assert.equal(poolTerms.metadataUri, `https://pool.sdk-smoke/${poolId}`);
 
-  const poolPolicy = await protocol.fetchPoolOraclePolicy!(poolAddress.toBase58());
+  const poolPolicy = await protocol.fetchPoolOraclePolicy(
+    poolAddress.toBase58(),
+  );
   assert.ok(poolPolicy, 'expected live PoolOraclePolicy account');
   assert.equal(poolPolicy.pool, poolAddress.toBase58());
   assert.equal(poolPolicy.quorumM, 1);

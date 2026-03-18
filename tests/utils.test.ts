@@ -75,7 +75,10 @@ test('hash helpers produce consistent 32-byte digests and canonical hex encoding
   const digestHex = sha256Hex('omega');
   const digestBytes = sha256Bytes('omega');
 
-  assert.equal(digestHex, '304b4a90a76a1cbe4c112e074b30e75181f54df43d60f883597457844293b341');
+  assert.equal(
+    digestHex,
+    '304b4a90a76a1cbe4c112e074b30e75181f54df43d60f883597457844293b341',
+  );
   assert.equal(toHex(digestBytes), digestHex);
   assert.equal(hashStringTo32('omega').length, 32);
   assert.deepEqual(hashStringTo32('omega'), digestBytes);
@@ -87,5 +90,8 @@ test('ID and ISO helpers expose stable prefixes and normalized timestamps', () =
 
   const iso = toIsoString('2026-03-10T10:30:00+01:00');
   assert.equal(iso, '2026-03-10T09:30:00.000Z');
-  assert.equal(toIsoString(new Date('2026-03-10T09:30:00.000Z')), '2026-03-10T09:30:00.000Z');
+  assert.equal(
+    toIsoString(new Date('2026-03-10T09:30:00.000Z')),
+    '2026-03-10T09:30:00.000Z',
+  );
 });

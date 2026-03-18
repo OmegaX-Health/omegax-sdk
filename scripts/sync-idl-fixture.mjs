@@ -38,9 +38,9 @@ function readGitCommit(repoRoot) {
 
 async function main() {
   const sourcePath = resolve(
-    parseSourceFromArgs()
-      ?? process.env.OMEGAX_PROTOCOL_IDL_PATH
-      ?? '../omegax-protocol/idl/omegax_protocol.json',
+    parseSourceFromArgs() ??
+      process.env.OMEGAX_PROTOCOL_IDL_PATH ??
+      '../omegax-protocol/idl/omegax_protocol.json',
   );
   const destinationPath = resolve('tests/fixtures/omegax_protocol.idl.json');
 
@@ -53,11 +53,17 @@ async function main() {
   const sourceBuffer = await readFile(sourcePath);
   const parsed = JSON.parse(sourceBuffer.toString('utf8'));
   if (!Array.isArray(parsed?.instructions)) {
-    throw new Error(`Source file at ${sourcePath} is not a valid Anchor IDL (missing instructions array).`);
+    throw new Error(
+      `Source file at ${sourcePath} is not a valid Anchor IDL (missing instructions array).`,
+    );
   }
 
   await mkdir(dirname(destinationPath), { recursive: true });
-  await writeFile(destinationPath, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8');
+  await writeFile(
+    destinationPath,
+    `${JSON.stringify(parsed, null, 2)}\n`,
+    'utf8',
+  );
 
   const fixtureBuffer = await readFile(destinationPath);
   const sha256 = createHash('sha256').update(fixtureBuffer).digest('hex');

@@ -4,11 +4,13 @@ import { Keypair, Transaction } from '@solana/web3.js';
 
 import {
   buildUnsignedRewardClaimTx,
+  createConnection,
+  createProtocolClient,
   mapValidationReasonToClaimFailure,
   normalizeClaimRpcFailure,
   normalizeClaimSimulationFailure,
   validateSignedClaimTx,
-} from '../src/claims.js';
+} from '../src/index.js';
 import { compileTransactionToV0 } from '../src/protocol.js';
 import {
   deriveClaimPda,
@@ -47,7 +49,9 @@ function createBaseRewardClaimParams() {
       member: member.publicKey.toBase58(),
       poolAddress: pool.publicKey.toBase58(),
       seriesRefHashHex: 'aa'.repeat(32),
-      cycleHashHex: Buffer.from(hashStringTo32('cycle-reward-1')).toString('hex'),
+      cycleHashHex: Buffer.from(hashStringTo32('cycle-reward-1')).toString(
+        'hex',
+      ),
       ruleHashHex: 'ab'.repeat(32),
       intentHashHex: 'cd'.repeat(32),
       payoutAmount: 50n,
@@ -61,7 +65,8 @@ function createBaseRewardClaimParams() {
 }
 
 test('buildUnsignedRewardClaimTx is deterministic for fixed inputs', () => {
-  const { member, program, pool, payoutMint, params } = createBaseRewardClaimParams();
+  const { member, program, pool, payoutMint, params } =
+    createBaseRewardClaimParams();
 
   const a = buildUnsignedRewardClaimTx(params);
   const b = buildUnsignedRewardClaimTx(params);
@@ -126,7 +131,10 @@ test('buildUnsignedRewardClaimTx is deterministic for fixed inputs', () => {
   assert.equal(ix.keys[13].pubkey.toBase58(), program.publicKey.toBase58());
   assert.equal(ix.keys[14].pubkey.toBase58(), program.publicKey.toBase58());
   assert.equal(ix.keys[15].pubkey.toBase58(), claimRecord.toBase58());
-  assert.equal(ix.keys[17].pubkey.toBase58(), '11111111111111111111111111111111');
+  assert.equal(
+    ix.keys[17].pubkey.toBase58(),
+    '11111111111111111111111111111111',
+  );
   assert.equal(ix.keys[18].pubkey.toBase58(), program.publicKey.toBase58());
 });
 
@@ -137,7 +145,9 @@ test('buildUnsignedRewardClaimTx uses the canonical zero pubkey when payout mint
     payoutMint: undefined,
   });
 
-  const decoded = Transaction.from(Buffer.from(intent.unsignedTxBase64, 'base64'));
+  const decoded = Transaction.from(
+    Buffer.from(intent.unsignedTxBase64, 'base64'),
+  );
   const ix = decoded.instructions[0];
   const [poolTreasuryReserve] = derivePoolTreasuryReservePda({
     programId: program.publicKey,
@@ -188,13 +198,39 @@ test('buildUnsignedRewardClaimTx supports canonical optional reward accounts and
     includePoolCompliancePolicy: true,
   });
 
-  const decoded = Transaction.from(Buffer.from(intent.unsignedTxBase64, 'base64'));
+  const decoded = Transaction.from(
+    Buffer.from(intent.unsignedTxBase64, 'base64'),
+  );
   const ix = decoded.instructions[0];
   assert.equal(ix.keys.length, 19);
   assert.equal(ix.keys[8].pubkey.toBase58(), memberCycle.toBase58());
   assert.equal(ix.keys[9].pubkey.toBase58(), cohortSettlementRoot.toBase58());
   assert.equal(ix.keys[9].isWritable, true);
   assert.equal(ix.keys[18].pubkey.toBase58(), poolCompliancePolicy.toBase58());
+});
+
+test('reward claim serialization stays aligned between standalone and protocol client builders', () => {
+  const { params } = createBaseRewardClaimParams();
+  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
+  const client = createProtocolClient(connection, params.programId);
+
+  const standalone = buildUnsignedRewardClaimTx(params);
+  const protocolTx = client.buildSubmitRewardClaimTx({
+    ...params,
+    claimant: params.claimantWallet,
+  });
+  const standaloneTx = Transaction.from(
+    Buffer.from(standalone.unsignedTxBase64, 'base64'),
+  );
+
+  assert.equal(
+    protocolTx
+      .serialize({ requireAllSignatures: false, verifySignatures: false })
+      .toString('base64'),
+    standaloneTx
+      .serialize({ requireAllSignatures: false, verifySignatures: false })
+      .toString('base64'),
+  );
 });
 
 test('validateSignedClaimTx validates required signer signature', () => {
@@ -219,13 +255,19 @@ test('validateSignedClaimTx accepts versioned signed tx when message matches pre
   const { claimant, params } = createBaseRewardClaimParams();
 
   const intent = buildUnsignedRewardClaimTx(params);
-  const unsignedLegacyTx = Transaction.from(Buffer.from(intent.unsignedTxBase64, 'base64'));
+  const unsignedLegacyTx = Transaction.from(
+    Buffer.from(intent.unsignedTxBase64, 'base64'),
+  );
   const unsignedVersionedTx = compileTransactionToV0(unsignedLegacyTx, []);
-  const expectedUnsignedTxBase64 = Buffer.from(unsignedVersionedTx.serialize()).toString('base64');
+  const expectedUnsignedTxBase64 = Buffer.from(
+    unsignedVersionedTx.serialize(),
+  ).toString('base64');
 
   const signedVersionedTx = compileTransactionToV0(unsignedLegacyTx, []);
   signedVersionedTx.sign([claimant]);
-  const signedTxBase64 = Buffer.from(signedVersionedTx.serialize()).toString('base64');
+  const signedTxBase64 = Buffer.from(signedVersionedTx.serialize()).toString(
+    'base64',
+  );
 
   const result = validateSignedClaimTx({
     signedTxBase64,
@@ -249,7 +291,9 @@ test('validateSignedClaimTx enforces signed tx message match with prepared inten
     intentHashHex: 'de'.repeat(32),
   });
 
-  const tx = Transaction.from(Buffer.from(differentIntent.unsignedTxBase64, 'base64'));
+  const tx = Transaction.from(
+    Buffer.from(differentIntent.unsignedTxBase64, 'base64'),
+  );
   tx.sign(claimant);
   const signedTxBase64 = tx.serialize().toString('base64');
 

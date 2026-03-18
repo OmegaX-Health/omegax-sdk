@@ -9,7 +9,6 @@ import {
   PROTOCOL_PROGRAM_ID,
   ZERO_PUBKEY,
   anchorDiscriminator,
-  asPubkey,
   createConnection,
   createProtocolClient,
   deriveAttestationVotePda,
@@ -59,8 +58,12 @@ import {
   fromHex,
 } from '../src/index.js';
 
-const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+const TOKEN_PROGRAM_ID = new PublicKey(
+  'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+);
+const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
+  'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
+);
 const ZERO_PUBKEY_KEY = new PublicKey(ZERO_PUBKEY);
 
 const constants = {
@@ -163,8 +166,12 @@ const constants = {
 };
 
 function getProgramId() {
-  const configured = process.env.NEXT_PUBLIC_PROTOCOL_PROGRAM_ID ?? process.env.PROTOCOL_PROGRAM_ID;
-  return new PublicKey((configured && configured.trim()) || PROTOCOL_PROGRAM_ID);
+  const configured =
+    process.env.NEXT_PUBLIC_PROTOCOL_PROGRAM_ID ??
+    process.env.PROTOCOL_PROGRAM_ID;
+  return new PublicKey(
+    (configured && configured.trim()) || PROTOCOL_PROGRAM_ID,
+  );
 }
 
 let cachedClient = null;
@@ -195,10 +202,10 @@ function normalizeValue(value) {
   if (value instanceof PublicKey) return value.toBase58();
   if (Array.isArray(value)) return value.map((entry) => normalizeValue(entry));
   if (
-    value instanceof Transaction
-    || value instanceof TransactionInstruction
-    || Buffer.isBuffer(value)
-    || value instanceof Uint8Array
+    value instanceof Transaction ||
+    value instanceof TransactionInstruction ||
+    Buffer.isBuffer(value) ||
+    value instanceof Uint8Array
   ) {
     return value;
   }
@@ -223,7 +230,7 @@ function toPublicKey(value) {
   return value instanceof PublicKey ? value : new PublicKey(value);
 }
 
-function deriveAta({ owner, mint, allowOwnerOffCurve = false }) {
+function deriveAta({ owner, mint }) {
   const ownerKey = toPublicKey(owner);
   const mintKey = toPublicKey(mint);
   return PublicKey.findProgramAddressSync(
@@ -310,9 +317,21 @@ function buildSlashOracleTx(params) {
     keys: [
       { pubkey: governanceAuthority, isSigner: true, isWritable: false },
       { pubkey: config, isSigner: false, isWritable: false },
-      { pubkey: toPublicKey(params.stakePosition), isSigner: false, isWritable: true },
-      { pubkey: toPublicKey(params.stakeVault), isSigner: false, isWritable: true },
-      { pubkey: toPublicKey(params.slashTreasuryTokenAccount), isSigner: false, isWritable: true },
+      {
+        pubkey: toPublicKey(params.stakePosition),
+        isSigner: false,
+        isWritable: true,
+      },
+      {
+        pubkey: toPublicKey(params.stakeVault),
+        isSigner: false,
+        isWritable: true,
+      },
+      {
+        pubkey: toPublicKey(params.slashTreasuryTokenAccount),
+        isSigner: false,
+        isWritable: true,
+      },
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     ],
     data: fixedInstructionData('slash_oracle', encodeU64Le(params.amount)),
@@ -361,7 +380,9 @@ function buildSettleCycleCommitmentTx(params) {
     member,
     periodIndex: params.periodIndex,
   });
-  const cohortHash = params.cohortHashHex ? fromHex(params.cohortHashHex, 32) : new Uint8Array(32);
+  const cohortHash = params.cohortHashHex
+    ? fromHex(params.cohortHashHex, 32)
+    : new Uint8Array(32);
   const [cohortSettlementRoot] = deriveCohortSettlementRootPda({
     programId,
     poolAddress,
@@ -382,7 +403,11 @@ function buildSettleCycleCommitmentTx(params) {
       { pubkey: poolTreasuryReserve, isSigner: false, isWritable: true },
       { pubkey: poolAssetVault, isSigner: false, isWritable: false },
       { pubkey: poolVaultTokenAccount, isSigner: false, isWritable: true },
-      { pubkey: toPublicKey(params.recipientTokenAccount), isSigner: false, isWritable: true },
+      {
+        pubkey: toPublicKey(params.recipientTokenAccount),
+        isSigner: false,
+        isWritable: true,
+      },
       { pubkey: memberCycle, isSigner: false, isWritable: true },
       { pubkey: cohortSettlementRoot, isSigner: false, isWritable: true },
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
@@ -430,7 +455,9 @@ function buildSettleCycleCommitmentSolTx(params) {
     member,
     periodIndex: params.periodIndex,
   });
-  const cohortHash = params.cohortHashHex ? fromHex(params.cohortHashHex, 32) : new Uint8Array(32);
+  const cohortHash = params.cohortHashHex
+    ? fromHex(params.cohortHashHex, 32)
+    : new Uint8Array(32);
   const [cohortSettlementRoot] = deriveCohortSettlementRootPda({
     programId,
     poolAddress,
@@ -448,7 +475,11 @@ function buildSettleCycleCommitmentSolTx(params) {
       { pubkey: poolOracle, isSigner: false, isWritable: false },
       { pubkey: poolOraclePermissions, isSigner: false, isWritable: false },
       { pubkey: poolTreasuryReserve, isSigner: false, isWritable: true },
-      { pubkey: toPublicKey(params.recipientSystemAccount), isSigner: false, isWritable: true },
+      {
+        pubkey: toPublicKey(params.recipientSystemAccount),
+        isSigner: false,
+        isWritable: true,
+      },
       { pubkey: memberCycle, isSigner: false, isWritable: true },
       { pubkey: cohortSettlementRoot, isSigner: false, isWritable: true },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
@@ -480,7 +511,11 @@ function buildSubmitOutcomeAttestationVoteTx(params) {
   const ruleHash = fromHex(params.ruleHashHex, 32);
   const [config] = deriveConfigPda(programId);
   const [oracleEntry] = deriveOraclePda({ programId, oracle });
-  const [stakePosition] = deriveOracleStakePda({ programId, oracle, staker: oracle });
+  const [stakePosition] = deriveOracleStakePda({
+    programId,
+    oracle,
+    staker: oracle,
+  });
   const [poolTerms] = derivePoolTermsPda({ programId, poolAddress });
   const [oraclePolicy] = derivePoolOraclePolicyPda({ programId, poolAddress });
   const [poolTreasuryReserve] = derivePoolTreasuryReservePda({
@@ -544,7 +579,9 @@ function buildSubmitOutcomeAttestationVoteTx(params) {
     { pubkey: vote, isSigner: false, isWritable: true },
     { pubkey: aggregate, isSigner: false, isWritable: true },
     {
-      pubkey: params.includePoolAutomationPolicy ? poolAutomationPolicy : programId,
+      pubkey: params.includePoolAutomationPolicy
+        ? poolAutomationPolicy
+        : programId,
       isSigner: false,
       isWritable: false,
     },
@@ -562,13 +599,19 @@ function buildSubmitOutcomeAttestationVoteTx(params) {
       Buffer.from(fromHex(params.attestationDigestHex, 32)),
       Buffer.from(fromHex(params.observedValueHashHex, 32)),
       Buffer.from(fromHex(params.evidenceHashHex ?? '00'.repeat(32), 32)),
-      Buffer.from(fromHex(params.externalAttestationRefHashHex ?? '00'.repeat(32), 32)),
+      Buffer.from(
+        fromHex(params.externalAttestationRefHashHex ?? '00'.repeat(32), 32),
+      ),
       Buffer.from([(params.aiRole ?? constants.AI_ROLE_NONE) & 0xff]),
       Buffer.from([(params.automationMode ?? 0) & 0xff]),
       Buffer.from(fromHex(params.modelVersionHashHex ?? '00'.repeat(32), 32)),
       Buffer.from(fromHex(params.policyVersionHashHex ?? '00'.repeat(32), 32)),
-      Buffer.from(fromHex(params.executionEnvironmentHashHex ?? '00'.repeat(32), 32)),
-      Buffer.from(fromHex(params.attestationProviderRefHashHex ?? '00'.repeat(32), 32)),
+      Buffer.from(
+        fromHex(params.executionEnvironmentHashHex ?? '00'.repeat(32), 32),
+      ),
+      Buffer.from(
+        fromHex(params.attestationProviderRefHashHex ?? '00'.repeat(32), 32),
+      ),
       encodeI64Le(BigInt(params.asOfTs)),
       Buffer.from([params.passed ? 1 : 0]),
     ),
@@ -627,7 +670,9 @@ function buildSubmitRewardClaimTx(params) {
   const claimant = toPublicKey(params.claimant);
   const poolAddress = toPublicKey(params.poolAddress);
   const member = toPublicKey(params.member);
-  const payoutMint = params.payoutMint ? toPublicKey(params.payoutMint) : ZERO_PUBKEY_KEY;
+  const payoutMint = params.payoutMint
+    ? toPublicKey(params.payoutMint)
+    : ZERO_PUBKEY_KEY;
   const seriesRefHash = fromHex(params.seriesRefHashHex, 32);
   const cycleHash = fromHex(params.cycleHashHex, 32);
   const ruleHash = fromHex(params.ruleHashHex, 32);
@@ -670,22 +715,58 @@ function buildSubmitRewardClaimTx(params) {
     { pubkey: poolTreasuryReserve, isSigner: false, isWritable: true },
     { pubkey: membership, isSigner: false, isWritable: false },
     { pubkey: aggregate, isSigner: false, isWritable: true },
-    { pubkey: params.memberCycle ? toPublicKey(params.memberCycle) : programId, isSigner: false, isWritable: false },
     {
-      pubkey: params.cohortSettlementRoot ? toPublicKey(params.cohortSettlementRoot) : poolAddress,
+      pubkey: params.memberCycle ? toPublicKey(params.memberCycle) : programId,
+      isSigner: false,
+      isWritable: false,
+    },
+    {
+      pubkey: params.cohortSettlementRoot
+        ? toPublicKey(params.cohortSettlementRoot)
+        : poolAddress,
       isSigner: false,
       isWritable: true,
     },
-    { pubkey: toPublicKey(params.recipientSystemAccount), isSigner: false, isWritable: true },
-    { pubkey: params.claimDelegate ? toPublicKey(params.claimDelegate) : programId, isSigner: false, isWritable: false },
-    { pubkey: params.poolAssetVault ? toPublicKey(params.poolAssetVault) : programId, isSigner: false, isWritable: false },
-    { pubkey: params.poolVaultTokenAccount ? toPublicKey(params.poolVaultTokenAccount) : programId, isSigner: false, isWritable: true },
-    { pubkey: params.recipientTokenAccount ? toPublicKey(params.recipientTokenAccount) : programId, isSigner: false, isWritable: true },
+    {
+      pubkey: toPublicKey(params.recipientSystemAccount),
+      isSigner: false,
+      isWritable: true,
+    },
+    {
+      pubkey: params.claimDelegate
+        ? toPublicKey(params.claimDelegate)
+        : programId,
+      isSigner: false,
+      isWritable: false,
+    },
+    {
+      pubkey: params.poolAssetVault
+        ? toPublicKey(params.poolAssetVault)
+        : programId,
+      isSigner: false,
+      isWritable: false,
+    },
+    {
+      pubkey: params.poolVaultTokenAccount
+        ? toPublicKey(params.poolVaultTokenAccount)
+        : programId,
+      isSigner: false,
+      isWritable: true,
+    },
+    {
+      pubkey: params.recipientTokenAccount
+        ? toPublicKey(params.recipientTokenAccount)
+        : programId,
+      isSigner: false,
+      isWritable: true,
+    },
     { pubkey: claimRecord, isSigner: false, isWritable: true },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     {
-      pubkey: params.includePoolCompliancePolicy ? poolCompliancePolicy : programId,
+      pubkey: params.includePoolCompliancePolicy
+        ? poolCompliancePolicy
+        : programId,
       isSigner: false,
       isWritable: false,
     },
@@ -786,7 +867,10 @@ const passthroughBuilders = [
 ];
 
 const passthroughBuilds = Object.fromEntries(
-  passthroughBuilders.map((name) => [name, (params) => callClientBuilder(name, params)]),
+  passthroughBuilders.map((name) => [
+    name,
+    (params) => callClientBuilder(name, params),
+  ]),
 );
 
 const adapter = {
@@ -798,7 +882,8 @@ const adapter = {
   deriveOracleProfilePda: (params) => deriveOracleProfilePda(params)[0],
   derivePoolOraclePda: (params) => derivePoolOraclePda(params)[0],
   derivePoolOraclePolicyPda: (params) => derivePoolOraclePolicyPda(params)[0],
-  derivePoolOraclePermissionsPda: (params) => derivePoolOraclePermissionSetPda(params)[0],
+  derivePoolOraclePermissionsPda: (params) =>
+    derivePoolOraclePermissionSetPda(params)[0],
   derivePoolTermsPda: (params) => derivePoolTermsPda(params)[0],
   deriveMembershipPda: (params) => deriveMembershipPda(params)[0],
   deriveMemberCyclePda: (params) => deriveMemberCyclePda(params)[0],
@@ -814,24 +899,32 @@ const adapter = {
   deriveClaimPda: (params) => deriveClaimPda(params)[0],
   derivePoolAssetVaultPda: (params) => derivePoolAssetVaultPda(params)[0],
   derivePoolRiskConfigPda: (params) => derivePoolRiskConfigPda(params)[0],
-  derivePoolLiquidityConfigPda: (params) => derivePoolLiquidityConfigPda(params)[0],
+  derivePoolLiquidityConfigPda: (params) =>
+    derivePoolLiquidityConfigPda(params)[0],
   derivePoolCapitalClassPda: (params) => derivePoolCapitalClassPda(params)[0],
-  derivePoolCompliancePolicyPda: (params) => derivePoolCompliancePolicyPda(params)[0],
-  derivePoolControlAuthorityPda: (params) => derivePoolControlAuthorityPda(params)[0],
-  derivePoolAutomationPolicyPda: (params) => derivePoolAutomationPolicyPda(params)[0],
-  derivePoolTreasuryReservePda: (params) => derivePoolTreasuryReservePda(params)[0],
+  derivePoolCompliancePolicyPda: (params) =>
+    derivePoolCompliancePolicyPda(params)[0],
+  derivePoolControlAuthorityPda: (params) =>
+    derivePoolControlAuthorityPda(params)[0],
+  derivePoolAutomationPolicyPda: (params) =>
+    derivePoolAutomationPolicyPda(params)[0],
+  derivePoolTreasuryReservePda: (params) =>
+    derivePoolTreasuryReservePda(params)[0],
   derivePoolShareMintPda: (params) => derivePoolShareMintPda(params)[0],
   deriveRedemptionRequestPda: (params) => deriveRedemptionRequestPda(params)[0],
   derivePolicyPositionPda: (params) => derivePolicyPositionPda(params)[0],
   derivePolicyPositionNftPda: (params) => derivePolicyPositionNftPda(params)[0],
   derivePolicySeriesPda: (params) => derivePolicySeriesPda(params)[0],
-  derivePolicySeriesPaymentOptionPda: (params) => derivePolicySeriesPaymentOptionPda(params)[0],
+  derivePolicySeriesPaymentOptionPda: (params) =>
+    derivePolicySeriesPaymentOptionPda(params)[0],
   derivePremiumLedgerPda: (params) => derivePremiumLedgerPda(params)[0],
   derivePremiumReplayPda: (params) => derivePremiumReplayPda(params)[0],
   deriveCoverageClaimPda: (params) => deriveCoverageClaimPda(params)[0],
-  deriveCohortSettlementRootPda: (params) => deriveCohortSettlementRootPda(params)[0],
+  deriveCohortSettlementRootPda: (params) =>
+    deriveCohortSettlementRootPda(params)[0],
   deriveProtocolFeeVaultPda: (params) => deriveProtocolFeeVaultPda(params)[0],
-  derivePoolOracleFeeVaultPda: (params) => derivePoolOracleFeeVaultPda(params)[0],
+  derivePoolOracleFeeVaultPda: (params) =>
+    derivePoolOracleFeeVaultPda(params)[0],
   deriveSchemaDependencyPda: (params) => deriveSchemaDependencyPda(params)[0],
   ...passthroughBuilds,
   buildCreatePoolTx,

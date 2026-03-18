@@ -79,10 +79,16 @@ async function main() {
       );
     }
     if (placeholders.has(syncedAt) || !isIsoDate(syncedAt)) {
-      fail('Strict mode requires syncedAt to be a valid ISO-8601 timestamp.', errors);
+      fail(
+        'Strict mode requires syncedAt to be a valid ISO-8601 timestamp.',
+        errors,
+      );
     }
     if (placeholders.has(syncedBy) || syncedBy.length < 2) {
-      fail('Strict mode requires syncedBy to be set to a maintainer identifier.', errors);
+      fail(
+        'Strict mode requires syncedBy to be set to a maintainer identifier.',
+        errors,
+      );
     }
   } else {
     if (placeholders.has(docsCommit) || !isCommitSha(docsCommit)) {
@@ -106,7 +112,10 @@ async function main() {
   }
 
   if (!Array.isArray(manifest.pages) || manifest.pages.length === 0) {
-    fail('pages[] must be a non-empty array in docs/OMEGAX_DOCS_SYNC.json.', errors);
+    fail(
+      'pages[] must be a non-empty array in docs/OMEGAX_DOCS_SYNC.json.',
+      errors,
+    );
   } else {
     const seen = new Set();
     for (const [index, page] of manifest.pages.entries()) {
@@ -121,10 +130,16 @@ async function main() {
         fail(`pages[${index}].omegaxDocsPath is required.`, errors);
       }
       if (sdkDoc.startsWith('/')) {
-        fail(`pages[${index}].sdkDoc must be repository-relative: ${sdkDoc}`, errors);
+        fail(
+          `pages[${index}].sdkDoc must be repository-relative: ${sdkDoc}`,
+          errors,
+        );
       }
       if (omegaxDocsPath.startsWith('/')) {
-        fail(`pages[${index}].omegaxDocsPath must be repo-relative: ${omegaxDocsPath}`, errors);
+        fail(
+          `pages[${index}].omegaxDocsPath must be repo-relative: ${omegaxDocsPath}`,
+          errors,
+        );
       }
       if (!omegaxDocsPath.startsWith('website/docs/')) {
         warn(
