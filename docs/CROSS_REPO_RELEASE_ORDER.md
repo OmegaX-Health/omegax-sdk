@@ -7,18 +7,18 @@ Use this sequence to publish without SDK/docs drift.
 Create branch:
 
 ```bash
-git checkout -b codex/docs-sdk-v0.4.0
+git checkout -b codex/docs-sdk-v0.5.0
 ```
 
 Commit message (recommended):
 
-- `docs(sdk): publish v0.4.0 sdk guides and references`
+- `docs(sdk): publish v0.5.0 canonical sdk surface`
 
 Scope to include:
 
 - `website/docs/sdk/*`
-- `website/sidebars.ts`
-- Any related wording updates in intro/protocol/oracle pages
+- `website/docs/changelog.md`
+- `website/sidebars.ts` only if doc ids or paths change
 
 After merge, capture merged commit SHA:
 
@@ -31,7 +31,7 @@ git rev-parse HEAD
 Create branch:
 
 ```bash
-git checkout -b codex/sdk-release-v0.4.0
+git checkout -b codex/sdk-release-v0.5.0
 ```
 
 Update sync metadata from merged docs repo commit:
@@ -53,7 +53,7 @@ npm audit --omit=dev --audit-level=moderate
 
 Commit message (recommended):
 
-- `release(v0.4.0): finalize public sdk docs parity and publish gates`
+- `release(v0.5.0): finalize canonical sdk docs parity and publish gates`
 
 ## 3) Merge SDK PR, then tag
 
@@ -62,8 +62,8 @@ Once SDK PR is merged to default branch:
 ```bash
 git checkout <default-branch>
 git pull
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
 This triggers the release workflow that validates:

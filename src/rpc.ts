@@ -15,20 +15,68 @@ import type {
 import { normalizeClaimSimulationFailure } from './claims.js';
 import {
   decodeSolanaTransaction,
+  serializeSolanaTransaction,
   type SolanaTransaction,
 } from './transactions.js';
 
 function shouldRetrySignedSimulationWithoutSigVerify(params: {
   error: unknown;
-  replaceRecentBlockhash: boolean;
   sigVerify: boolean;
 }): boolean {
   const message = params.error instanceof Error ? params.error.message : String(params.error);
   return (
     params.sigVerify
-    && params.replaceRecentBlockhash
     && /invalid arguments/i.test(message)
   );
+}
+
+async function simulateSignedTransaction(
+  connection: Connection,
+  transaction: SolanaTransaction,
+  options: {
+    commitment: 'processed' | 'confirmed' | 'finalized';
+    replaceRecentBlockhash: boolean;
+    sigVerify: boolean;
+  },
+): Promise<{
+  value: {
+    err: unknown | null;
+    logs?: string[] | null;
+    unitsConsumed?: number | null;
+  };
+}> {
+  const rpcRequest = (connection as {
+    _rpcRequest?: (methodName: string, args: unknown[]) => Promise<{
+      error?: { message?: string };
+      result?: {
+        value: {
+          err: unknown | null;
+          logs?: string[] | null;
+          unitsConsumed?: number | null;
+        };
+      };
+    }>;
+  })._rpcRequest;
+
+  if (typeof rpcRequest !== 'function') {
+    return await (connection as any).simulateTransaction(transaction, options);
+  }
+
+  const unsafe = await rpcRequest.call(connection, 'simulateTransaction', [
+    serializeSolanaTransaction(transaction).toString('base64'),
+    {
+      encoding: 'base64',
+      ...options,
+    },
+  ]);
+
+  if (unsafe?.error) {
+    throw new Error(unsafe.error.message ?? 'failed to simulate transaction');
+  }
+  if (!unsafe?.result?.value) {
+    throw new Error('failed to simulate transaction: missing RPC result');
+  }
+  return unsafe.result;
 }
 
 export type OmegaXNetwork = 'devnet' | 'mainnet';
@@ -161,12 +209,11 @@ export function createRpcClient(connection: Connection): RpcClient {
 
       let result;
       try {
-        result = await (connection as any).simulateTransaction(tx, baseOptions);
+        result = await simulateSignedTransaction(connection, tx, baseOptions);
       } catch (error) {
         if (
           !shouldRetrySignedSimulationWithoutSigVerify({
             error,
-            replaceRecentBlockhash,
             sigVerify,
           })
         ) {
@@ -180,7 +227,7 @@ export function createRpcClient(connection: Connection): RpcClient {
         }
 
         try {
-          result = await (connection as any).simulateTransaction(tx, {
+          result = await simulateSignedTransaction(connection, tx, {
             ...baseOptions,
             sigVerify: false,
           });

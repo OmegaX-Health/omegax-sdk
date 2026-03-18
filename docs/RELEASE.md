@@ -7,7 +7,7 @@ This is the maintainer flow for publishing a public release.
 - Repo is public and release workflows are enabled.
 - npm scope access exists for `@omegax`.
 - `NPM_TOKEN` is configured in GitHub Actions secrets.
-- Version in `package.json` is final (example: `0.4.0`).
+- Version in `package.json` is final (example: `0.5.0`).
 
 ## 1) Local pre-release checks
 
@@ -58,8 +58,8 @@ Release workflow validates tag/version match:
 
 Example:
 
-- `package.json`: `0.4.0`
-- git tag: `v0.4.0`
+- `package.json`: `0.5.0`
+- git tag: `v0.5.0`
 
 ## 4) Publish via GitHub Actions
 
@@ -67,8 +67,8 @@ Example:
 2. Create and push tag:
 
 ```bash
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
 3. Watch `.github/workflows/release.yml`.
@@ -91,7 +91,7 @@ Then smoke test in a clean directory:
 
 ```bash
 npm init -y
-npm install @omegax/protocol-sdk@0.4.0
+npm install @omegax/protocol-sdk@0.5.0
 node --input-type=module -e "const m=await import('@omegax/protocol-sdk'); console.log(Object.keys(m).length)"
 ```
 

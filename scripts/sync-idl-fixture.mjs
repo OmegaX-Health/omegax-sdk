@@ -40,7 +40,7 @@ async function main() {
   const sourcePath = resolve(
     parseSourceFromArgs()
       ?? process.env.OMEGAX_PROTOCOL_IDL_PATH
-      ?? '../omegaxhealth_protocol/target/idl/omegax_protocol.json',
+      ?? '../omegax-protocol/idl/omegax_protocol.json',
   );
   const destinationPath = resolve('tests/fixtures/omegax_protocol.idl.json');
 

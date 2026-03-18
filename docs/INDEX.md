@@ -31,7 +31,7 @@ Use this page as the navigation hub for package users and maintainers.
 
 ## Parity assurance
 
-- `../PROTOCOL_V2_PARITY_CHECKLIST.md`
+- `../PROTOCOL_PARITY_CHECKLIST.md`
 - `../tests/idl-parity.test.ts`
 - `../tests/fixtures/omegax_protocol.idl.json`
 

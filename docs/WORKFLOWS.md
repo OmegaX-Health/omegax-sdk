@@ -18,20 +18,20 @@ This guide provides practical, role-based call sequences for production integrat
 
 ### 1) One-time protocol initialization (governance/admin)
 
-- `buildInitializeProtocolV2Tx(...)` (new deployments)
+- `buildInitializeProtocolTx(...)` (new deployments)
 - `buildSetProtocolParamsTx(...)` (tune defaults/limits)
 
 ### 2) Create and configure pool
 
-- `buildCreatePoolV2Tx(...)`
+- `buildCreatePoolTx(...)`
 - `buildSetPoolTermsHashTx(...)` (terms/payout policy updates)
 - `buildSetPoolOraclePolicyTx(...)` (quorum and claim policy)
-- `buildSetPoolOutcomeRuleTx(...)` (schema/rule registration per outcome rule)
+- `buildSetPolicySeriesOutcomeRuleTx(...)` (schema/rule registration per outcome rule)
 - `buildSetPoolStatusTx(...)` (activate/pause/close)
 
 ### 3) Add allowed oracle(s)
 
-- `buildRegisterOracleV2Tx(...)` (if oracle not yet registered)
+- `buildRegisterOracleTx(...)` (if oracle not yet registered)
 - `buildSetPoolOracleTx(...)` (approve/deactivate oracle for pool)
 
 ### 4) Fund payout liquidity
@@ -67,14 +67,13 @@ Choose one enrollment mode:
 
 ### 4) Submit reward claim
 
-- Preferred v2: `buildSubmitRewardClaimTx(...)`
-- Legacy compatibility: `buildSubmitClaimTx(...)`
+- `buildSubmitRewardClaimTx(...)`
 
 ### 5) Verify
 
 - `fetchMembershipRecord(...)`, `fetchClaimDelegate(...)`
 - `fetchAttestationVote(...)`, `fetchCycleOutcomeAggregate(...)`
-- `fetchClaimRecordV2(...)`
+- `fetchClaimRecord(...)`
 
 ---
 
@@ -82,8 +81,8 @@ Choose one enrollment mode:
 
 ### 1) Register/update oracle profile
 
-- `buildRegisterOracleV2Tx(...)`
-- `buildUpdateOracleProfileV2Tx(...)`
+- `buildRegisterOracleTx(...)`
+- `buildUpdateOracleProfileTx(...)`
 - `buildUpdateOracleMetadataTx(...)`
 
 ### 2) Stake lifecycle
@@ -96,7 +95,7 @@ Choose one enrollment mode:
 ### 3) Earn oracle rewards
 
 - Submit outcome votes: `buildSubmitOutcomeAttestationVoteTx(...)`
-- Claim oracle emissions: `buildClaimOracleV2Tx(...)`
+- Claim oracle emissions: `buildClaimOracleTx(...)`
 
 ### 4) Verify
 
@@ -105,33 +104,35 @@ Choose one enrollment mode:
 
 ---
 
-## Workflow D: Coverage product and policy lifecycle
+## Workflow D: Policy series and policy position lifecycle
 
-### 1) Product management (authority)
+### 1) Policy series management (authority)
 
-- Register product: `buildRegisterCoverageProductV2Tx(...)`
-- Update product: `buildUpdateCoverageProductV2Tx(...)`
+- Create policy series: `buildCreatePolicySeriesTx(...)`
+- Update policy series: `buildUpdatePolicySeriesTx(...)`
+- Upsert payment option: `buildUpsertPolicySeriesPaymentOptionTx(...)`
 
 ### 2) Member policy lifecycle
 
-- Subscribe to product: `buildSubscribeCoverageProductV2Tx(...)`
-- Issue policy from product: `buildIssueCoveragePolicyFromProductV2Tx(...)`
-- Manual policy creation path: `buildCreateCoveragePolicyTx(...)`
+- Subscribe to policy series: `buildSubscribePolicySeriesTx(...)`
+- Issue policy position: `buildIssuePolicyPositionTx(...)`
 - Optional policy NFT: `buildMintPolicyNftTx(...)`
 
 ### 3) Premium operations
 
-- Onchain premium: `buildPayPremiumOnchainTx(...)`
+- SOL premium: `buildPayPremiumSolTx(...)`
+- SPL premium: `buildPayPremiumSplTx(...)`
 - Offchain premium attestation: `buildAttestPremiumPaidOffchainTx(...)`
 
 ### 4) Coverage claim lifecycle
 
 - Submit claim: `buildSubmitCoverageClaimTx(...)`
+- Claim approved payout: `buildClaimApprovedCoveragePayoutTx(...)`
 - Settle claim: `buildSettleCoverageClaimTx(...)`
 
 ### 5) Verify
 
-- `fetchCoverageProduct(...)`, `fetchCoveragePolicy(...)`
+- `fetchPolicySeries(...)`, `fetchPolicyPosition(...)`
 - `fetchPremiumLedger(...)`, `fetchPremiumAttestationReplay(...)`
 - `fetchCoverageClaimRecord(...)`
 
@@ -142,8 +143,7 @@ Choose one enrollment mode:
 For stricter signature binding and deterministic intent payloads:
 
 1. Build unsigned intent:
-   - `buildUnsignedClaimTx(...)` (legacy claim path), or
-   - `buildUnsignedRewardClaimTx(...)` (v2 reward claim path)
+   - `buildUnsignedRewardClaimTx(...)`
 2. Wallet signs transaction.
 3. Validate signed payload and message binding with:
    - `validateSignedClaimTx(...)`

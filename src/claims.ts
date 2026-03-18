@@ -7,11 +7,9 @@ import {
 } from '@solana/web3.js';
 
 import type {
-  BuildUnsignedClaimTxParams,
   BuildUnsignedRewardClaimTxParams,
   ClaimFailureCode,
   ClaimFailureDetail,
-  ClaimIntent,
   RewardClaimIntent,
   ValidateSignedClaimTxReason,
   ValidateSignedClaimTxParams,
@@ -21,7 +19,6 @@ import {
   anchorDiscriminator,
   encodeU64Le,
   fromHex,
-  hashStringTo32,
 } from './utils.js';
 import {
   decodeSolanaTransaction,
@@ -33,19 +30,17 @@ import {
   solanaTransactionSignerSignature,
 } from './transactions.js';
 import {
-  deriveClaimDelegatePda,
   deriveClaimPda,
-  deriveClaimV2Pda,
-  deriveConfigV2Pda,
+  deriveConfigPda,
   deriveOutcomeAggregatePda,
+  derivePoolCompliancePolicyPda,
   derivePoolOraclePolicyPda,
+  derivePoolTreasuryReservePda,
   derivePoolTermsPda,
-  deriveCycleWindowPda,
-  deriveCycleOutcomePda,
   deriveMembershipPda,
+  ZERO_PUBKEY,
 } from './protocol_seeds.js';
 
-const SUBMIT_CLAIM_DISCRIMINATOR = anchorDiscriminator('global', 'submit_claim');
 const SUBMIT_REWARD_CLAIM_DISCRIMINATOR = anchorDiscriminator('global', 'submit_reward_claim');
 
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
@@ -53,6 +48,8 @@ function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
 }
 
 function validateRewardClaimOptionalAccounts(params: {
+  memberCycle?: string;
+  cohortSettlementRoot?: string;
   poolAssetVault?: string;
   poolVaultTokenAccount?: string;
   recipientTokenAccount?: string;
@@ -70,18 +67,8 @@ function validateRewardClaimOptionalAccounts(params: {
   }
 }
 
-function serializeSubmitClaimPayload(params: BuildUnsignedClaimTxParams): Buffer {
-  const cycleHash = hashStringTo32(params.cycleId);
-  const intentHash = hashStringTo32(params.intentId);
-  return Buffer.concat([
-    SUBMIT_CLAIM_DISCRIMINATOR,
-    Buffer.from(cycleHash),
-    Buffer.from(intentHash),
-  ]);
-}
-
 function serializeSubmitRewardClaimPayload(params: BuildUnsignedRewardClaimTxParams): Buffer {
-  const cycleHash = hashStringTo32(params.cycleId);
+  const cycleHash = fromHex(params.cycleHashHex, 32);
   const ruleHash = fromHex(params.ruleHashHex, 32);
   const intentHash = fromHex(params.intentHashHex, 32);
   return Buffer.concat([
@@ -95,97 +82,6 @@ function serializeSubmitRewardClaimPayload(params: BuildUnsignedRewardClaimTxPar
   ]);
 }
 
-export function buildUnsignedClaimTx(
-  params: BuildUnsignedClaimTxParams,
-): ClaimIntent {
-  const claimant = new PublicKey(params.claimantWallet);
-  const programId = new PublicKey(params.programId);
-  const poolAddress = new PublicKey(params.poolAddress);
-
-  const cycleHash = hashStringTo32(params.cycleId);
-  const [membershipPda] = deriveMembershipPda({
-    programId,
-    poolAddress,
-    member: claimant,
-  });
-  const [cycleOutcomePda] = deriveCycleOutcomePda({
-    programId,
-    poolAddress,
-    member: claimant,
-    cycleHash,
-  });
-  const [claimPda] = deriveClaimPda({
-    programId,
-    poolAddress,
-    member: claimant,
-    cycleHash,
-  });
-  const [cycleWindowPda] = deriveCycleWindowPda({
-    programId,
-    poolAddress,
-    cycleHash,
-  });
-
-  const instruction = new TransactionInstruction({
-    keys: [
-      {
-        pubkey: claimant,
-        isSigner: true,
-        isWritable: true,
-      },
-      {
-        pubkey: poolAddress,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: membershipPda,
-        isSigner: false,
-        isWritable: false,
-      },
-      {
-        pubkey: cycleOutcomePda,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: cycleWindowPda,
-        isSigner: false,
-        isWritable: false,
-      },
-      {
-        pubkey: claimPda,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: SystemProgram.programId,
-        isSigner: false,
-        isWritable: false,
-      },
-    ],
-    programId,
-    data: serializeSubmitClaimPayload(params),
-  });
-
-  const tx = new Transaction({
-    recentBlockhash: params.recentBlockhash,
-    feePayer: claimant,
-  }).add(instruction);
-
-  const unsignedTxBase64 = tx
-    .serialize({ requireAllSignatures: false, verifySignatures: false })
-    .toString('base64');
-
-  return {
-    intentId: params.intentId,
-    unsignedTxBase64,
-    requiredSigner: claimant.toBase58(),
-    expiresAtIso: params.expiresAtIso,
-    attestationRefs: params.attestationRefs,
-  };
-}
-
 export function buildUnsignedRewardClaimTx(
   params: BuildUnsignedRewardClaimTxParams,
 ): RewardClaimIntent {
@@ -194,10 +90,12 @@ export function buildUnsignedRewardClaimTx(
   const member = new PublicKey(params.member);
   const programId = new PublicKey(params.programId);
   const poolAddress = new PublicKey(params.poolAddress);
-  const cycleHash = hashStringTo32(params.cycleId);
+  const payoutMint = new PublicKey(params.payoutMint ?? ZERO_PUBKEY);
+  const cycleHash = fromHex(params.cycleHashHex, 32);
   const ruleHash = fromHex(params.ruleHashHex, 32);
+  const seriesRefHash = fromHex(params.seriesRefHashHex, 32);
 
-  const [configV2Pda] = deriveConfigV2Pda(programId);
+  const [configPda] = deriveConfigPda(programId);
   const [poolTermsPda] = derivePoolTermsPda({
     programId,
     poolAddress,
@@ -205,6 +103,11 @@ export function buildUnsignedRewardClaimTx(
   const [poolOraclePolicyPda] = derivePoolOraclePolicyPda({
     programId,
     poolAddress,
+  });
+  const [poolTreasuryReservePda] = derivePoolTreasuryReservePda({
+    programId,
+    poolAddress,
+    paymentMint: payoutMint,
   });
   const [membershipPda] = deriveMembershipPda({
     programId,
@@ -214,25 +117,30 @@ export function buildUnsignedRewardClaimTx(
   const [aggregatePda] = deriveOutcomeAggregatePda({
     programId,
     poolAddress,
+    seriesRefHash,
     member,
     cycleHash,
     ruleHash,
   });
-  const [claimRecordV2Pda] = deriveClaimV2Pda({
+  const [claimRecordPda] = deriveClaimPda({
     programId,
     poolAddress,
+    seriesRefHash,
     member,
     cycleHash,
     ruleHash,
-  });
-  const [claimDelegatePda] = deriveClaimDelegatePda({
-    programId,
-    poolAddress,
-    member,
   });
 
   const optionPlaceholder = programId;
-  const claimDelegateAccount = params.claimDelegate ? claimDelegatePda : optionPlaceholder;
+  const memberCycleAccount = params.memberCycle
+    ? new PublicKey(params.memberCycle)
+    : optionPlaceholder;
+  const cohortSettlementRootAccount = params.cohortSettlementRoot
+    ? new PublicKey(params.cohortSettlementRoot)
+    : optionPlaceholder;
+  const claimDelegateAccount = params.claimDelegate
+    ? new PublicKey(params.claimDelegate)
+    : optionPlaceholder;
   const poolAssetVaultAccount = params.poolAssetVault
     ? new PublicKey(params.poolAssetVault)
     : optionPlaceholder;
@@ -243,24 +151,40 @@ export function buildUnsignedRewardClaimTx(
     ? new PublicKey(params.recipientTokenAccount)
     : optionPlaceholder;
 
+  const keys = [
+    { pubkey: claimant, isSigner: true, isWritable: true },
+    { pubkey: configPda, isSigner: false, isWritable: false },
+    { pubkey: poolAddress, isSigner: false, isWritable: true },
+    { pubkey: poolTermsPda, isSigner: false, isWritable: false },
+    { pubkey: poolOraclePolicyPda, isSigner: false, isWritable: false },
+    { pubkey: poolTreasuryReservePda, isSigner: false, isWritable: true },
+    { pubkey: membershipPda, isSigner: false, isWritable: false },
+    { pubkey: aggregatePda, isSigner: false, isWritable: true },
+    { pubkey: memberCycleAccount, isSigner: false, isWritable: false },
+    {
+      pubkey: cohortSettlementRootAccount,
+      isSigner: false,
+      isWritable: params.cohortSettlementRoot != null,
+    },
+    { pubkey: new PublicKey(params.recipientSystemAccount), isSigner: false, isWritable: true },
+    { pubkey: claimDelegateAccount, isSigner: false, isWritable: false },
+    { pubkey: poolAssetVaultAccount, isSigner: false, isWritable: false },
+    { pubkey: poolVaultTokenAccount, isSigner: false, isWritable: params.poolVaultTokenAccount != null },
+    { pubkey: recipientTokenAccount, isSigner: false, isWritable: params.recipientTokenAccount != null },
+    { pubkey: claimRecordPda, isSigner: false, isWritable: true },
+    { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    {
+      pubkey: params.includePoolCompliancePolicy
+        ? derivePoolCompliancePolicyPda({ programId, poolAddress })[0]
+        : programId,
+      isSigner: false,
+      isWritable: false,
+    },
+  ];
+
   const instruction = new TransactionInstruction({
-    keys: [
-      { pubkey: claimant, isSigner: true, isWritable: true },
-      { pubkey: configV2Pda, isSigner: false, isWritable: false },
-      { pubkey: poolAddress, isSigner: false, isWritable: true },
-      { pubkey: poolTermsPda, isSigner: false, isWritable: false },
-      { pubkey: poolOraclePolicyPda, isSigner: false, isWritable: false },
-      { pubkey: membershipPda, isSigner: false, isWritable: false },
-      { pubkey: aggregatePda, isSigner: false, isWritable: true },
-      { pubkey: new PublicKey(params.recipientSystemAccount), isSigner: false, isWritable: true },
-      { pubkey: claimDelegateAccount, isSigner: false, isWritable: false },
-      { pubkey: poolAssetVaultAccount, isSigner: false, isWritable: false },
-      { pubkey: poolVaultTokenAccount, isSigner: false, isWritable: params.poolVaultTokenAccount != null },
-      { pubkey: recipientTokenAccount, isSigner: false, isWritable: params.recipientTokenAccount != null },
-      { pubkey: claimRecordV2Pda, isSigner: false, isWritable: true },
-      { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ],
+    keys,
     programId,
     data: serializeSubmitRewardClaimPayload(params),
   });

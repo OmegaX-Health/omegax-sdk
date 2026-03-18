@@ -10,7 +10,7 @@ import {
   getOmegaXNetworkInfo,
 } from '../src/index.js';
 
-test('createConnection preserves legacy URL overload behavior', () => {
+test('createConnection preserves URL overload behavior', () => {
   const connection = createConnection('http://127.0.0.1:8899', 'processed');
   assert.equal(connection.rpcEndpoint, 'http://127.0.0.1:8899');
   assert.equal(connection.commitment, 'processed');
@@ -94,10 +94,10 @@ test('network helpers throw explicit errors for unsupported network input', () =
   );
 });
 
-test('createRpcClient simulates versioned transactions without legacy decoding assumptions', async () => {
+test('createRpcClient simulates versioned transactions without stale decoding assumptions', async () => {
   const payer = Keypair.generate();
   const recipient = Keypair.generate();
-  const legacyTx = new Transaction({
+  const sourceTx = new Transaction({
     feePayer: payer.publicKey,
     recentBlockhash: '11111111111111111111111111111111',
   }).add(
@@ -107,7 +107,7 @@ test('createRpcClient simulates versioned transactions without legacy decoding a
       lamports: 1,
     }),
   );
-  const signedVersionedTx = compileTransactionToV0(legacyTx, []);
+  const signedVersionedTx = compileTransactionToV0(sourceTx, []);
   signedVersionedTx.sign([payer]);
 
   let simulatedTx: unknown = null;
@@ -197,6 +197,60 @@ test('createRpcClient retries signed simulation without sigVerify when RPC rejec
   assert.deepEqual(simulationOptions[1], {
     commitment: 'confirmed',
     replaceRecentBlockhash: true,
+    sigVerify: false,
+  });
+});
+
+test('createRpcClient retries signed simulation without sigVerify when RPC rejects sigVerify alone', async () => {
+  const payer = Keypair.generate();
+  const recipient = Keypair.generate();
+  const tx = new Transaction({
+    feePayer: payer.publicKey,
+    recentBlockhash: '11111111111111111111111111111111',
+  }).add(
+    SystemProgram.transfer({
+      fromPubkey: payer.publicKey,
+      toPubkey: recipient.publicKey,
+      lamports: 1,
+    }),
+  );
+  tx.sign(payer);
+
+  const simulationOptions: unknown[] = [];
+  const rpc = createRpcClient({
+    async simulateTransaction(_transaction: unknown, options: unknown) {
+      simulationOptions.push(options);
+      if (simulationOptions.length === 1) {
+        throw new Error('Invalid arguments');
+      }
+      return {
+        value: {
+          err: null,
+          logs: ['retry-ok-no-blockhash-replace'],
+          unitsConsumed: 2222,
+        },
+      };
+    },
+  } as any);
+
+  const result = await rpc.simulateSignedTx({
+    signedTxBase64: tx.serialize().toString('base64'),
+    sigVerify: true,
+    replaceRecentBlockhash: false,
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.logs, ['retry-ok-no-blockhash-replace']);
+  assert.equal(result.unitsConsumed, 2222);
+  assert.equal(simulationOptions.length, 2);
+  assert.deepEqual(simulationOptions[0], {
+    commitment: 'confirmed',
+    replaceRecentBlockhash: false,
+    sigVerify: true,
+  });
+  assert.deepEqual(simulationOptions[1], {
+    commitment: 'confirmed',
+    replaceRecentBlockhash: false,
     sigVerify: false,
   });
 });

@@ -1,7 +1,11 @@
 {
   "name": "@omegax/protocol-sdk",
-  "version": "0.4.4",
-  "description": "TypeScript SDK for OmegaX protocol integrations on Solana devnet beta (mainnet coming soon).",
+  "version": "0.5.0",
+  "description": "TypeScript SDK for OmegaX protocol integrations on Solana devnet beta.",
+  "author": "OMEGAX HEALTH FZCO",
+  "contributors": [
+    "Marino Sabijan, MD"
+  ],
   "keywords": [
     "omegax",
     "solana",
@@ -63,7 +67,8 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "NOTICE"
   ],
   "scripts": {
     "clean": "rm -rf dist",
@@ -71,6 +76,8 @@
     "prepare": "npm run build",
     "prepack": "npm run build",
     "sync:idl-fixture": "node scripts/sync-idl-fixture.mjs",
+    "test:protocol:localnet": "node scripts/run-protocol-localnet.mjs",
+    "verify:protocol:local": "node scripts/verify-protocol-local.mjs",
     "docs:check": "node scripts/verify-doc-symbols.mjs",
     "docs:sync:check": "node scripts/check-omegax-docs-sync.mjs",
     "docs:sync:check:strict": "node scripts/check-omegax-docs-sync.mjs --strict",

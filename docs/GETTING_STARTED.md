@@ -9,7 +9,7 @@ This guide gets you from install to a signed and broadcast transaction.
 - A Solana RPC endpoint (optional when using SDK network defaults)
 - The OmegaX protocol `programId` for your target cluster
 
-> OmegaX is currently live on devnet beta. Mainnet support is coming soon.
+> OmegaX SDK integrations currently target devnet beta. Keep production integrations on devnet until a public mainnet release is announced.
 
 ## 2) Install
 
@@ -101,7 +101,7 @@ const membership = await protocol.fetchMembershipRecord!({
 
 For explicit message binding in client/server claim handoffs:
 
-1. Build intent with `buildUnsignedRewardClaimTx(...)` or `buildUnsignedClaimTx(...)`.
+1. Build intent with `buildUnsignedRewardClaimTx(...)`.
 2. Have wallet sign the unsigned transaction.
 3. Validate with `validateSignedClaimTx(...)`, passing `expectedUnsignedTxBase64`.
 4. Submit with `broadcastSignedTx(...)`.

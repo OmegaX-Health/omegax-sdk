@@ -5,9 +5,9 @@ TypeScript SDK for OmegaX protocol integrations on Solana.
 ## Network status
 
 - Current live network: **devnet beta**
-- Mainnet support: **coming soon**
+- Public integration target: **devnet beta**
 - Protocol UI: https://protocol.omegax.health
-- Protocol repository: `omegaxhealth_protocol`
+- Protocol repository: `omegax-protocol`
 - Governance token:
   - Mainnet CA: `4Aar9R14YMbEie6yh8WcH1gWXrBtfucoFjw6SpjXpump`
   - Devnet: governance token distribution is via the protocol faucet
@@ -16,7 +16,7 @@ It supports:
 
 - Oracle lifecycle, staking, attestation voting, and reward claims
 - Pool creation, configuration, enrollment, funding, and reward claims
-- Coverage product and policy lifecycle (subscribe, premium, claim, settlement)
+- Policy series and policy position lifecycle (subscribe, premium, claim, settlement)
 - Deterministic PDA/seed derivation and account readers
 - Unsigned claim-intent building + signed message validation
 - RPC helpers for send/simulate/status workflows
@@ -38,6 +38,11 @@ It supports:
 npm install @omegax/protocol-sdk
 ```
 
+## Breaking change in `0.5.0`
+
+- Legacy and `V2` exported names were removed from the public SDK surface.
+- Use the current canonical protocol builders, readers, and PDA helpers only.
+
 ## Support matrix
 
 - Node.js `>=20`
@@ -49,7 +54,7 @@ npm install @omegax/protocol-sdk
 - Builders create **unsigned** transactions. Your app signs and submits them.
 - `programId` is explicit in SDK flows and should be passed from your runtime config.
 - Use `createProtocolClient(connection, programId)` for protocol operations.
-- `createConnection({ network: 'mainnet' })` is available but warns that mainnet is coming soon.
+- Keep integrations pointed at `devnet` until OmegaX announces public mainnet availability.
 
 ## Quickstart
 
@@ -76,7 +81,8 @@ const tx = protocol.buildSubmitRewardClaimTx!({
   claimant: '<claimant-pubkey>',
   poolAddress: '<pool-pubkey>',
   member: '<member-pubkey>',
-  cycleId: 'cycle-2026-01',
+  seriesRefHashHex: '<32-byte-hex>',
+  cycleHashHex: '<32-byte-hex>',
   ruleHashHex: '<32-byte-hex>',
   intentHashHex: '<32-byte-hex>',
   payoutAmount: 1n,
@@ -98,30 +104,31 @@ const result = await rpc.broadcastSignedTx({ signedTxBase64: signed });
 
 ### Pool creator / operator
 
-- Create and configure pools: `buildCreatePoolV2Tx`, `buildSetPoolStatusTx`, `buildSetPoolTermsHashTx`
-- Configure oracle policy/rules: `buildSetPoolOraclePolicyTx`, `buildSetPoolOutcomeRuleTx`, `buildSetPoolOracleTx`
+- Create and configure pools: `buildCreatePoolTx`, `buildSetPoolStatusTx`, `buildSetPoolTermsHashTx`
+- Configure oracle policy/rules: `buildSetPoolOraclePolicyTx`, `buildSetPolicySeriesOutcomeRuleTx`, `buildSetPoolOracleTx`
 - Fund payout liquidity: `buildFundPoolSolTx`, `buildFundPoolSplTx`
-- Manage coverage products: `buildRegisterCoverageProductV2Tx`, `buildUpdateCoverageProductV2Tx`
+- Manage policy series: `buildCreatePolicySeriesTx`, `buildUpdatePolicySeriesTx`
 
 ### Pool participant / member
 
 - Enroll: `buildEnrollMemberOpenTx`, `buildEnrollMemberTokenGateTx`, `buildEnrollMemberInvitePermitTx`
 - Authorize claim delegation: `buildSetClaimDelegateTx`
-- Claim rewards: `buildSubmitRewardClaimTx` (and legacy `buildSubmitClaimTx`)
-- Participate in coverage: `buildSubscribeCoverageProductV2Tx`, `buildCreateCoveragePolicyTx`, `buildIssueCoveragePolicyFromProductV2Tx`
+- Claim rewards: `buildSubmitRewardClaimTx`
+- Participate in policy series: `buildSubscribePolicySeriesTx`, `buildIssuePolicyPositionTx`, `buildPayPremiumSolTx`, `buildPayPremiumSplTx`
 
 ### Oracle operator
 
-- Register/update oracle: `buildRegisterOracleV2Tx`, `buildUpdateOracleProfileV2Tx`, `buildUpdateOracleMetadataTx`
+- Register/update oracle: `buildRegisterOracleTx`, `buildUpdateOracleProfileTx`, `buildUpdateOracleMetadataTx`
 - Stake lifecycle: `buildStakeOracleTx`, `buildRequestUnstakeTx`, `buildFinalizeUnstakeTx`, `buildSlashOracleTx`
 - Outcome + premium attestations: `buildSubmitOutcomeAttestationVoteTx`, `buildAttestPremiumPaidOffchainTx`
-- Claim oracle rewards: `buildClaimOracleV2Tx`
+- Claim oracle rewards: `buildClaimOracleTx`
 
 ### Coverage claims
 
 - Submit claim: `buildSubmitCoverageClaimTx`
+- Claim approved payout: `buildClaimApprovedCoveragePayoutTx`
 - Settle claim: `buildSettleCoverageClaimTx`
-- Premium payment: `buildPayPremiumOnchainTx`
+- Premium payment: `buildPayPremiumSolTx`, `buildPayPremiumSplTx`
 - Optional policy NFT mint: `buildMintPolicyNftTx`
 
 ## Module imports
@@ -146,11 +153,15 @@ Available subpaths: `claims`, `protocol`, `protocol_seeds`, `rpc`, `oracle`, `ty
 - `/docs/RELEASE.md` — versioning, CI gates, tag/publish flow
 - `/docs/DOCS_SYNC_WORKFLOW.md` — exact cross-repo docs sync workflow (`omegax-docs`)
 - `/docs/CROSS_REPO_RELEASE_ORDER.md` — commit message templates and release ordering
-- `/PROTOCOL_V2_PARITY_CHECKLIST.md` — protocol parity checklist
+- `/PROTOCOL_PARITY_CHECKLIST.md` — protocol parity checklist
 
 ## Protocol parity
 
-The SDK includes a strict instruction-account parity test against an Anchor IDL.
+The SDK includes:
+
+- a strict instruction-account parity test against an Anchor IDL
+- a live protocol-contract parity check when a local `omegax-protocol` workspace is present
+- a local protocol compatibility gate that runs an SDK smoke test plus the full protocol surface matrix through an SDK adapter
 
 - Default fixture path: `tests/fixtures/omegax_protocol.idl.json`
 - Optional local override:
@@ -163,6 +174,32 @@ Refresh the fixture:
 
 ```bash
 npm run sync:idl-fixture
+```
+
+For the normal local workspace layout, this reads from:
+
+- `../omegax-protocol/idl/omegax_protocol.json`
+
+Run the full local compatibility gate before pushing SDK changes that may affect protocol behavior:
+
+```bash
+npm run verify:protocol:local
+```
+
+This verifies the current local `omegax-protocol` workspace state, including staged, unstaged, and untracked source changes, and records the exact workspace fingerprint it tested.
+
+For targeted localnet-only verification:
+
+```bash
+npm run test:protocol:localnet
+```
+
+If you changed SDK builders that are consumed by the oracle service, refresh the local dependency there after rebuilding the SDK:
+
+```bash
+cd ../omegaxhealth_services/services/protocol-oracle-service
+npm run sdk:refresh
+npm run sdk:check
 ```
 
 Latest fixture sync metadata:
@@ -179,12 +216,33 @@ npm pack --dry-run
 npm audit --omit=dev
 ```
 
+## Cross-repo sync
+
+Keep the repos aligned in this order:
+
+1. `omegax-protocol`
+2. `omegax-sdk`
+3. `protocol-oracle-service`
+4. `omegaxhealth_flutter` if the service DTO changed
+
+Practical rule:
+
+- protocol interface changes start in `omegax-protocol`
+- SDK mirrors the protocol interface and exposes the supported client surface
+- the oracle service refreshes the local SDK package and owns the app-facing Seeker DTO
+- Flutter only follows the service contract
+
 ## OSS docs
 
 - `CONTRIBUTING.md`
 - `SECURITY.md`
 - `CODE_OF_CONDUCT.md`
+- `AUTHORS.md`
 
 ## License
 
-Apache-2.0
+This SDK is licensed under Apache-2.0.
+
+The on-chain OmegaX protocol program lives in the separate `omegax-protocol` repository and is licensed independently under AGPL-3.0-or-later.
+
+Maintained by OMEGAX HEALTH FZCO with open-source contributors. Project initiated by Marino Sabijan, MD.
