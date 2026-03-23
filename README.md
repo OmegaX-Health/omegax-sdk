@@ -211,8 +211,8 @@ npm run sdk:check
 
 Latest fixture sync metadata:
 
-- Source commit: `5b8ae12f572c66b4daa0f52cf0bf533e151f557a`
-- Fixture SHA-256: `273ba886c5454572e3a88f60ae9101a719d7deefce7b549b5a93786cbf04c19b`
+- Source commit: `eb6c94226f034233d0eb6990e7feddcf7bf80642`
+- Fixture SHA-256: `1001bdd4a979f115a9589e1dd309676776aad90672a1aeae0ab63863a466cfb2`
 
 ## Development commands
 
