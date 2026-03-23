@@ -74,6 +74,9 @@ type IdlInstruction = {
 const TOKEN_PROGRAM_ID = new PublicKey(
   'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
 );
+const BPF_UPGRADEABLE_LOADER_PROGRAM_ID = new PublicKey(
+  'BPFLoaderUpgradeab1e11111111111111111111111',
+);
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
   'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
 );
@@ -186,6 +189,10 @@ test('sdk builders stay in strict account-order parity with the workspace protoc
   const requestHash = Buffer.from(requestHashHex, 'hex');
 
   const [config] = deriveConfigPda(programId);
+  const [programData] = PublicKey.findProgramAddressSync(
+    [programId.toBuffer()],
+    BPF_UPGRADEABLE_LOADER_PROGRAM_ID,
+  );
   const [pool] = derivePoolPda({
     programId,
     authority,
@@ -500,6 +507,8 @@ test('sdk builders stay in strict account-order parity with the workspace protoc
     payment_mint: payoutMint,
     payout_mint: payoutMint,
     pool,
+    program: programId,
+    program_data: programData,
     pool_automation_policy: poolAutomationPolicy,
     pool_asset_vault: poolAssetVault,
     pool_capital_class: poolCapitalClass,

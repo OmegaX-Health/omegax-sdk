@@ -1,6 +1,6 @@
 {
   "name": "@omegax/protocol-sdk",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "TypeScript SDK for OmegaX protocol integrations on Solana devnet beta.",
   "author": "OMEGAX HEALTH FZCO",
   "contributors": [
@@ -100,14 +100,13 @@
     "bn.js": "^5.2.3"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
-    "@types/bs58": "^4.0.4",
-    "@types/node": "^20.17.16",
-    "eslint": "^9.39.4",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.19.37",
+    "eslint": "^10.1.0",
     "globals": "^17.4.0",
     "prettier": "^3.8.1",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
     "typescript-eslint": "^8.57.1"
   },
   "engines": {

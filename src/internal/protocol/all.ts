@@ -210,6 +210,9 @@ import {
 
 const MAX_POOL_ID_SEED_BYTES = 32;
 const MAX_ORACLE_SUPPORTED_SCHEMAS = 16;
+const BPF_UPGRADEABLE_LOADER_PROGRAM_ID = new PublicKey(
+  'BPFLoaderUpgradeab1e11111111111111111111111',
+);
 export const PROTOCOL_PROGRAM_ID =
   'Bn6eixac1QEEVErGBvBjxAd6pgB9e2q4XHvAkinQ5y1B';
 
@@ -218,6 +221,13 @@ const IX_INITIALIZE_PROTOCOL = anchorDiscriminator(
   'initialize_protocol',
 );
 const IX_CREATE_POOL = anchorDiscriminator('global', 'create_pool');
+
+function deriveProgramDataPda(programId: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [programId.toBuffer()],
+    BPF_UPGRADEABLE_LOADER_PROGRAM_ID,
+  );
+}
 const IX_SET_POOL_STATUS = anchorDiscriminator('global', 'set_pool_status');
 const IX_REGISTER_ORACLE = anchorDiscriminator('global', 'register_oracle');
 const IX_CLAIM_ORACLE = anchorDiscriminator('global', 'claim_oracle');
@@ -4651,10 +4661,13 @@ export function createProtocolBuilders(
     ): Transaction {
       const admin = new PublicKey(params.admin);
       const [configPda] = deriveConfigPda(programId);
+      const [programDataPda] = deriveProgramDataPda(programId);
       const instruction = new TransactionInstruction({
         programId,
         keys: [
           { pubkey: admin, isSigner: true, isWritable: true },
+          { pubkey: programId, isSigner: false, isWritable: false },
+          { pubkey: programDataPda, isSigner: false, isWritable: false },
           { pubkey: configPda, isSigner: false, isWritable: true },
           {
             pubkey: SystemProgram.programId,
