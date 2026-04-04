@@ -1,248 +1,280 @@
 # API Reference — `@omegax/protocol-sdk`
 
-This is the current canonical SDK surface for package consumers.
+This page documents the public SDK surface shipped in `0.7.0`.
 
-## Core entrypoints
+## Core runtime entrypoints
 
-- `createConnection(rpcUrl, commitment?)`
-- `createConnection(options?)`
-- `getOmegaXNetworkInfo(input?)`
+- `createConnection(...)`
+- `getOmegaXNetworkInfo(...)`
 - `OMEGAX_NETWORKS`
-- `createRpcClient(connection)`
-- `createProtocolClient(connection, programId)`
-- `derivePoolAddress(...)`
+- `createRpcClient(...)`
+- `createProtocolClient(...)`
+- `getProtocolIdl()`
+- `listProtocolInstructionNames()`
+- `listProtocolInstructionAccounts(...)`
+- `listProtocolAccountNames()`
+- `accountExists(...)`
+- `decodeProtocolAccount(...)`
+- `buildProtocolInstruction(...)`
+- `buildProtocolTransaction(...)`
+- `compileTransactionToV0(...)`
 
-Network types:
+## RPC client
 
-- `OmegaXNetwork` (`'devnet' | 'mainnet'`)
-- `OmegaXNetworkInput` (`'devnet' | 'mainnet' | 'mainnet-beta'`)
-- `OmegaXConnectionOptions`
-- `OmegaXNetworkInfo`
-
-## Claims module (`@omegax/protocol-sdk/claims`)
-
-- `buildUnsignedRewardClaimTx(...)`
-- `validateSignedClaimTx(...)`
-- `mapValidationReasonToClaimFailure(...)`
-- `normalizeClaimSimulationFailure(...)`
-- `normalizeClaimRpcFailure(...)`
-
-## Oracle module (`@omegax/protocol-sdk/oracle`)
-
-- `createOracleSignerFromEnv(...)`
-- `createOracleSignerFromKmsAdapter(...)`
-- `attestOutcome(...)`
-
-## RPC client (`createRpcClient`)
+Returned by `createRpcClient(...)`.
 
 - `getRecentBlockhash()`
 - `broadcastSignedTx(...)`
 - `simulateSignedTx(...)`
 - `getSignatureStatus(...)`
 
-## Protocol transaction builders (`ProtocolClient`)
+## Canonical instruction builders
 
-### Governance and protocol control
+Returned by `createProtocolClient(...)`.
 
-- `buildInitializeProtocolTx(...)`
-- `buildSetProtocolParamsTx(...)`
-- `buildRotateGovernanceAuthorityTx(...)`
-- `buildCreatePoolTx(...)`
-- `buildSetPoolStatusTx(...)`
-- `buildSetPoolTermsHashTx(...)`
-- `buildSetPoolOracleTx(...)`
-- `buildSetPoolOraclePolicyTx(...)`
-- `buildSetPoolOraclePermissionsTx(...)`
-- `buildSetPoolRiskControlsTx(...)`
-- `buildSetPoolLiquidityEnabledTx(...)`
-- `buildSetPoolCoverageReserveFloorTx(...)`
-- `buildSetPoolCompliancePolicyTx(...)`
-- `buildSetPoolControlAuthoritiesTx(...)`
-- `buildSetPoolAutomationPolicyTx(...)`
+### Governance and scoped controls
 
-### Oracle, schema, and invite registry
-
-- `buildRegisterOracleTx(...)`
-- `buildClaimOracleTx(...)`
-- `buildUpdateOracleProfileTx(...)`
-- `buildUpdateOracleMetadataTx(...)`
-- `buildStakeOracleTx(...)`
-- `buildRequestUnstakeTx(...)`
-- `buildFinalizeUnstakeTx(...)`
-- `buildSlashOracleTx(...)`
-- `buildRegisterOutcomeSchemaTx(...)`
-- `buildVerifyOutcomeSchemaTx(...)`
-- `buildCloseOutcomeSchemaTx(...)`
-- `buildBackfillSchemaDependencyLedgerTx(...)`
-- `buildRegisterInviteIssuerTx(...)`
-
-### Enrollment, rules, and reward claims
-
-- `buildEnrollMemberOpenTx(...)`
-- `buildEnrollMemberTokenGateTx(...)`
-- `buildEnrollMemberInvitePermitTx(...)`
-- `buildSetClaimDelegateTx(...)`
-- `buildSetPolicySeriesOutcomeRuleTx(...)`
-- `buildSubmitOutcomeAttestationVoteTx(...)`
-- `buildFinalizeCycleOutcomeTx(...)`
-- `buildOpenCycleOutcomeDisputeTx(...)`
-- `buildResolveCycleOutcomeDisputeTx(...)`
-- `buildSubmitRewardClaimTx(...)`
-
-Current canonical reward-attestation parameters use `seriesRefHashHex` and `cycleHashHex`.
-
-### Policy series, premiums, and coverage claims
-
+- `buildInitializeProtocolGovernanceTx(...)`
+- `buildSetProtocolEmergencyPauseTx(...)`
+- `buildCreateReserveDomainTx(...)`
+- `buildUpdateReserveDomainControlsTx(...)`
+- `buildCreateDomainAssetVaultTx(...)`
+- `buildCreateHealthPlanTx(...)`
+- `buildUpdateHealthPlanControlsTx(...)`
 - `buildCreatePolicySeriesTx(...)`
-- `buildUpdatePolicySeriesTx(...)`
-- `buildUpsertPolicySeriesPaymentOptionTx(...)`
-- `buildSubscribePolicySeriesTx(...)`
-- `buildIssuePolicyPositionTx(...)`
-- `buildMintPolicyNftTx(...)`
-- `buildPayPremiumSolTx(...)`
-- `buildPayPremiumSplTx(...)`
-- `buildAttestPremiumPaidOffchainTx(...)`
-- `buildSubmitCoverageClaimTx(...)`
-- `buildReviewCoverageClaimTx(...)`
-- `buildAttachCoverageClaimDecisionSupportTx(...)`
-- `buildApproveCoverageClaimTx(...)`
-- `buildDenyCoverageClaimTx(...)`
-- `buildPayCoverageClaimTx(...)`
-- `buildClaimApprovedCoveragePayoutTx(...)`
-- `buildCloseCoverageClaimTx(...)`
-- `buildSettleCoverageClaimTx(...)`
+- `buildVersionPolicySeriesTx(...)`
+- `buildOpenMemberPositionTx(...)`
+- `buildUpdateMemberEligibilityTx(...)`
 
-Current canonical policy/claim parameters use `seriesRefHashHex`.
+### Plan-side funding and obligations
 
-### Liquidity, treasury, and cycle settlement
+- `buildOpenFundingLineTx(...)`
+- `buildFundSponsorBudgetTx(...)`
+- `buildRecordPremiumPaymentTx(...)`
+- `buildCreateObligationTx(...)`
+- `buildReserveObligationTx(...)`
+- `buildSettleObligationTx(...)`
+- `buildReleaseReserveTx(...)`
 
-- `buildFundPoolSolTx(...)`
-- `buildFundPoolSplTx(...)`
-- `buildInitializePoolLiquiditySolTx(...)`
-- `buildInitializePoolLiquiditySplTx(...)`
-- `buildDepositPoolLiquiditySolTx(...)`
-- `buildDepositPoolLiquiditySplTx(...)`
-- `buildRedeemPoolLiquiditySolTx(...)`
-- `buildRedeemPoolLiquiditySplTx(...)`
-- `buildRequestPoolLiquidityRedemptionTx(...)`
-- `buildSchedulePoolLiquidityRedemptionTx(...)`
-- `buildCancelPoolLiquidityRedemptionTx(...)`
-- `buildFulfillPoolLiquidityRedemptionSolTx(...)`
-- `buildFulfillPoolLiquidityRedemptionSplTx(...)`
-- `buildFailPoolLiquidityRedemptionTx(...)`
-- `buildWithdrawProtocolFeeSolTx(...)`
-- `buildWithdrawProtocolFeeSplTx(...)`
-- `buildWithdrawPoolOracleFeeSolTx(...)`
-- `buildWithdrawPoolOracleFeeSplTx(...)`
-- `buildWithdrawPoolTreasurySolTx(...)`
-- `buildWithdrawPoolTreasurySplTx(...)`
-- `buildActivateCycleWithQuoteSolTx(...)`
-- `buildActivateCycleWithQuoteSplTx(...)`
-- `buildSettleCycleCommitmentTx(...)`
-- `buildSettleCycleCommitmentSolTx(...)`
-- `buildFinalizeCohortSettlementRootTx(...)`
+### Claim-case lifecycle
 
-## Protocol account readers (`ProtocolClient`)
+- `buildOpenClaimCaseTx(...)`
+- `buildAttachClaimEvidenceRefTx(...)`
+- `buildAdjudicateClaimCaseTx(...)`
+- `buildSettleClaimCaseTx(...)`
 
-- `fetchProtocolConfig()`
-- `fetchPool(poolAddress)`
-- `fetchOracleRegistryEntry(oracle)`
-- `fetchOracleProfile(oracle)`
-- `fetchOracleStakePosition({ oracle, staker })`
-- `fetchPoolOracleApproval({ poolAddress, oracle })`
-- `fetchPoolOraclePolicy(poolAddress)`
-- `fetchPoolOraclePermissionSet({ poolAddress, oracle })`
-- `fetchPoolOracleFeeVault({ poolAddress, oracle, paymentMint })`
-- `fetchPoolTerms(poolAddress)`
-- `fetchPoolAssetVault({ poolAddress, payoutMint })`
-- `fetchPoolRiskConfig(poolAddress)`
-- `fetchPoolLiquidityConfig(poolAddress)`
-- `fetchPoolCapitalClass({ poolAddress, shareMint })`
-- `fetchPoolCompliancePolicy(poolAddress)`
-- `fetchPoolControlAuthority(poolAddress)`
-- `fetchPoolAutomationPolicy(poolAddress)`
-- `fetchProtocolFeeVault(paymentMint)`
-- `fetchMembershipRecord({ poolAddress, member })`
-- `fetchInviteIssuer(issuer)`
-- `fetchOutcomeSchema(schemaKeyHashHex)`
-- `fetchSchemaDependencyLedger(schemaKeyHashHex)`
-- `fetchPoolOutcomeRule({ poolAddress, seriesRefHashHex, ruleHashHex })`
-- `fetchCycleOutcomeAggregate({ poolAddress, seriesRefHashHex, member, cycleHashHex, ruleHashHex })`
-- `fetchAttestationVote({ poolAddress, seriesRefHashHex, member, cycleHashHex, ruleHashHex, oracle })`
-- `fetchClaimDelegate({ poolAddress, member })`
-- `fetchClaimRecord({ poolAddress, seriesRefHashHex, member, cycleHashHex, ruleHashHex })`
-- `fetchEnrollmentPermitReplay({ poolAddress, member, nonceHashHex })`
-- `fetchCycleQuoteReplay({ poolAddress, seriesRefHashHex, member, nonceHashHex })`
-- `fetchMemberCycle({ poolAddress, seriesRefHashHex, member, periodIndex })`
-- `fetchMemberCycleByAddress(address)`
-- `fetchCohortSettlementRoot({ poolAddress, seriesRefHashHex, cohortHashHex })`
-- `fetchPolicySeries({ poolAddress, seriesRefHashHex })`
-- `fetchPolicySeriesPaymentOption({ poolAddress, seriesRefHashHex, paymentMint })`
-- `fetchPolicyPosition({ poolAddress, seriesRefHashHex, member })`
-- `fetchPolicyPositionNft({ poolAddress, seriesRefHashHex, member })`
-- `fetchPremiumLedger({ poolAddress, seriesRefHashHex, member })`
-- `fetchPremiumAttestationReplay({ poolAddress, seriesRefHashHex, member, replayHashHex })`
-- `fetchCoverageClaimRecord({ poolAddress, seriesRefHashHex, member, intentHashHex })`
-- `fetchRedemptionRequest({ poolAddress, redeemer, requestHashHex })`
+### LP capital and class lifecycle
 
-## Seed/PDA helpers (`@omegax/protocol-sdk/protocol_seeds`)
+- `buildCreateLiquidityPoolTx(...)`
+- `buildCreateCapitalClassTx(...)`
+- `buildUpdateCapitalClassControlsTx(...)`
+- `buildDepositIntoCapitalClassTx(...)`
+- `buildRequestRedemptionTx(...)`
+- `buildProcessRedemptionQueueTx(...)`
 
-Utilities:
+### Allocation and impairment
 
-- `asPubkey(...)`
-- `ZERO_PUBKEY`
+- `buildCreateAllocationPositionTx(...)`
+- `buildUpdateAllocationCapsTx(...)`
+- `buildAllocateCapitalTx(...)`
+- `buildDeallocateCapitalTx(...)`
+- `buildMarkImpairmentTx(...)`
 
-Canonical protocol PDAs:
+Every instruction also exposes a sibling `build...Instruction(...)` helper.
 
-- `deriveConfigPda(...)`
-- `derivePoolPda(...)`
-- `deriveOraclePda(...)`
-- `deriveOracleProfilePda(...)`
-- `deriveOracleStakePda(...)`
-- `derivePoolOraclePda(...)`
-- `derivePoolOraclePolicyPda(...)`
-- `derivePoolOraclePermissionSetPda(...)`
-- `derivePoolOracleFeeVaultPda(...)`
-- `deriveMembershipPda(...)`
-- `deriveClaimDelegatePda(...)`
-- `derivePoolRulePda(...)`
-- `deriveAttestationVotePda(...)`
-- `deriveOutcomeAggregatePda(...)`
-- `deriveClaimPda(...)`
+## Canonical account readers
+
+Returned by `createProtocolClient(...)`.
+
+- `fetchProtocolGovernance(...)`
+- `fetchReserveDomain(...)`
+- `fetchDomainAssetVault(...)`
+- `fetchDomainAssetLedger(...)`
+- `fetchHealthPlan(...)`
+- `fetchPlanReserveLedger(...)`
+- `fetchPolicySeries(...)`
+- `fetchSeriesReserveLedger(...)`
+- `fetchMemberPosition(...)`
+- `fetchFundingLine(...)`
+- `fetchFundingLineLedger(...)`
+- `fetchClaimCase(...)`
+- `fetchObligation(...)`
+- `fetchLiquidityPool(...)`
+- `fetchCapitalClass(...)`
+- `fetchPoolClassLedger(...)`
+- `fetchLPPosition(...)`
+- `fetchAllocationPosition(...)`
+- `fetchAllocationLedger(...)`
+
+## PDA helpers
+
+Available from the root package and `@omegax/protocol-sdk/protocol_seeds`.
+
+- `getProgramId()`
+- `toPublicKey(...)`
+- `normalizeAddress(...)`
+- `utf8ByteLength(...)`
+- `isSeedIdSafe(...)`
+- `assertSeedId(...)`
+- `deriveProtocolGovernancePda(...)`
+- `deriveReserveDomainPda(...)`
+- `deriveDomainAssetVaultPda(...)`
+- `deriveDomainAssetLedgerPda(...)`
+- `deriveHealthPlanPda(...)`
+- `derivePlanReserveLedgerPda(...)`
 - `derivePolicySeriesPda(...)`
-- `derivePolicySeriesPaymentOptionPda(...)`
-- `derivePolicyPositionPda(...)`
-- `derivePolicyPositionNftPda(...)`
-- `derivePremiumLedgerPda(...)`
-- `derivePremiumReplayPda(...)`
-- `deriveCoverageClaimPda(...)`
-- `deriveMemberCyclePda(...)`
-- `deriveCohortSettlementRootPda(...)`
-- `deriveCycleQuoteReplayPda(...)`
-- `derivePoolAssetVaultPda(...)`
-- `derivePoolTermsPda(...)`
-- `derivePoolTreasuryReservePda(...)`
-- `deriveProtocolFeeVaultPda(...)`
-- `deriveInviteIssuerPda(...)`
-- `deriveEnrollmentReplayPda(...)`
-- `deriveSchemaPda(...)`
-- `deriveSchemaDependencyPda(...)`
-- `derivePoolShareMintPda(...)`
-- `derivePoolCapitalClassPda(...)`
-- `derivePoolCompliancePolicyPda(...)`
-- `derivePoolControlAuthorityPda(...)`
-- `derivePoolAutomationPolicyPda(...)`
-- `derivePoolLiquidityConfigPda(...)`
-- `derivePoolRiskConfigPda(...)`
-- `deriveRedemptionRequestPda(...)`
+- `deriveSeriesReserveLedgerPda(...)`
+- `deriveMemberPositionPda(...)`
+- `deriveFundingLinePda(...)`
+- `deriveFundingLineLedgerPda(...)`
+- `deriveClaimCasePda(...)`
+- `deriveObligationPda(...)`
+- `deriveLiquidityPoolPda(...)`
+- `deriveCapitalClassPda(...)`
+- `derivePoolClassLedgerPda(...)`
+- `deriveLpPositionPda(...)`
+- `deriveAllocationPositionPda(...)`
+- `deriveAllocationLedgerPda(...)`
 
-## Shared utilities (`@omegax/protocol-sdk/utils`)
+Seed constants:
 
-Examples: `anchorDiscriminator(...)`, `hashStringTo32(...)`, `toHex(...)`, `fromHex(...)`.
+- `SEED_PROTOCOL_GOVERNANCE`
+- `SEED_RESERVE_DOMAIN`
+- `SEED_DOMAIN_ASSET_VAULT`
+- `SEED_DOMAIN_ASSET_LEDGER`
+- `SEED_HEALTH_PLAN`
+- `SEED_PLAN_RESERVE_LEDGER`
+- `SEED_POLICY_SERIES`
+- `SEED_SERIES_RESERVE_LEDGER`
+- `SEED_MEMBER_POSITION`
+- `SEED_FUNDING_LINE`
+- `SEED_FUNDING_LINE_LEDGER`
+- `SEED_CLAIM_CASE`
+- `SEED_OBLIGATION`
+- `SEED_LIQUIDITY_POOL`
+- `SEED_CAPITAL_CLASS`
+- `SEED_POOL_CLASS_LEDGER`
+- `SEED_LP_POSITION`
+- `SEED_ALLOCATION_POSITION`
+- `SEED_ALLOCATION_LEDGER`
+- `ZERO_PUBKEY`
+- `ZERO_PUBKEY_KEY`
+- `MAX_ID_SEED_BYTES`
 
-## Packaging notes
+## Reserve-model helpers
 
-- ESM-only package.
-- Stable subpath exports: `claims`, `protocol`, `protocol_seeds`, `rpc`, `oracle`, `types`, `utils`.
-- Builders are deterministic and unsigned; signing and sending are caller-managed.
-- `programId` must be provided explicitly in protocol operations.
+Available from the root package and `@omegax/protocol-sdk/protocol_models`.
+
+- `toBigIntAmount(...)`
+- `recomputeReserveBalanceSheet(...)`
+- `sumReserveBalanceSheets(...)`
+- `buildSponsorReadModel(...)`
+- `buildCapitalReadModel(...)`
+- `buildMemberReadModel(...)`
+- `bpsRatio(...)`
+- `shortenAddress(...)`
+
+Status and labeling helpers:
+
+- `describeSeriesMode(...)`
+- `describeSeriesStatus(...)`
+- `describeFundingLineType(...)`
+- `describeEligibilityStatus(...)`
+- `describeClaimStatus(...)`
+- `describeObligationStatus(...)`
+- `describeCapitalRestriction(...)`
+
+Constants:
+
+- `SERIES_MODE_REWARD`
+- `SERIES_MODE_PROTECTION`
+- `SERIES_MODE_REIMBURSEMENT`
+- `SERIES_MODE_PARAMETRIC`
+- `SERIES_MODE_OTHER`
+- `SERIES_STATUS_DRAFT`
+- `SERIES_STATUS_ACTIVE`
+- `SERIES_STATUS_PAUSED`
+- `SERIES_STATUS_CLOSED`
+- `FUNDING_LINE_TYPE_SPONSOR_BUDGET`
+- `FUNDING_LINE_TYPE_PREMIUM_INCOME`
+- `FUNDING_LINE_TYPE_LIQUIDITY_POOL_ALLOCATION`
+- `FUNDING_LINE_TYPE_BACKSTOP`
+- `FUNDING_LINE_TYPE_SUBSIDY`
+- `FUNDING_LINE_STATUS_OPEN`
+- `FUNDING_LINE_STATUS_PAUSED`
+- `FUNDING_LINE_STATUS_CLOSED`
+- `ELIGIBILITY_PENDING`
+- `ELIGIBILITY_ELIGIBLE`
+- `ELIGIBILITY_PAUSED`
+- `ELIGIBILITY_CLOSED`
+- `CLAIM_INTAKE_OPEN`
+- `CLAIM_INTAKE_UNDER_REVIEW`
+- `CLAIM_INTAKE_APPROVED`
+- `CLAIM_INTAKE_DENIED`
+- `CLAIM_INTAKE_SETTLED`
+- `CLAIM_INTAKE_CLOSED`
+- `OBLIGATION_STATUS_PROPOSED`
+- `OBLIGATION_STATUS_RESERVED`
+- `OBLIGATION_STATUS_CLAIMABLE_PAYABLE`
+- `OBLIGATION_STATUS_SETTLED`
+- `OBLIGATION_STATUS_CANCELED`
+- `OBLIGATION_STATUS_IMPAIRED`
+- `OBLIGATION_STATUS_RECOVERED`
+- `OBLIGATION_DELIVERY_MODE_CLAIMABLE`
+- `OBLIGATION_DELIVERY_MODE_PAYABLE`
+- `REDEMPTION_POLICY_OPEN`
+- `REDEMPTION_POLICY_QUEUE_ONLY`
+- `REDEMPTION_POLICY_PAUSED`
+- `CAPITAL_CLASS_RESTRICTION_OPEN`
+- `CAPITAL_CLASS_RESTRICTION_RESTRICTED`
+- `CAPITAL_CLASS_RESTRICTION_WRAPPER_ONLY`
+- `LP_QUEUE_STATUS_NONE`
+- `LP_QUEUE_STATUS_PENDING`
+- `LP_QUEUE_STATUS_PROCESSED`
+- `PAUSE_FLAG_PROTOCOL_EMERGENCY`
+- `PAUSE_FLAG_DOMAIN_RAILS`
+- `PAUSE_FLAG_PLAN_OPERATIONS`
+- `PAUSE_FLAG_CLAIM_INTAKE`
+- `PAUSE_FLAG_CAPITAL_SUBSCRIPTIONS`
+- `PAUSE_FLAG_REDEMPTION_QUEUE_ONLY`
+- `PAUSE_FLAG_ORACLE_FINALITY_HOLD`
+- `PAUSE_FLAG_ALLOCATION_FREEZE`
+
+## Claims helpers
+
+Available from the root package and `@omegax/protocol-sdk/claims`.
+
+- `normalizeClaimSimulationFailure(...)`
+- `normalizeClaimRpcFailure(...)`
+
+The claims module also re-exports:
+
+- `describeClaimStatus(...)`
+- `describeObligationStatus(...)`
+- claim intake status constants
+- obligation status constants
+
+## Shared utilities
+
+Available from the root package and `@omegax/protocol-sdk/utils`.
+
+- `stableStringify(...)`
+- `sha256Hex(...)`
+- `sha256Bytes(...)`
+- `toIsoString(...)`
+- `nowIso()`
+- `newId(...)`
+- `anchorDiscriminator(...)`
+- `encodeU64Le(...)`
+- `encodeI64Le(...)`
+- `encodeU32Le(...)`
+- `encodeU16Le(...)`
+- `encodeString(...)`
+- `readU32Le(...)`
+- `readU16Le(...)`
+- `readU64Le(...)`
+- `readI64Le(...)`
+- `readString(...)`
+- `toHex(...)`
+- `fromHex(...)`
+- `hashStringTo32(...)`

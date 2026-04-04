@@ -1,15 +1,21 @@
 # Release Guide — `@omegax/protocol-sdk`
 
-This is the maintainer flow for publishing a public release.
+This is the maintainer flow for publishing the canonical SDK release.
+
+## Release targets
+
+- Protocol: `omegax-protocol v0.3.0`
+- SDK: `@omegax/protocol-sdk v0.7.0`
+- Docs portal: `docs.omegax.health` content synced to the matching SDK surface
 
 ## Preconditions
 
-- Repo is public and release workflows are enabled.
-- npm scope access exists for `@omegax`.
-- `NPM_TOKEN` is configured in GitHub Actions secrets.
-- Version in `package.json` is final (example: `0.6.0`).
+- `package.json` version is final.
+- `docs/OMEGAX_DOCS_SYNC.json` points at the merged docs commit.
+- Local protocol parity is green against the intended sibling `omegax-protocol` workspace.
+- SDK commits include `Signed-off-by` trailers because CI enforces DCO.
 
-## 1) Local pre-release checks
+## Local release checks
 
 ```bash
 npm ci
@@ -19,98 +25,43 @@ npm run format:check
 npm run build
 npm test
 npm run docs:check
-npm run docs:sync:check
+npm run docs:sync:check:strict
+npm run verify:protocol:local
+npm run test:protocol:localnet
 npm pack --dry-run
 npm audit --omit=dev --audit-level=moderate
 ```
 
-Expected:
+## Protocol binding refresh
 
-- Tests pass, including strict IDL parity.
-- No moderate+ production vulnerabilities.
-- Pack output contains only expected public artifacts.
-
-## 2) Sync to `omegax-docs`
-
-Before tagging:
-
-1. Sync public docs pages in `omegax-docs`.
-2. Update `docs/OMEGAX_DOCS_SYNC.json` with:
-   - `sdkVersion`
-   - `omegaxDocsCommit`
-   - `syncedAt`
-   - `syncedBy`
-   - Recommended helper:
+Whenever the protocol IDL or contract artifact changes:
 
 ```bash
-npm run docs:sync:update -- --docs-repo=../omegax-docs --synced-by=<maintainer>
+npm run generate:protocol-bindings
 ```
 
-3. Run strict sync gate:
+Commit regenerated artifacts with the source change. Do not hand-edit generated protocol bindings.
 
-```bash
-npm run docs:sync:check:strict
-```
+## Release publish order
 
-## 3) Version/tag alignment
+1. Finalize and push `omegax-protocol` `main`.
+2. Finalize and push `omegax-docs` `main`.
+3. Update `docs/OMEGAX_DOCS_SYNC.json` with the merged docs commit.
+4. Finalize and push `omegax-sdk` `main`.
+5. Tag SDK `v0.7.0`.
+6. Confirm `npm publish` and import smoke pass.
+7. Tag protocol `v0.3.0` as the final public release marker.
 
-Release workflow validates tag/version match:
-
-- Tag format: `vX.Y.Z`
-- `package.json` must be exactly `X.Y.Z`
-
-Example:
-
-- `package.json`: `0.6.0`
-- git tag: `v0.6.0`
-
-## 4) Publish via GitHub Actions
-
-1. Merge release-ready changes to default branch.
-2. Create and push tag:
-
-```bash
-git tag v0.6.0
-git push origin v0.6.0
-```
-
-3. Watch `.github/workflows/release.yml`.
-
-Workflow sequence:
-
-- `npm ci`
-- `npm run typecheck`
-- `npm run lint`
-- `npm run format:check`
-- `npm run build`
-- `npm test`
-- tag/version guard
-- `npm publish --access public --provenance`
-
-## 5) Post-publish verification
+## Post-publish verification
 
 ```bash
 npm view @omegax/protocol-sdk version
 ```
 
-Then smoke test in a clean directory:
+Then run a clean install/import smoke test:
 
 ```bash
 npm init -y
-npm install @omegax/protocol-sdk@0.6.0
-node --input-type=module -e "const m=await import('@omegax/protocol-sdk'); console.log(Object.keys(m).length)"
+npm install @omegax/protocol-sdk@0.7.0
+node --input-type=module -e "const m = await import('@omegax/protocol-sdk'); console.log(Object.keys(m).length)"
 ```
-
-## 6) Protocol parity maintenance
-
-When protocol IDL changes:
-
-```bash
-npm run typecheck
-npm run lint
-npm run format:check
-npm run sync:idl-fixture
-npm test
-```
-
-Commit fixture updates and release only after parity is green.

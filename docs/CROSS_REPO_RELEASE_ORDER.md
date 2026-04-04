@@ -1,86 +1,33 @@
-# Cross-Repo Release Order (SDK + `omegax-docs`)
+# Cross-Repo Release Order
 
-Use this sequence to publish without SDK/docs drift.
+Use this sequence to publish the canonical OmegaX protocol release train without docs or SDK drift.
 
-## 1) Merge docs portal changes first (`omegax-docs`)
+## Target versions
 
-Create branch:
+- `omegax-protocol`: `v0.3.0`
+- `omegax-sdk`: `v0.7.0`
+- `omegax-docs`: synced to the same canonical surface on `main`
 
-```bash
-git checkout -b codex/docs-sdk-v0.6.0
-```
+## Local preparation order
 
-Commit message (recommended):
+1. Finish `omegax-protocol` release prep and local verification.
+2. Finish `omegax-docs` protocol and SDK page updates locally.
+3. Finish `omegax-sdk` bindings, docs, and parity verification locally.
+4. Update `docs/OMEGAX_DOCS_SYNC.json` from the final docs repo commit.
 
-- `docs(sdk): publish v0.6.0 canonical sdk surface`
+## Push order
 
-Scope to include:
+1. Push `omegax-protocol` `main`.
+2. Push `omegax-docs` `main`.
+3. Push `omegax-sdk` `main`.
+4. Confirm docs deploy succeeded.
+5. Tag and push SDK `v0.7.0`.
+6. Confirm npm publish and clean install smoke.
+7. Tag and push protocol `v0.3.0`.
 
-- `website/docs/sdk/*`
-- `website/docs/changelog.md`
-- `website/sidebars.ts` only if doc ids or paths change
+## Why this order
 
-After merge, capture merged commit SHA:
-
-```bash
-git rev-parse HEAD
-```
-
-## 2) Update SDK sync manifest and pass strict checks (`omegax-sdk`)
-
-Create branch:
-
-```bash
-git checkout -b codex/sdk-release-v0.6.0
-```
-
-Update sync metadata from merged docs repo commit:
-
-```bash
-npm run docs:sync:update -- --docs-repo=../omegax-docs --synced-by=<maintainer>
-```
-
-Run release gates:
-
-```bash
-npm run typecheck
-npm run lint
-npm run format:check
-npm run docs:check
-npm run docs:sync:check:strict
-npm run build
-npm test
-npm pack --dry-run
-npm audit --omit=dev --audit-level=moderate
-```
-
-Commit message (recommended):
-
-- `release(v0.6.0): finalize canonical sdk docs parity and publish gates`
-
-## 3) Merge SDK PR, then tag
-
-Once SDK PR is merged to default branch:
-
-```bash
-git checkout <default-branch>
-git pull
-git tag v0.6.0
-git push origin v0.6.0
-```
-
-This triggers the release workflow that validates:
-
-- tag/version match
-- docs parity strict gate
-- typecheck/lint/format gates
-- tests/build
-- npm publish with provenance
-
-## 4) Post-publish verification
-
-```bash
-npm view @omegax/protocol-sdk version
-```
-
-Then run an install/import smoke test in a clean project.
+- The protocol defines the canonical live contract.
+- The docs portal becomes public immediately on push to `main`.
+- The SDK strict docs-sync gate must point to the exact merged docs commit.
+- The protocol should not be treated as publicly published until protocol, SDK, and docs all agree.

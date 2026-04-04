@@ -1,76 +1,63 @@
 # SDK ↔ `omegax-docs` Sync Workflow
 
-This workflow keeps SDK docs and the public docs portal on parity without duplicating ownership.
+This workflow keeps `@omegax/protocol-sdk` and `docs.omegax.health` on the same public surface.
 
 ## Ownership model
 
-- SDK repo is the source of truth for versioned API/reference behavior.
-- `omegax-docs` is the public documentation UX (guides, architecture, cross-product context).
-- Every SDK release must have a matching docs sync record in `OMEGAX_DOCS_SYNC.json`.
+- `omegax-sdk` is the source of truth for versioned package behavior and examples.
+- `omegax-docs` is the public documentation portal and product-facing explanation layer.
+- Every SDK release needs a matching portal sync record in `docs/OMEGAX_DOCS_SYNC.json`.
 
-## Required files in this repo
+## Files that must stay aligned
 
-- `docs/API_REFERENCE.md`
-- `docs/WORKFLOWS.md`
+- `README.md`
 - `docs/GETTING_STARTED.md`
+- `docs/WORKFLOWS.md`
+- `docs/API_REFERENCE.md`
 - `docs/TROUBLESHOOTING.md`
-- `docs/OMEGAX_DOCS_SYNC.json` (machine-checkable sync manifest)
+- `docs/OMEGAX_DOCS_SYNC.json`
 
-## Exact change workflow
+Portal targets:
 
-1. Update SDK docs in this repo with any API/workflow changes.
-2. Run local checks:
+- `website/docs/sdk/overview.md`
+- `website/docs/sdk/getting-started.md`
+- `website/docs/sdk/workflows.md`
+- `website/docs/sdk/api-reference.md`
+- `website/docs/sdk/troubleshooting.md`
+
+## Update flow
+
+1. Update SDK docs in this repo.
+2. Run:
 
 ```bash
-npm run typecheck
-npm run lint
-npm run format:check
 npm run docs:check
 npm run docs:sync:check
 ```
 
-3. Open/update matching pages in `omegax-docs` using `docs/OMEGAX_DOCS_SYNC.json` path mapping.
-4. Merge `omegax-docs` change.
-5. Update `docs/OMEGAX_DOCS_SYNC.json`:
-   - `sdkVersion` to current `package.json` version
-   - `omegaxDocsCommit` to merged commit SHA in `omegax-docs`
-   - `syncedAt` in ISO-8601 (`YYYY-MM-DDTHH:mm:ss.sssZ`)
-   - `syncedBy` maintainer handle/name
-   - Optional helper:
+3. Update the mapped pages in `omegax-docs`.
+4. Merge the `omegax-docs` change.
+5. Refresh the sync manifest:
 
 ```bash
 npm run docs:sync:update -- --docs-repo=../omegax-docs --synced-by=<maintainer>
 ```
 
-6. Run strict sync gate:
+6. Run:
 
 ```bash
 npm run docs:sync:check:strict
 ```
 
-7. Tag and release after strict gate passes.
+7. Only tag and publish once strict sync passes.
 
-## CI and release enforcement
+## Strict sync requirements
 
-- PR/CI gate:
-  - `npm run typecheck`
-  - `npm run lint`
-  - `npm run format:check`
-  - `npm run docs:check`
-  - `npm run docs:sync:check` (structure/version parity; allows `PENDING` sync metadata)
-- Release gate:
-  - `npm run docs:sync:check:strict`
-  - Requires non-placeholder commit/date/author and exact version match.
+`docs/OMEGAX_DOCS_SYNC.json` must contain:
 
-## Sync manifest schema
-
-`docs/OMEGAX_DOCS_SYNC.json` must include:
-
-- `sdkVersion`: must equal `package.json` version.
-- `omegaxDocsRepo`: canonical portal repo URL.
-- `omegaxDocsCommit`: merged commit SHA for synced docs.
-- `syncedAt`: ISO timestamp when sync was completed.
-- `syncedBy`: owner of sync verification.
-- `pages[]`: `sdkDoc` → `omegaxDocsPath` mapping.
-
-For Docusaurus in `omegax-docs`, target paths are expected under `website/docs/...`.
+- `sdkVersion` equal to `package.json`
+- the canonical `omegax-docs` repo URL
+- a merged docs commit SHA
+- an ISO-8601 `syncedAt`
+- a non-placeholder `syncedBy`
+- a non-empty page mapping list

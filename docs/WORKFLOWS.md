@@ -1,165 +1,165 @@
 # Integration Workflows — `@omegax/protocol-sdk`
 
-This guide provides practical, role-based call sequences for production integrations.
+These workflows map the canonical OmegaX economic model to the actual SDK builders and readers.
 
 ## Shared integration pattern
 
-1. Create Solana connection and clients (`createConnection`, `createProtocolClient`, `createRpcClient`).
-2. Build deterministic unsigned transaction via a protocol builder.
-3. Sign with the required wallet/keypair(s).
-4. Broadcast with `rpc.broadcastSignedTx(...)`.
-5. Verify state with relevant `fetch...` readers.
+1. Create `connection`, `protocol`, and `rpc` clients.
+2. Derive canonical addresses with PDA helpers.
+3. Build unsigned transactions with `build...Tx(...)`.
+4. Sign with your wallet or signer stack.
+5. Broadcast with `broadcastSignedTx(...)`.
+6. Verify state with `fetch...(...)` readers and reserve-model helpers.
 
-> All protocol builders are unsigned. Signing and fee-payer handling are your responsibility.
+## Workflow A: Governance and reserve-domain bootstrap
 
----
+Use this when preparing the settlement boundary for a new domain and asset.
 
-## Workflow A: Pool creator/operator (reward pool)
+Builders:
 
-### 1) One-time protocol initialization (governance/admin)
+- `buildInitializeProtocolGovernanceTx(...)`
+- `buildSetProtocolEmergencyPauseTx(...)`
+- `buildCreateReserveDomainTx(...)`
+- `buildUpdateReserveDomainControlsTx(...)`
+- `buildCreateDomainAssetVaultTx(...)`
 
-- `buildInitializeProtocolTx(...)` (new deployments)
-- `buildSetProtocolParamsTx(...)` (tune defaults/limits)
+Readers:
 
-### 2) Create and configure pool
+- `fetchProtocolGovernance(...)`
+- `fetchReserveDomain(...)`
+- `fetchDomainAssetVault(...)`
+- `fetchDomainAssetLedger(...)`
 
-- `buildCreatePoolTx(...)`
-- `buildSetPoolTermsHashTx(...)` (terms/payout policy updates)
-- `buildSetPoolOraclePolicyTx(...)` (quorum and claim policy)
-- `buildSetPolicySeriesOutcomeRuleTx(...)` (schema/rule registration per outcome rule)
-- `buildSetPoolStatusTx(...)` (activate/pause/close)
+## Workflow B: Sponsor-funded health plan
 
-### 3) Add allowed oracle(s)
+Use this for sponsor budgets, reward programs, or early-stage plans that do not need LP capital.
 
-- `buildRegisterOracleTx(...)` (if oracle not yet registered)
-- `buildSetPoolOracleTx(...)` (approve/deactivate oracle for pool)
+Builders:
 
-### 4) Fund payout liquidity
+- `buildCreateHealthPlanTx(...)`
+- `buildUpdateHealthPlanControlsTx(...)`
+- `buildCreatePolicySeriesTx(...)`
+- `buildVersionPolicySeriesTx(...)`
+- `buildOpenMemberPositionTx(...)`
+- `buildUpdateMemberEligibilityTx(...)`
+- `buildOpenFundingLineTx(...)`
+- `buildFundSponsorBudgetTx(...)`
+- `buildCreateObligationTx(...)`
+- `buildReserveObligationTx(...)`
+- `buildSettleObligationTx(...)`
+- `buildReleaseReserveTx(...)`
 
-- SOL path: `buildFundPoolSolTx(...)`
-- SPL path: `buildFundPoolSplTx(...)`
+Readers:
 
-### 5) Verify state
+- `fetchHealthPlan(...)`
+- `fetchPolicySeries(...)`
+- `fetchMemberPosition(...)`
+- `fetchFundingLine(...)`
+- `fetchFundingLineLedger(...)`
+- `fetchPlanReserveLedger(...)`
+- `fetchSeriesReserveLedger(...)`
+- `fetchObligation(...)`
 
-- `fetchPool(...)`, `fetchPoolTerms(...)`, `fetchPoolOraclePolicy(...)`
-- `fetchPoolOutcomeRule(...)`, `fetchPoolAssetVault(...)`
+Reserve helpers:
 
----
+- `recomputeReserveBalanceSheet(...)`
+- `buildSponsorReadModel(...)`
 
-## Workflow B: Member participation + reward claim
+## Workflow C: Protection claims and premium flows
 
-### 1) Enroll member
+Use this when a policy series needs explicit premium intake, claim review, and settlement consequences.
 
-Choose one enrollment mode:
+Builders:
 
-- Open enrollment: `buildEnrollMemberOpenTx(...)`
-- Token-gated enrollment: `buildEnrollMemberTokenGateTx(...)`
-- Invite permit enrollment: `buildEnrollMemberInvitePermitTx(...)`
+- `buildRecordPremiumPaymentTx(...)`
+- `buildOpenClaimCaseTx(...)`
+- `buildAttachClaimEvidenceRefTx(...)`
+- `buildAdjudicateClaimCaseTx(...)`
+- `buildSettleClaimCaseTx(...)`
+- `buildCreateObligationTx(...)`
+- `buildReserveObligationTx(...)`
+- `buildSettleObligationTx(...)`
 
-### 2) Optional delegation
+Readers:
 
-- `buildSetClaimDelegateTx(...)` (if claims are submitted by a delegate)
+- `fetchClaimCase(...)`
+- `fetchObligation(...)`
+- `fetchFundingLineLedger(...)`
+- `fetchPlanReserveLedger(...)`
+- `fetchSeriesReserveLedger(...)`
 
-### 3) Oracle attestation cycle
+Failure helpers:
 
-- Oracles submit votes: `buildSubmitOutcomeAttestationVoteTx(...)`
-- Finalize aggregate: `buildFinalizeCycleOutcomeTx(...)`
+- `normalizeClaimSimulationFailure(...)`
+- `normalizeClaimRpcFailure(...)`
 
-### 4) Submit reward claim
+## Workflow D: LP capital, classes, and redemptions
 
-- `buildSubmitRewardClaimTx(...)`
+Use this when capital providers enter through canonical liquidity pools and capital classes.
 
-### 5) Verify
+Builders:
 
-- `fetchMembershipRecord(...)`, `fetchClaimDelegate(...)`
-- `fetchAttestationVote(...)`, `fetchCycleOutcomeAggregate(...)`
-- `fetchClaimRecord(...)`
+- `buildCreateLiquidityPoolTx(...)`
+- `buildCreateCapitalClassTx(...)`
+- `buildUpdateCapitalClassControlsTx(...)`
+- `buildDepositIntoCapitalClassTx(...)`
+- `buildRequestRedemptionTx(...)`
+- `buildProcessRedemptionQueueTx(...)`
 
----
+Readers:
 
-## Workflow C: Oracle operations
+- `fetchLiquidityPool(...)`
+- `fetchCapitalClass(...)`
+- `fetchPoolClassLedger(...)`
+- `fetchLPPosition(...)`
+- `fetchDomainAssetLedger(...)`
 
-### 1) Register/update oracle profile
+Reserve helpers:
 
-- `buildRegisterOracleTx(...)`
-- `buildUpdateOracleProfileTx(...)`
-- `buildUpdateOracleMetadataTx(...)`
+- `recomputeReserveBalanceSheet(...)`
+- `buildCapitalReadModel(...)`
 
-### 2) Stake lifecycle
+## Workflow E: Allocation and impairment
 
-- Stake: `buildStakeOracleTx(...)`
-- Request unstake: `buildRequestUnstakeTx(...)`
-- Finalize unstake: `buildFinalizeUnstakeTx(...)`
-- Governance slash path: `buildSlashOracleTx(...)`
+Use this when LP capital is bridged into plan-side funding lines.
 
-### 3) Earn oracle rewards
+Builders:
 
-- Submit outcome votes: `buildSubmitOutcomeAttestationVoteTx(...)`
-- Claim oracle emissions: `buildClaimOracleTx(...)`
+- `buildCreateAllocationPositionTx(...)`
+- `buildUpdateAllocationCapsTx(...)`
+- `buildAllocateCapitalTx(...)`
+- `buildDeallocateCapitalTx(...)`
+- `buildMarkImpairmentTx(...)`
 
-### 4) Verify
+Readers:
 
-- `fetchOracleProfile(...)`, `fetchOracleStakePosition(...)`
-- `fetchAttestationVote(...)`
+- `fetchAllocationPosition(...)`
+- `fetchAllocationLedger(...)`
+- `fetchCapitalClass(...)`
+- `fetchFundingLine(...)`
+- `fetchObligation(...)`
 
----
+## Workflow F: Member read models
 
-## Workflow D: Policy series and policy position lifecycle
+Use this when you want wallet-facing views rather than raw account objects.
 
-### 1) Policy series management (authority)
+Helpers:
 
-- Create policy series: `buildCreatePolicySeriesTx(...)`
-- Update policy series: `buildUpdatePolicySeriesTx(...)`
-- Upsert payment option: `buildUpsertPolicySeriesPaymentOptionTx(...)`
+- `buildMemberReadModel(...)`
+- `describeEligibilityStatus(...)`
+- `describeClaimStatus(...)`
+- `describeObligationStatus(...)`
+- `shortenAddress(...)`
 
-### 2) Member policy lifecycle
-
-- Subscribe to policy series: `buildSubscribePolicySeriesTx(...)`
-- Issue policy position: `buildIssuePolicyPositionTx(...)`
-- Optional policy NFT: `buildMintPolicyNftTx(...)`
-
-### 3) Premium operations
-
-- SOL premium: `buildPayPremiumSolTx(...)`
-- SPL premium: `buildPayPremiumSplTx(...)`
-- Offchain premium attestation: `buildAttestPremiumPaidOffchainTx(...)`
-
-### 4) Coverage claim lifecycle
-
-- Submit claim: `buildSubmitCoverageClaimTx(...)`
-- Claim approved payout: `buildClaimApprovedCoveragePayoutTx(...)`
-- Settle claim: `buildSettleCoverageClaimTx(...)`
-
-### 5) Verify
-
-- `fetchPolicySeries(...)`, `fetchPolicyPosition(...)`
-- `fetchPremiumLedger(...)`, `fetchPremiumAttestationReplay(...)`
-- `fetchCoverageClaimRecord(...)`
-
----
-
-## Claim-intent helper workflow (offchain signing controls)
-
-For stricter signature binding and deterministic intent payloads:
-
-1. Build unsigned intent:
-   - `buildUnsignedRewardClaimTx(...)`
-2. Wallet signs transaction.
-3. Validate signed payload and message binding with:
-   - `validateSignedClaimTx(...)`
-4. Optionally classify failures with:
-   - `normalizeClaimSimulationFailure(...)`
-   - `normalizeClaimRpcFailure(...)`
-   - `mapValidationReasonToClaimFailure(...)`
-
----
-
-## Recommended release/preflight checks
+## Local release preflight
 
 ```bash
 npm ci
+npm run typecheck
+npm run lint
+npm run format:check
 npm run build
 npm test
-npm pack --dry-run
-npm audit --omit=dev
+npm run docs:check
+npm run verify:protocol:local
 ```

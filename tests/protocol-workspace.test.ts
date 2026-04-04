@@ -92,7 +92,7 @@ test('tracked staged and unstaged source changes update the workspace fingerprin
       repoRoot,
       'shared/protocol_contract.json',
       JSON.stringify({
-        instructions: [{ name: 'set_pool_status' }],
+        instructions: [{ name: 'set_protocol_emergency_pause' }],
         accountDiscriminators: {},
         pdaSeeds: {},
       }),
@@ -184,7 +184,7 @@ test('workspace fingerprint falls back to consumed protocol files when git metad
     writeProtocolWorkspaceFile(
       repoRoot,
       'shared/protocol_contract.json',
-      JSON.stringify({ instructions: ['set_pool_status'] }),
+      JSON.stringify({ instructions: ['set_protocol_emergency_pause'] }),
     );
     writeProtocolWorkspaceFile(
       repoRoot,

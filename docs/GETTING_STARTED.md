@@ -1,31 +1,31 @@
 # Getting Started — `@omegax/protocol-sdk`
 
-This guide gets you from install to a signed and broadcast transaction.
+This guide gets you from install to a signed canonical OmegaX transaction.
 
-## 1) Prerequisites
+## Prerequisites
 
 - Node.js `>=20`
-- ESM runtime (`"type": "module"`)
-- A Solana RPC endpoint (optional when using SDK network defaults)
-- The OmegaX protocol `programId` for your target cluster
+- ESM runtime
+- A Solana RPC endpoint
+- The deployed OmegaX `programId` for your target cluster
 
-> OmegaX SDK integrations currently target devnet beta. Keep production integrations on devnet until a public mainnet release is announced.
+Public integrations should target devnet beta until OmegaX announces public mainnet availability.
 
-## 2) Install
+## Install
 
 ```bash
 npm install @omegax/protocol-sdk
 ```
 
-## 3) Create clients
+## Create clients
 
 ```ts
 import {
+  PROTOCOL_PROGRAM_ID,
   createConnection,
   createProtocolClient,
   createRpcClient,
   getOmegaXNetworkInfo,
-  PROTOCOL_PROGRAM_ID,
 } from '@omegax/protocol-sdk';
 
 const network =
@@ -34,36 +34,72 @@ const networkInfo = getOmegaXNetworkInfo(network);
 
 const connection = createConnection({
   network,
-  rpcUrl: process.env.SOLANA_RPC_URL,
+  rpcUrl: process.env.SOLANA_RPC_URL ?? networkInfo.defaultRpcUrl,
   commitment: 'confirmed',
 });
-const programId = process.env.OMEGAX_PROGRAM_ID ?? PROTOCOL_PROGRAM_ID;
 
+const programId = process.env.OMEGAX_PROGRAM_ID ?? PROTOCOL_PROGRAM_ID;
 const protocol = createProtocolClient(connection, programId);
 const rpc = createRpcClient(connection);
 ```
 
-> `createProtocolClient(connection, programId)` always requires an explicit `programId` argument.
+## Derive canonical addresses
 
-## 4) Build an unsigned transaction
-
-Example: open enrollment.
+Use PDA helpers from `@omegax/protocol-sdk/protocol_seeds` or the root package to keep runtime state deterministic.
 
 ```ts
-const recentBlockhash = await rpc.getRecentBlockhash();
+import {
+  deriveProtocolGovernancePda,
+  deriveReserveDomainPda,
+  deriveHealthPlanPda,
+} from '@omegax/protocol-sdk';
 
-const tx = protocol.buildEnrollMemberOpenTx({
-  member: '<member-pubkey>',
-  poolAddress: '<pool-pubkey>',
-  subjectCommitmentHex: '<32-byte-hex>',
-  recentBlockhash,
+const protocolGovernance = deriveProtocolGovernancePda(programId).toBase58();
+const reserveDomain = deriveReserveDomainPda({
+  domainId: 'open-usdc-domain',
   programId,
+}).toBase58();
+const healthPlan = deriveHealthPlanPda({
+  reserveDomain,
+  planId: 'nexus-seeker-rewards',
+  programId,
+}).toBase58();
+```
+
+## Build an unsigned transaction
+
+The canonical SDK uses the live IDL-backed builder surface. Every instruction follows the same shape:
+
+- `args`: instruction arguments
+- `accounts`: non-static accounts in the order implied by the IDL
+- `recentBlockhash`: fresh blockhash
+
+Example: `buildCreateReserveDomainTx(...)`.
+
+```ts
+const tx = protocol.buildCreateReserveDomainTx({
+  args: {
+    domain_id: 'open-usdc-domain',
+    display_name: 'Open USDC Domain',
+    domain_admin: '<domain-admin-pubkey>',
+    settlement_mode: 0,
+    legal_structure_hash: new Uint8Array(32),
+    compliance_baseline_hash: new Uint8Array(32),
+    allowed_rail_mask: 1,
+    pause_flags: 0,
+  },
+  accounts: {
+    authority: '<governance-authority-pubkey>',
+    protocol_governance: protocolGovernance,
+    reserve_domain: reserveDomain,
+  },
+  recentBlockhash: await rpc.getRecentBlockhash(),
 });
 ```
 
-## 5) Sign and submit
+## Sign and broadcast
 
-### Option A: wallet adapter/browser signer
+### Wallet adapter / browser signer
 
 ```ts
 const signedTx = await wallet.signTransaction(tx);
@@ -74,52 +110,67 @@ const broadcast = await rpc.broadcastSignedTx({
 });
 ```
 
-### Option B: backend signer (`Keypair`)
+### Backend signer
 
 ```ts
 tx.sign(serverKeypair);
-const signedTxBase64 = tx.serialize().toString('base64');
+const signedTxBase64 = Buffer.from(tx.serialize()).toString('base64');
 const broadcast = await rpc.broadcastSignedTx({
   signedTxBase64,
   commitment: 'confirmed',
 });
 ```
 
-## 6) Optional simulation before broadcast
+## Simulate before sending
 
 ```ts
-const signedTxBase64 = tx.serialize().toString('base64');
+const signedTxBase64 = Buffer.from(tx.serialize()).toString('base64');
 const simulation = await rpc.simulateSignedTx({
   signedTxBase64,
   sigVerify: true,
 });
+
 if (!simulation.ok) {
   console.error(simulation.failure);
 }
 ```
 
-## 7) Verify resulting state
+## Verify resulting state
+
+Use canonical reader helpers rather than ad hoc account decoding.
 
 ```ts
-const membership = await protocol.fetchMembershipRecord({
-  poolAddress: '<pool-pubkey>',
-  member: '<member-pubkey>',
-});
+const domain = await protocol.fetchReserveDomain(reserveDomain);
+const plan = await protocol.fetchHealthPlan(healthPlan);
 ```
 
-## Claim-intent helper pattern
+You can also inspect the live contract shape programmatically:
 
-For explicit message binding in client/server claim handoffs:
+```ts
+const instructions = protocol.listProtocolInstructionNames?.() ?? [];
+```
 
-1. Build intent with `buildUnsignedRewardClaimTx(...)`.
-2. Have wallet sign the unsigned transaction.
-3. Validate with `validateSignedClaimTx(...)`, passing `expectedUnsignedTxBase64`.
-4. Submit with `broadcastSignedTx(...)`.
+or from the root module:
 
-## Production checklist
+```ts
+import { listProtocolInstructionNames } from '@omegax/protocol-sdk';
 
-- Configure `programId` and RPC URL per environment.
-- Default network selection should be `devnet` until mainnet launch is announced.
-- Ensure transaction recent blockhash is fresh before signing.
-- Persist emitted signatures and poll `getSignatureStatus(...)`.
-- Use reader calls (`fetch...`) to verify authoritative onchain outcomes.
+const instructions = listProtocolInstructionNames();
+```
+
+## Optional v0 transaction compilation
+
+If your runtime uses lookup tables, compile a built transaction with `compileTransactionToV0(...)`.
+
+```ts
+import { compileTransactionToV0 } from '@omegax/protocol-sdk';
+
+const versioned = compileTransactionToV0(tx, lookupTableAccounts);
+```
+
+## Practical next steps
+
+1. Use `WORKFLOWS.md` to map sponsor, claim, or capital flows to exact builders.
+2. Use `API_REFERENCE.md` to see the exported reader and PDA helper surface.
+3. Run `npm run generate:protocol-bindings` whenever the sibling protocol repo changes.
+4. Run `npm run verify:protocol:local` before shipping SDK changes that affect runtime parity.

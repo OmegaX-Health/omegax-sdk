@@ -1,13 +1,19 @@
 # Troubleshooting — `@omegax/protocol-sdk`
 
-This page maps common integration failures to likely causes and fixes.
+This page maps common integration failures to likely causes in the canonical OmegaX model.
 
 ## Fast triage
 
 1. Confirm Node version is `>=20`.
-2. Confirm ESM runtime (`"type": "module"`).
-3. Confirm target `programId` matches deployed protocol on that cluster.
-4. Run local checks:
+2. Confirm your runtime is using ESM imports.
+3. Confirm `programId` and RPC cluster match the deployment you expect.
+4. Regenerate bindings if the sibling protocol workspace changed:
+
+```bash
+npm run generate:protocol-bindings
+```
+
+5. Run local checks:
 
 ```bash
 npm run typecheck
@@ -17,178 +23,193 @@ npm run build
 npm test
 ```
 
-## Transaction/signing issues
-
-### `invalid_transaction_base64`
-
-Cause:
-
-- `validateSignedClaimTx(...)` received malformed or truncated base64.
-
-Fix:
-
-- Ensure you encode bytes from `tx.serialize()` and do not re-encode JSON/text.
+## Transaction and submission issues
 
 ### `missing_fee_payer` or `missing_required_signature`
 
 Cause:
 
-- Transaction was not signed by the required signer.
+- The built transaction was not signed by the required signer.
 
 Fix:
 
-- Set fee payer correctly and ensure signer signs before serialize/send.
+- Ensure your fee payer signs before serialization.
+- Align the signer with the authority required by the instruction scope.
 
-### `required_signer_mismatch`
+### `rpc_timeout`
 
 Cause:
 
-- Signed transaction fee payer does not equal `requiredSigner`.
+- Confirmation took too long or the blockhash expired.
 
 Fix:
 
-- Align signer wallet with expected claimant/delegate identity.
+- Fetch a fresh blockhash with `getRecentBlockhash()`.
+- Rebuild, re-sign, and resubmit the transaction.
 
-### `intent_message_mismatch`
+### `network_error`
 
 Cause:
 
-- Signed message bytes differ from prepared unsigned intent.
+- RPC transport or network connectivity interrupted submission.
 
 Fix:
 
-- Do not mutate transaction fields after generating/handing off the unsigned intent.
+- Retry against a healthy RPC endpoint.
+- Record simulation logs so you can distinguish transport failures from program failures.
 
-## Builder validation errors
+## Canonical claim and obligation failures
 
-### `poolId exceeds 32 UTF-8 bytes`
+These are normalized by `normalizeClaimSimulationFailure(...)` and `normalizeClaimRpcFailure(...)`.
+
+### `protocol_paused`
 
 Cause:
 
-- `poolId` is too long for PDA seed constraints.
+- A protocol or plan-level control is blocking the claim flow.
 
 Fix:
 
-- Use a short deterministic identifier (`<=32` UTF-8 bytes).
+- Inspect governance, reserve-domain, health-plan, or capital-class pause state before retrying.
 
-### `supported schema key hashes cannot exceed 16`
+### `claim_intake_paused`
 
 Cause:
 
-- Too many schema hashes passed to oracle profile registration/update.
+- Claim intake is paused for the relevant scope.
 
 Fix:
 
-- Limit to 16 entries per call.
+- Resume intake or route the case through the correct plan and series.
 
-### `protocolFeeBps must be an integer between 0 and 10000`
+### `not_eligible`
 
 Cause:
 
-- Invalid basis points for protocol fee params.
+- The `MemberPosition` is not eligible for the requested claim or payout.
 
 Fix:
 
-- Use integer value in `[0, 10000]`.
+- Verify `fetchMemberPosition(...)` and `describeEligibilityStatus(...)`.
 
-### `poolAssetVault, poolVaultTokenAccount, and recipientTokenAccount must be provided together`
+### `funding_exhausted`
 
 Cause:
 
-- Reward/settlement SPL optional accounts were partially provided.
+- The applicable funding line or reserve scope does not have enough free capital.
 
 Fix:
 
-- Provide all three for SPL payouts, or none for pure SOL flow.
+- Inspect `fetchFundingLineLedger(...)`, `fetchPlanReserveLedger(...)`, and `recomputeReserveBalanceSheet(...)`.
 
-### `invalid ISO timestamp`
+### `allocation_frozen`
 
 Cause:
 
-- ISO datetime parameter is malformed.
+- Allocation controls are in deallocation-only or freeze mode.
 
 Fix:
 
-- Use RFC 3339 / ISO-8601 format (`new Date(...).toISOString()`).
+- Check allocation and capital-class controls before attempting new utilization.
 
-## Reader decode failures
+### `queue_only`
+
+Cause:
+
+- A capital surface is operating in queue-only mode.
+
+Fix:
+
+- Use `buildRequestRedemptionTx(...)` and wait for `buildProcessRedemptionQueueTx(...)` rather than expecting immediate exit.
+
+### `invalid_claim_state`
+
+Cause:
+
+- The claim case or obligation is not in a state that permits the requested transition.
+
+Fix:
+
+- Inspect `fetchClaimCase(...)` or `fetchObligation(...)` and only apply valid state transitions.
+
+## Builder and PDA issues
+
+### `seed id must be 1..32 UTF-8 bytes`
+
+Cause:
+
+- A plan, series, funding-line, pool, class, or obligation identifier exceeds PDA seed limits.
+
+Fix:
+
+- Validate identifiers with `isSeedIdSafe(...)` or `assertSeedId(...)`.
 
 ### `account discriminator mismatch for ...`
 
 Cause:
 
-- Account bytes do not match expected type discriminator.
-
-Likely reasons:
-
-- Wrong account address for the reader type.
-- Mismatched `programId`/cluster.
-- Protocol version mismatch between SDK and deployed program.
+- The address does not point to the account type you tried to decode.
 
 Fix:
 
-- Recompute PDA with SDK seed helpers and verify cluster/program alignment.
-- Re-run parity checks if protocol changed:
+- Re-derive the address with the canonical PDA helper.
+- Confirm the `programId` and cluster are correct.
+- Use `fetch...(...)` readers instead of ad hoc decoding where possible.
+
+## Reserve and capital issues
+
+### Capital subscriptions fail unexpectedly
+
+Cause:
+
+- The capital class may be paused, restricted, or credential gating may be missing.
+
+Fix:
+
+- Inspect `fetchCapitalClass(...)`.
+- Check `describeCapitalRestriction(...)`.
+
+### Redemptions do not process
+
+Cause:
+
+- The position may still be locked, queue-only controls may apply, or redeemable capital may be insufficient.
+
+Fix:
+
+- Inspect `fetchLPPosition(...)`, `fetchPoolClassLedger(...)`, and `fetchDomainAssetLedger(...)`.
+- Recompute the reserve sheet with `recomputeReserveBalanceSheet(...)`.
+
+### Sponsor budget or premium math looks wrong
+
+Cause:
+
+- You may be reading gross vault balance instead of attributed ledger state.
+
+Fix:
+
+- Treat free capital as ledger-derived, not raw token balance.
+- Use `buildSponsorReadModel(...)` or `buildCapitalReadModel(...)` for higher-level views.
+
+## Docs and protocol parity
+
+If SDK docs or protocol artifacts changed, run:
 
 ```bash
-npm run sync:idl-fixture
-npm test
+npm run docs:check
+npm run docs:sync:check
+npm run verify:protocol:local
 ```
 
-## RPC/broadcast failures
+If parity still fails:
 
-### Failure code `rpc_timeout`
-
-Cause:
-
-- RPC did not confirm before timeout or blockhash expired.
-
-Fix:
-
-- Refresh blockhash, retry submit, and check RPC health/latency.
-
-### Failure code `rpc_rejected`
-
-Cause:
-
-- RPC endpoint rejected tx (simulation or network policy).
-
-Fix:
-
-- Run `simulateSignedTx(...)`, inspect logs, and retry with corrected accounts/signatures.
-
-### Failure code `simulation_failed_insufficient_funds`
-
-Cause:
-
-- Insufficient pool liquidity / account funds.
-
-Fix:
-
-- Top up pool vault or use correct payout asset path.
-
-### Failure code `simulation_failed_pool_paused`
-
-Cause:
-
-- Pool or protocol currently paused/inactive for requested action.
-
-Fix:
-
-- Check pool status/governance params and reactivate where authorized.
-
-### Failure code `simulation_failed_membership_invalid`
-
-Cause:
-
-- Member record inactive, missing, or mismatched for pool.
-
-Fix:
-
-- Re-run enrollment and verify membership PDA/account state.
+- refresh bindings with `npm run generate:protocol-bindings`
+- rerun `npm test`
+- verify the sibling `omegax-protocol` workspace is the one you intended to target
 
 ## If issues persist
 
-- Capture tx signature, account inputs, and simulation logs.
-- Record SDK version and program commit/version.
-- Open an issue with reproducible steps and sanitized payloads.
+- Capture the transaction signature.
+- Preserve simulation logs.
+- Record SDK version, protocol commit, and docs sync manifest values.
+- Reduce the failure to the smallest `build...Tx(...)` call that still reproduces the issue.

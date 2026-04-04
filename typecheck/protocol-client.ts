@@ -7,25 +7,27 @@ declare const connection: Connection;
 declare const programId: string;
 declare const authority: string;
 declare const recentBlockhash: string;
+declare const protocolGovernance: string;
+declare const reserveDomain: string;
 
 function assertProtocolClient(protocol: ProtocolClient) {
-  void protocol.buildCreatePoolTx({
-    authority,
-    poolId: 'typecheck-pool',
-    organizationRef: 'typecheck-org',
-    payoutLamportsPerPass: 1n,
-    membershipMode: 0,
-    tokenGateMint: '11111111111111111111111111111111',
-    tokenGateMinBalance: 0n,
-    inviteIssuer: '11111111111111111111111111111111',
-    poolType: 0,
-    payoutAssetMint: '11111111111111111111111111111111',
-    termsHashHex: '11'.repeat(32),
-    payoutPolicyHashHex: '22'.repeat(32),
-    cycleMode: 0,
-    metadataUri: 'https://example.com/pool/typecheck',
+  void protocol.buildCreateReserveDomainTx({
+    args: {
+      domain_id: 'typecheck-domain',
+      display_name: 'Typecheck Domain',
+      domain_admin: authority,
+      settlement_mode: 0,
+      legal_structure_hash: new Uint8Array(32),
+      compliance_baseline_hash: new Uint8Array(32),
+      allowed_rail_mask: 1,
+      pause_flags: 0,
+    },
+    accounts: {
+      authority,
+      protocol_governance: protocolGovernance,
+      reserve_domain: reserveDomain,
+    },
     recentBlockhash,
-    programId,
   });
 }
 

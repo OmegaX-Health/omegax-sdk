@@ -1,380 +1,147 @@
-import nacl from 'tweetnacl';
-import {
-  PublicKey,
-  SystemProgram,
-  Transaction,
-  TransactionInstruction,
-} from '@solana/web3.js';
+import type { ClaimFailureCode, ClaimFailureDetail } from './types.js';
+export {
+  CLAIM_INTAKE_APPROVED,
+  CLAIM_INTAKE_CLOSED,
+  CLAIM_INTAKE_DENIED,
+  CLAIM_INTAKE_OPEN,
+  CLAIM_INTAKE_SETTLED,
+  CLAIM_INTAKE_UNDER_REVIEW,
+  OBLIGATION_STATUS_CANCELED,
+  OBLIGATION_STATUS_CLAIMABLE_PAYABLE,
+  OBLIGATION_STATUS_IMPAIRED,
+  OBLIGATION_STATUS_PROPOSED,
+  OBLIGATION_STATUS_RECOVERED,
+  OBLIGATION_STATUS_RESERVED,
+  OBLIGATION_STATUS_SETTLED,
+  describeClaimStatus,
+  describeObligationStatus,
+} from './protocol_models.js';
 
-import type {
-  BuildUnsignedRewardClaimTxParams,
-  ClaimFailureCode,
-  ClaimFailureDetail,
-  RewardClaimIntent,
-  ValidateSignedClaimTxReason,
-  ValidateSignedClaimTxParams,
-  ValidateSignedClaimTxResult,
-} from './types.js';
-import { fromHex } from './utils.js';
-import {
-  decodeSolanaTransaction,
-  type SolanaTransaction,
-  solanaTransactionFirstSignature,
-  solanaTransactionIntentMessageBytes,
-  solanaTransactionMessageBytes,
-  solanaTransactionRequiredSigner,
-  solanaTransactionSignerSignature,
-} from './transactions.js';
-import {
-  deriveClaimPda,
-  deriveConfigPda,
-  deriveOutcomeAggregatePda,
-  derivePoolCompliancePolicyPda,
-  derivePoolOraclePolicyPda,
-  derivePoolTreasuryReservePda,
-  derivePoolTermsPda,
-  deriveMembershipPda,
-  ZERO_PUBKEY,
-} from './protocol_seeds.js';
-import {
-  encodeSubmitRewardClaimPayload,
-  validateRewardClaimOptionalAccounts,
-} from './internal/reward-claim.js';
-
-function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
-  return (
-    left.length === right.length &&
-    left.every((value, index) => value === right[index])
-  );
+function collapseFailureText(params: { err: unknown; logs: string[] }): string {
+  const errorText =
+    params.err instanceof Error ? params.err.message : String(params.err ?? '');
+  return [errorText, ...params.logs].join(' ').toLowerCase();
 }
 
-export function buildUnsignedRewardClaimTx(
-  params: BuildUnsignedRewardClaimTxParams,
-): RewardClaimIntent {
-  validateRewardClaimOptionalAccounts(params);
-  const claimant = new PublicKey(params.claimantWallet);
-  const member = new PublicKey(params.member);
-  const programId = new PublicKey(params.programId);
-  const poolAddress = new PublicKey(params.poolAddress);
-  const payoutMint = new PublicKey(params.payoutMint ?? ZERO_PUBKEY);
-  const cycleHash = fromHex(params.cycleHashHex, 32);
-  const ruleHash = fromHex(params.ruleHashHex, 32);
-  const seriesRefHash = fromHex(params.seriesRefHashHex, 32);
-
-  const [configPda] = deriveConfigPda(programId);
-  const [poolTermsPda] = derivePoolTermsPda({
-    programId,
-    poolAddress,
-  });
-  const [poolOraclePolicyPda] = derivePoolOraclePolicyPda({
-    programId,
-    poolAddress,
-  });
-  const [poolTreasuryReservePda] = derivePoolTreasuryReservePda({
-    programId,
-    poolAddress,
-    paymentMint: payoutMint,
-  });
-  const [membershipPda] = deriveMembershipPda({
-    programId,
-    poolAddress,
-    member,
-  });
-  const [aggregatePda] = deriveOutcomeAggregatePda({
-    programId,
-    poolAddress,
-    seriesRefHash,
-    member,
-    cycleHash,
-    ruleHash,
-  });
-  const [claimRecordPda] = deriveClaimPda({
-    programId,
-    poolAddress,
-    seriesRefHash,
-    member,
-    cycleHash,
-    ruleHash,
-  });
-
-  const optionPlaceholder = programId;
-  const memberCycleAccount = params.memberCycle
-    ? new PublicKey(params.memberCycle)
-    : optionPlaceholder;
-  const cohortSettlementRootAccount = params.cohortSettlementRoot
-    ? new PublicKey(params.cohortSettlementRoot)
-    : optionPlaceholder;
-  const claimDelegateAccount = params.claimDelegate
-    ? new PublicKey(params.claimDelegate)
-    : optionPlaceholder;
-  const poolAssetVaultAccount = params.poolAssetVault
-    ? new PublicKey(params.poolAssetVault)
-    : optionPlaceholder;
-  const poolVaultTokenAccount = params.poolVaultTokenAccount
-    ? new PublicKey(params.poolVaultTokenAccount)
-    : optionPlaceholder;
-  const recipientTokenAccount = params.recipientTokenAccount
-    ? new PublicKey(params.recipientTokenAccount)
-    : optionPlaceholder;
-
-  const keys = [
-    { pubkey: claimant, isSigner: true, isWritable: true },
-    { pubkey: configPda, isSigner: false, isWritable: false },
-    { pubkey: poolAddress, isSigner: false, isWritable: true },
-    { pubkey: poolTermsPda, isSigner: false, isWritable: false },
-    { pubkey: poolOraclePolicyPda, isSigner: false, isWritable: false },
-    { pubkey: poolTreasuryReservePda, isSigner: false, isWritable: true },
-    { pubkey: membershipPda, isSigner: false, isWritable: false },
-    { pubkey: aggregatePda, isSigner: false, isWritable: true },
-    { pubkey: memberCycleAccount, isSigner: false, isWritable: false },
-    {
-      pubkey: cohortSettlementRootAccount,
-      isSigner: false,
-      isWritable: params.cohortSettlementRoot != null,
-    },
-    {
-      pubkey: new PublicKey(params.recipientSystemAccount),
-      isSigner: false,
-      isWritable: true,
-    },
-    { pubkey: claimDelegateAccount, isSigner: false, isWritable: false },
-    { pubkey: poolAssetVaultAccount, isSigner: false, isWritable: false },
-    {
-      pubkey: poolVaultTokenAccount,
-      isSigner: false,
-      isWritable: params.poolVaultTokenAccount != null,
-    },
-    {
-      pubkey: recipientTokenAccount,
-      isSigner: false,
-      isWritable: params.recipientTokenAccount != null,
-    },
-    { pubkey: claimRecordPda, isSigner: false, isWritable: true },
-    {
-      pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
-      isSigner: false,
-      isWritable: false,
-    },
-    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    {
-      pubkey: params.includePoolCompliancePolicy
-        ? derivePoolCompliancePolicyPda({ programId, poolAddress })[0]
-        : programId,
-      isSigner: false,
-      isWritable: false,
-    },
-  ];
-
-  const instruction = new TransactionInstruction({
-    keys,
-    programId,
-    data: encodeSubmitRewardClaimPayload(params),
-  });
-
-  const tx = new Transaction({
-    recentBlockhash: params.recentBlockhash,
-    feePayer: claimant,
-  }).add(instruction);
-
-  const unsignedTxBase64 = tx
-    .serialize({ requireAllSignatures: false, verifySignatures: false })
-    .toString('base64');
-
+function toFailure(
+  code: ClaimFailureCode,
+  reason: string,
+  logs: string[] = [],
+  retryable = false,
+): ClaimFailureDetail {
   return {
-    intentHashHex: Buffer.from(fromHex(params.intentHashHex, 32)).toString(
-      'hex',
-    ),
-    unsignedTxBase64,
-    requiredSigner: claimant.toBase58(),
+    code,
+    reason,
+    logs,
+    retryable,
   };
-}
-
-export function validateSignedClaimTx(
-  params: ValidateSignedClaimTxParams,
-): ValidateSignedClaimTxResult {
-  let tx: SolanaTransaction;
-  try {
-    tx = decodeSolanaTransaction(params.signedTxBase64);
-  } catch {
-    return {
-      valid: false,
-      txSignature: null,
-      reason: 'invalid_transaction_base64',
-      signer: null,
-    };
-  }
-
-  if (
-    typeof params.expectedUnsignedTxBase64 === 'string' &&
-    params.expectedUnsignedTxBase64.length > 0
-  ) {
-    try {
-      const expectedUnsignedTx = decodeSolanaTransaction(
-        params.expectedUnsignedTxBase64,
-      );
-      const signedMessageBytes = solanaTransactionMessageBytes(tx);
-      const expectedMessageBytes =
-        solanaTransactionMessageBytes(expectedUnsignedTx);
-
-      if (!bytesEqual(signedMessageBytes, expectedMessageBytes)) {
-        const signedIntentBytes = solanaTransactionIntentMessageBytes(tx);
-        const expectedIntentBytes =
-          solanaTransactionIntentMessageBytes(expectedUnsignedTx);
-
-        if (!bytesEqual(signedIntentBytes, expectedIntentBytes)) {
-          return {
-            valid: false,
-            txSignature: solanaTransactionFirstSignature(tx),
-            reason: 'intent_message_mismatch',
-            signer: solanaTransactionRequiredSigner(tx),
-          };
-        }
-      }
-    } catch {
-      return {
-        valid: false,
-        txSignature: solanaTransactionFirstSignature(tx),
-        reason: 'intent_message_mismatch',
-        signer: solanaTransactionRequiredSigner(tx),
-      };
-    }
-  }
-
-  const expectedSigner = params.requiredSigner.trim();
-  const signer = solanaTransactionRequiredSigner(tx);
-  if (!signer) {
-    return {
-      valid: false,
-      txSignature: null,
-      reason: 'missing_fee_payer',
-      signer: null,
-    };
-  }
-
-  if (signer !== expectedSigner) {
-    return {
-      valid: false,
-      txSignature: solanaTransactionFirstSignature(tx),
-      reason: 'required_signer_mismatch',
-      signer,
-    };
-  }
-
-  const requiredSignature = solanaTransactionSignerSignature(
-    tx,
-    expectedSigner,
-  );
-  if (!requiredSignature) {
-    return {
-      valid: false,
-      txSignature: solanaTransactionFirstSignature(tx),
-      reason: 'missing_required_signature',
-      signer,
-    };
-  }
-
-  const ok = nacl.sign.detached.verify(
-    solanaTransactionMessageBytes(tx),
-    requiredSignature,
-    new PublicKey(expectedSigner).toBytes(),
-  );
-
-  if (!ok) {
-    return {
-      valid: false,
-      txSignature: solanaTransactionFirstSignature(tx),
-      reason: 'invalid_required_signature',
-      signer,
-    };
-  }
-
-  return {
-    valid: true,
-    txSignature: solanaTransactionFirstSignature(tx),
-    reason: null,
-    signer,
-  };
-}
-
-function lower(value: string): string {
-  return value.toLowerCase();
-}
-
-export function mapValidationReasonToClaimFailure(
-  reason: ValidateSignedClaimTxReason | null,
-): ClaimFailureCode | null {
-  if (!reason) return null;
-  if (reason === 'intent_message_mismatch') return 'intent_message_mismatch';
-  if (reason === 'required_signer_mismatch') return 'required_signer_mismatch';
-  return 'unknown';
 }
 
 export function normalizeClaimSimulationFailure(params: {
   err: unknown;
-  logs?: string[] | null;
+  logs: string[];
 }): ClaimFailureDetail {
-  const logs = params.logs ?? [];
-  const logsText = lower(logs.join('\n'));
-  const errText = lower(
-    params.err == null
-      ? ''
-      : typeof params.err === 'string'
-        ? params.err
-        : JSON.stringify(params.err),
+  const text = collapseFailureText(params);
+
+  if (/claim intake pause|claim intake paused/.test(text)) {
+    return toFailure(
+      'claim_intake_paused',
+      'Claim intake is paused for the current scope.',
+      params.logs,
+      true,
+    );
+  }
+  if (/protocol emergency pause|protocol paused|operational pause/.test(text)) {
+    return toFailure(
+      'protocol_paused',
+      'Protocol controls currently block the claim flow.',
+      params.logs,
+      true,
+    );
+  }
+  if (/not eligible|eligibility|member position/.test(text)) {
+    return toFailure(
+      'not_eligible',
+      'The member position is not currently eligible for this claim or payout.',
+      params.logs,
+      false,
+    );
+  }
+  if (
+    /insufficient|funding line|reserve exhausted|budget exhausted/.test(text)
+  ) {
+    return toFailure(
+      'funding_exhausted',
+      'The applicable funding line does not have enough free capital.',
+      params.logs,
+      false,
+    );
+  }
+  if (/allocation freeze|deallocation only/.test(text)) {
+    return toFailure(
+      'allocation_frozen',
+      'Capital allocation controls currently freeze this surface.',
+      params.logs,
+      true,
+    );
+  }
+  if (/queue only|redemption queue/.test(text)) {
+    return toFailure(
+      'queue_only',
+      'The current capital surface is operating in queue-only mode.',
+      params.logs,
+      true,
+    );
+  }
+  if (
+    /claim state|obligation state|already settled|already closed/.test(text)
+  ) {
+    return toFailure(
+      'invalid_claim_state',
+      'The claim or obligation is not in a state that allows this action.',
+      params.logs,
+      false,
+    );
+  }
+
+  return toFailure(
+    'unknown',
+    'Simulation failed for an unclassified claim or obligation reason.',
+    params.logs,
+    false,
   );
-  const haystack = `${logsText}\n${errText}`;
-
-  if (
-    haystack.includes('insufficientpoolliquidity') ||
-    haystack.includes('insufficient funds') ||
-    haystack.includes('insufficient lamports')
-  ) {
-    return {
-      code: 'simulation_failed_insufficient_funds',
-      message: 'Pool does not have sufficient liquidity for this claim.',
-    };
-  }
-  if (
-    haystack.includes('poolnotactive') ||
-    haystack.includes('pool is not active')
-  ) {
-    return {
-      code: 'simulation_failed_pool_paused',
-      message: 'Pool is paused or not active for claims.',
-    };
-  }
-  if (
-    haystack.includes('membershipnotactive') ||
-    haystack.includes('membership member mismatch') ||
-    haystack.includes('membership')
-  ) {
-    return {
-      code: 'simulation_failed_membership_invalid',
-      message: 'Membership is not active for this pool.',
-    };
-  }
-
-  return {
-    code: 'simulation_failed_unknown',
-    message: 'Claim simulation failed before broadcast.',
-  };
 }
 
 export function normalizeClaimRpcFailure(error: unknown): ClaimFailureDetail {
-  const message = error instanceof Error ? error.message : String(error);
-  const normalized = lower(message);
-  if (
-    normalized.includes('timeout') ||
-    normalized.includes('timed out') ||
-    normalized.includes('blockhash not found')
-  ) {
-    return {
-      code: 'rpc_timeout',
-      message: message || 'RPC timeout while submitting claim transaction.',
-    };
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const normalized = message.toLowerCase();
+
+  if (/timed out|timeout|deadline exceeded/.test(normalized)) {
+    return toFailure(
+      'rpc_timeout',
+      'RPC confirmation timed out before the claim transaction reached a terminal state.',
+      [],
+      true,
+    );
   }
-  return {
-    code: 'rpc_rejected',
-    message: message || 'RPC rejected claim transaction.',
-  };
+
+  if (
+    /fetch failed|network|socket|econnreset|service unavailable/.test(
+      normalized,
+    )
+  ) {
+    return toFailure(
+      'network_error',
+      'A network or RPC transport failure interrupted the claim flow.',
+      [],
+      true,
+    );
+  }
+
+  return toFailure(
+    'unknown',
+    'RPC submission failed for an unclassified reason.',
+    [],
+    false,
+  );
 }

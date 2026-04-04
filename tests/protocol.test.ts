@@ -1,705 +1,360 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Buffer } from 'node:buffer';
-import {
-  Keypair,
-  PublicKey,
-  SystemProgram,
-  type TransactionInstruction,
-} from '@solana/web3.js';
+import BN from 'bn.js';
+import { BorshCoder } from '@coral-xyz/anchor';
+import { Keypair, PublicKey } from '@solana/web3.js';
 
+import idl from '../src/generated/omegax_protocol.idl.json' with { type: 'json' };
 import {
-  anchorDiscriminator,
-  createConnection,
+  CLAIM_INTAKE_APPROVED,
+  CAPITAL_CLASS_RESTRICTION_WRAPPER_ONLY,
+  FUNDING_LINE_TYPE_SPONSOR_BUDGET,
+  OBLIGATION_STATUS_SETTLED,
+  SERIES_MODE_PROTECTION,
+  SERIES_MODE_REWARD,
+  buildCapitalReadModel,
+  buildMemberReadModel,
+  buildSponsorReadModel,
   createProtocolClient,
-  deriveClaimDelegatePda,
-  deriveConfigPda,
-  deriveCoverageClaimPda,
-  deriveMembershipPda,
-  deriveOraclePda,
-  deriveOracleProfilePda,
-  derivePoolAddress,
-  derivePoolCompliancePolicyPda,
-  derivePoolOraclePda,
-  derivePoolPda,
-  derivePolicyPositionNftPda,
-  derivePolicyPositionPda,
-  derivePolicySeriesPda,
-  derivePoolRiskConfigPda,
-  encodeI64Le,
-  encodeString,
-  encodeU16Le,
-  encodeU64Le,
+  decodeProtocolAccount,
+  deriveAllocationPositionPda,
+  deriveHealthPlanPda,
+  deriveLiquidityPoolPda,
+  deriveProtocolGovernancePda,
+  deriveReserveDomainPda,
+  getProgramId,
+  listProtocolAccountNames,
+  listProtocolInstructionNames,
+  recomputeReserveBalanceSheet,
 } from '../src/index.js';
 import { createAccountReaderConnectionStub } from './support/protocol-account-reader.js';
 
-function toMeta(ix: TransactionInstruction) {
-  return ix.keys.map((key) => ({
-    pubkey: key.pubkey.toBase58(),
-    isSigner: key.isSigner,
-    isWritable: key.isWritable,
-  }));
-}
+const CODER = new BorshCoder(idl as never);
+const ZERO = new PublicKey('11111111111111111111111111111111');
 
-test('derivePoolAddress matches PDA derivation', () => {
-  const authority = Keypair.generate();
-  const program = Keypair.generate();
-  const poolId = 'omega-holder-pool';
+test('canonical surface listings expose the new instruction and account model', () => {
+  const instructionNames = listProtocolInstructionNames();
+  const accountNames = listProtocolAccountNames();
 
-  const derived = derivePoolAddress({
-    programId: program.publicKey.toBase58(),
-    authority: authority.publicKey.toBase58(),
-    poolId,
-  });
+  assert(instructionNames.includes('create_reserve_domain'));
+  assert(instructionNames.includes('create_health_plan'));
+  assert(instructionNames.includes('create_liquidity_pool'));
+  assert(!instructionNames.includes('create_pool' as never));
 
-  const [pda] = derivePoolPda({
-    programId: program.publicKey,
-    authority: authority.publicKey,
-    poolId,
-  });
-
-  assert.equal(derived, pda.toBase58());
+  assert(accountNames.includes('ReserveDomain'));
+  assert(accountNames.includes('HealthPlan'));
+  assert(accountNames.includes('LiquidityPool'));
 });
 
-test('buildCreatePoolTx rejects poolId values above 32 UTF-8 bytes', () => {
-  const authority = Keypair.generate();
-  const program = Keypair.generate();
-  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
-  const client = createProtocolClient(connection, program.publicKey.toBase58());
-
-  assert.throws(() => {
-    client.buildCreatePoolTx({
-      authority: authority.publicKey.toBase58(),
-      poolId: 'x'.repeat(33),
-      organizationRef: 'org-1',
-      payoutLamportsPerPass: 1n,
-      membershipMode: 0,
-      recentBlockhash: '11111111111111111111111111111111',
-      programId: program.publicKey.toBase58(),
-    });
+test('PDA helpers match manual derivation under canonical seeds', () => {
+  const programId = getProgramId();
+  const reserveDomain = deriveReserveDomainPda({
+    domainId: 'open-usdc-domain',
   });
-});
-
-test('buildRegisterOracleTx rejects more than 16 schema hashes', () => {
-  const admin = Keypair.generate();
-  const oracle = Keypair.generate();
-  const program = Keypair.generate();
-  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
-  const client = createProtocolClient(connection, program.publicKey.toBase58());
-
-  assert.throws(() => {
-    client.buildRegisterOracleTx({
-      admin: admin.publicKey.toBase58(),
-      oraclePubkey: oracle.publicKey.toBase58(),
-      oracleType: 1,
-      displayName: 'Oracle One',
-      legalName: 'Oracle One LLC',
-      websiteUrl: 'https://oracle.one',
-      appUrl: 'https://app.oracle.one',
-      logoUri: 'https://oracle.one/logo.png',
-      webhookUrl: 'https://oracle.one/webhook',
-      supportedSchemaKeyHashesHex: Array.from({ length: 17 }, () =>
-        '11'.repeat(32),
-      ),
-      recentBlockhash: '11111111111111111111111111111111',
-      programId: program.publicKey.toBase58(),
-    });
+  const healthPlan = deriveHealthPlanPda({
+    reserveDomain,
+    planId: 'nexus-seeker-rewards',
   });
-});
-
-test('protocol governance builders reject zero minimum oracle stake', () => {
-  const admin = Keypair.generate();
-  const program = Keypair.generate();
-  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
-  const client = createProtocolClient(connection, program.publicKey.toBase58());
-
-  assert.throws(() => {
-    client.buildInitializeProtocolTx({
-      admin: admin.publicKey.toBase58(),
-      protocolFeeBps: 25,
-      governanceRealm: Keypair.generate().publicKey.toBase58(),
-      governanceConfig: Keypair.generate().publicKey.toBase58(),
-      defaultStakeMint: Keypair.generate().publicKey.toBase58(),
-      minOracleStake: 0n,
-      recentBlockhash: '11111111111111111111111111111111',
-      programId: program.publicKey.toBase58(),
-    });
-  }, /minOracleStake must be greater than 0/);
-
-  assert.throws(() => {
-    client.buildSetProtocolParamsTx({
-      governanceAuthority: admin.publicKey.toBase58(),
-      protocolFeeBps: 25,
-      allowedPayoutMintsHashHex: '11'.repeat(32),
-      defaultStakeMint: Keypair.generate().publicKey.toBase58(),
-      minOracleStake: 0n,
-      emergencyPaused: false,
-      recentBlockhash: '11111111111111111111111111111111',
-      programId: program.publicKey.toBase58(),
-    });
-  }, /minOracleStake must be greater than 0/);
-});
-
-test('buildSubmitRewardClaimTx rejects partial SPL payout accounts', () => {
-  const claimant = Keypair.generate();
-  const member = Keypair.generate();
-  const pool = Keypair.generate();
-  const program = Keypair.generate();
-  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
-  const client = createProtocolClient(connection, program.publicKey.toBase58());
-
-  assert.throws(() => {
-    client.buildSubmitRewardClaimTx({
-      claimant: claimant.publicKey.toBase58(),
-      poolAddress: pool.publicKey.toBase58(),
-      member: member.publicKey.toBase58(),
-      seriesRefHashHex: '11'.repeat(32),
-      cycleHashHex: '22'.repeat(32),
-      ruleHashHex: '33'.repeat(32),
-      intentHashHex: '44'.repeat(32),
-      payoutAmount: 10n,
-      payoutMint: Keypair.generate().publicKey.toBase58(),
-      recipient: claimant.publicKey.toBase58(),
-      recipientSystemAccount: claimant.publicKey.toBase58(),
-      poolAssetVault: Keypair.generate().publicKey.toBase58(),
-      recentBlockhash: '11111111111111111111111111111111',
-      programId: program.publicKey.toBase58(),
-    });
+  const liquidityPool = deriveLiquidityPoolPda({
+    reserveDomain,
+    poolId: 'omega-health-income',
   });
-});
-
-test('buildSubmitOutcomeAttestationVoteTx validates attestation digest hex strictly', () => {
-  const oracle = Keypair.generate();
-  const member = Keypair.generate();
-  const pool = Keypair.generate();
-  const program = Keypair.generate();
-  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
-  const client = createProtocolClient(connection, program.publicKey.toBase58());
-
-  const tx = client.buildSubmitOutcomeAttestationVoteTx({
-    oracle: oracle.publicKey.toBase58(),
-    poolAddress: pool.publicKey.toBase58(),
-    seriesRefHashHex: '11'.repeat(32),
-    member: member.publicKey.toBase58(),
-    cycleHashHex: '22'.repeat(32),
-    ruleHashHex: '33'.repeat(32),
-    schemaKeyHashHex: '44'.repeat(32),
-    payoutMint: Keypair.generate().publicKey.toBase58(),
-    attestationDigestHex: `0x${'aa'.repeat(32)}`,
-    observedValueHashHex: 'bb'.repeat(32),
-    asOfTs: 1_700_000_000,
-    passed: true,
-    recentBlockhash: '11111111111111111111111111111111',
-    programId: program.publicKey.toBase58(),
+  const allocation = deriveAllocationPositionPda({
+    capitalClass: Keypair.generate().publicKey,
+    fundingLine: Keypair.generate().publicKey,
   });
+
+  const [manualGovernance] = PublicKey.findProgramAddressSync(
+    [Buffer.from('protocol_governance')],
+    programId,
+  );
+  const [manualDomain] = PublicKey.findProgramAddressSync(
+    [Buffer.from('reserve_domain'), Buffer.from('open-usdc-domain')],
+    programId,
+  );
+
   assert.equal(
-    tx.instructions[0].data.subarray(104, 136).toString('hex'),
-    'aa'.repeat(32),
+    deriveProtocolGovernancePda().toBase58(),
+    manualGovernance.toBase58(),
   );
-
-  assert.throws(() => {
-    client.buildSubmitOutcomeAttestationVoteTx({
-      oracle: oracle.publicKey.toBase58(),
-      poolAddress: pool.publicKey.toBase58(),
-      seriesRefHashHex: '11'.repeat(32),
-      member: member.publicKey.toBase58(),
-      cycleHashHex: '22'.repeat(32),
-      ruleHashHex: '33'.repeat(32),
-      schemaKeyHashHex: '44'.repeat(32),
-      payoutMint: Keypair.generate().publicKey.toBase58(),
-      attestationDigestHex: `${'aa'.repeat(31)}zz`,
-      observedValueHashHex: 'bb'.repeat(32),
-      asOfTs: 1_700_000_000,
-      passed: true,
-      recentBlockhash: '11111111111111111111111111111111',
-      programId: program.publicKey.toBase58(),
-    });
-  });
+  assert.equal(reserveDomain.toBase58(), manualDomain.toBase58());
+  assert.match(healthPlan.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+  assert.match(liquidityPool.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+  assert.match(allocation.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
 });
 
-test('protocol account readers decode current setup accounts', async () => {
-  const program = Keypair.generate().publicKey;
-  const admin = Keypair.generate().publicKey;
-  const governanceAuthority = Keypair.generate().publicKey;
-  const governanceRealm = Keypair.generate().publicKey;
-  const governanceConfig = Keypair.generate().publicKey;
-  const defaultStakeMint = Keypair.generate().publicKey;
-  const oracle = Keypair.generate().publicKey;
-  const authority = Keypair.generate().publicKey;
-  const member = Keypair.generate().publicKey;
-
-  const [configPda] = deriveConfigPda(program);
-  const [poolPda] = derivePoolPda({
-    programId: program,
-    authority,
-    poolId: 'pool-1',
-  });
-  const [oraclePda] = deriveOraclePda({
-    programId: program,
-    oracle,
-  });
-  const [poolOraclePda] = derivePoolOraclePda({
-    programId: program,
-    poolAddress: poolPda,
-    oracle,
-  });
-  const [membershipPda] = deriveMembershipPda({
-    programId: program,
-    poolAddress: poolPda,
-    member,
+test('decodeProtocolAccount normalizes pubkeys and bigints for canonical readers', async () => {
+  const governanceAddress = deriveProtocolGovernancePda().toBase58();
+  const encoded = await CODER.accounts.encode('ProtocolGovernance', {
+    governance_authority: ZERO,
+    protocol_fee_bps: 25,
+    emergency_pause: false,
+    audit_nonce: new BN(7),
+    bump: 255,
   });
 
-  const accounts = new Map<string, Buffer>();
-  accounts.set(
-    configPda.toBase58(),
-    Buffer.concat([
-      anchorDiscriminator('account', 'ProtocolConfig'),
-      admin.toBuffer(),
-      governanceAuthority.toBuffer(),
-      governanceRealm.toBuffer(),
-      governanceConfig.toBuffer(),
-      defaultStakeMint.toBuffer(),
-      encodeU16Le(25),
-      encodeU64Le(500n),
-      Buffer.from([0]),
-      Buffer.alloc(32, 9),
-      Buffer.from([1]),
-    ]),
-  );
-  accounts.set(
-    poolPda.toBase58(),
-    Buffer.concat([
-      anchorDiscriminator('account', 'Pool'),
-      authority.toBuffer(),
-      encodeString('pool-1'),
-      encodeString('org-1'),
-      encodeU64Le(10n),
-      Buffer.from([0]),
-      new PublicKey('11111111111111111111111111111111').toBuffer(),
-      encodeU64Le(0n),
-      new PublicKey('11111111111111111111111111111111').toBuffer(),
-      Buffer.from([1]),
-      Buffer.from([255]),
-    ]),
-  );
-  accounts.set(
-    oraclePda.toBase58(),
-    Buffer.concat([
-      anchorDiscriminator('account', 'OracleRegistryEntry'),
-      oracle.toBuffer(),
-      Buffer.from([1]),
-      Buffer.from([2]),
-      encodeString('https://oracle.example/metadata'),
-    ]),
-  );
-  accounts.set(
-    poolOraclePda.toBase58(),
-    Buffer.concat([
-      anchorDiscriminator('account', 'PoolOracleApproval'),
-      poolPda.toBuffer(),
-      oracle.toBuffer(),
-      Buffer.from([1]),
-      Buffer.from([3]),
-    ]),
-  );
-  accounts.set(
-    membershipPda.toBase58(),
-    Buffer.concat([
-      anchorDiscriminator('account', 'MembershipRecord'),
-      poolPda.toBuffer(),
-      member.toBuffer(),
-      Buffer.alloc(32, 7),
-      Buffer.from([1]),
-      encodeI64Le(111n),
-      encodeI64Le(222n),
-      Buffer.from([4]),
-    ]),
-  );
+  const decoded = decodeProtocolAccount<{
+    governance_authority: string;
+    protocol_fee_bps: number;
+    emergency_pause: boolean;
+    audit_nonce: bigint;
+    bump: number;
+  }>('ProtocolGovernance', encoded);
 
-  const connection = createAccountReaderConnectionStub(accounts);
+  assert.equal(decoded.governance_authority, ZERO.toBase58());
+  assert.equal(decoded.protocol_fee_bps, 25);
+  assert.equal(decoded.audit_nonce, 7n);
 
-  const client = createProtocolClient(connection, program.toBase58());
-
-  const config = await client.fetchProtocolConfig();
-  assert.equal(config?.admin, admin.toBase58());
-  assert.equal(config?.governanceAuthority, governanceAuthority.toBase58());
-  assert.equal(config?.protocolFeeBps, 25);
-
-  const pool = await client.fetchPool(poolPda.toBase58());
-  assert.equal(pool?.poolId, 'pool-1');
-  assert.equal(pool?.status, 'active');
-
-  const entry = await client.fetchOracleRegistryEntry(oracle.toBase58());
-  assert.equal(entry?.metadataUri, 'https://oracle.example/metadata');
-  assert.equal(entry?.active, true);
-
-  const approval = await client.fetchPoolOracleApproval({
-    poolAddress: poolPda.toBase58(),
-    oracle: oracle.toBase58(),
-  });
-  assert.equal(approval?.active, true);
-
-  const membership = await client.fetchMembershipRecord({
-    poolAddress: poolPda.toBase58(),
-    member: member.toBase58(),
-  });
-  assert.equal(membership?.status, 'active');
-  assert.equal(
-    membership?.subjectCommitmentHex,
-    Buffer.alloc(32, 7).toString('hex'),
-  );
-});
-
-test('protocol client canonical oracle and pool-admin builders match protocol metas', () => {
-  const admin = Keypair.generate();
-  const authority = Keypair.generate();
-  const oracle = Keypair.generate();
-  const program = Keypair.generate();
-  const poolAddress = Keypair.generate().publicKey;
-  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
-  const client = createProtocolClient(connection, program.publicKey.toBase58());
-  const recentBlockhash = '11111111111111111111111111111111';
-
-  const [oracleEntryPda] = deriveOraclePda({
-    programId: program.publicKey,
-    oracle: oracle.publicKey,
-  });
-  const [oracleProfilePda] = deriveOracleProfilePda({
-    programId: program.publicKey,
-    oracle: oracle.publicKey,
-  });
-  const [poolOraclePda] = derivePoolOraclePda({
-    programId: program.publicKey,
-    poolAddress,
-    oracle: oracle.publicKey,
-  });
-
-  const registerTx = client.buildRegisterOracleTx({
-    admin: admin.publicKey.toBase58(),
-    oraclePubkey: oracle.publicKey.toBase58(),
-    oracleType: 1,
-    displayName: 'Oracle One',
-    legalName: 'Oracle One LLC',
-    websiteUrl: 'https://oracle.one',
-    appUrl: 'https://app.oracle.one',
-    logoUri: 'https://oracle.one/logo.png',
-    webhookUrl: 'https://oracle.one/webhook',
-    supportedSchemaKeyHashesHex: ['11'.repeat(32)],
-    recentBlockhash,
-    programId: program.publicKey.toBase58(),
-  });
-  assert.deepEqual(toMeta(registerTx.instructions[0]), [
-    { pubkey: admin.publicKey.toBase58(), isSigner: true, isWritable: true },
-    { pubkey: oracleEntryPda.toBase58(), isSigner: false, isWritable: true },
-    { pubkey: oracleProfilePda.toBase58(), isSigner: false, isWritable: true },
-    {
-      pubkey: SystemProgram.programId.toBase58(),
-      isSigner: false,
-      isWritable: false,
-    },
-  ]);
-  assert.equal(
-    Buffer.compare(
-      registerTx.instructions[0].data.subarray(0, 8),
-      anchorDiscriminator('global', 'register_oracle'),
+  const client = createProtocolClient(
+    createAccountReaderConnectionStub(
+      new Map([[governanceAddress, Buffer.from(encoded)]]),
     ),
-    0,
+    getProgramId().toBase58(),
   );
+  const fetched = await client.fetchProtocolGovernance();
 
-  const claimTx = client.buildClaimOracleTx({
-    oracle: oracle.publicKey.toBase58(),
-    recentBlockhash,
-    programId: program.publicKey.toBase58(),
-  });
-  assert.deepEqual(toMeta(claimTx.instructions[0]), [
-    { pubkey: oracle.publicKey.toBase58(), isSigner: true, isWritable: false },
-    { pubkey: oracleEntryPda.toBase58(), isSigner: false, isWritable: true },
-    { pubkey: oracleProfilePda.toBase58(), isSigner: false, isWritable: true },
-  ]);
-
-  const updateTx = client.buildUpdateOracleProfileTx({
-    authority: admin.publicKey.toBase58(),
-    oracle: oracle.publicKey.toBase58(),
-    oracleType: 2,
-    displayName: 'Oracle Updated',
-    legalName: 'Oracle Updated LLC',
-    websiteUrl: 'https://oracle.updated',
-    appUrl: 'https://app.oracle.updated',
-    logoUri: 'https://oracle.updated/logo.png',
-    webhookUrl: 'https://oracle.updated/webhook',
-    supportedSchemaKeyHashesHex: ['22'.repeat(32)],
-    recentBlockhash,
-    programId: program.publicKey.toBase58(),
-  });
-  assert.deepEqual(toMeta(updateTx.instructions[0]), [
-    { pubkey: admin.publicKey.toBase58(), isSigner: true, isWritable: false },
-    { pubkey: oracleProfilePda.toBase58(), isSigner: false, isWritable: true },
-  ]);
+  assert(fetched);
   assert.equal(
-    Buffer.compare(
-      updateTx.instructions[0].data.subarray(0, 8),
-      anchorDiscriminator('global', 'update_oracle_profile'),
-    ),
-    0,
-  );
-
-  const setPoolStatusTx = client.buildSetPoolStatusTx({
-    authority: authority.publicKey.toBase58(),
-    poolAddress: poolAddress.toBase58(),
-    status: 1,
-    recentBlockhash,
-    programId: program.publicKey.toBase58(),
-  });
-  assert.deepEqual(toMeta(setPoolStatusTx.instructions[0]), [
-    {
-      pubkey: authority.publicKey.toBase58(),
-      isSigner: true,
-      isWritable: false,
-    },
-    { pubkey: poolAddress.toBase58(), isSigner: false, isWritable: true },
-  ]);
-  assert.equal(
-    Buffer.compare(
-      setPoolStatusTx.instructions[0].data.subarray(0, 8),
-      anchorDiscriminator('global', 'set_pool_status'),
-    ),
-    0,
-  );
-
-  const setPoolOracleTx = client.buildSetPoolOracleTx({
-    authority: authority.publicKey.toBase58(),
-    poolAddress: poolAddress.toBase58(),
-    oracle: oracle.publicKey.toBase58(),
-    active: true,
-    recentBlockhash,
-    programId: program.publicKey.toBase58(),
-  });
-  assert.deepEqual(toMeta(setPoolOracleTx.instructions[0]), [
-    {
-      pubkey: authority.publicKey.toBase58(),
-      isSigner: true,
-      isWritable: true,
-    },
-    { pubkey: poolAddress.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: oracleEntryPda.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: poolOraclePda.toBase58(), isSigner: false, isWritable: true },
-    {
-      pubkey: SystemProgram.programId.toBase58(),
-      isSigner: false,
-      isWritable: false,
-    },
-  ]);
-  assert.equal(
-    Buffer.compare(
-      setPoolOracleTx.instructions[0].data.subarray(0, 8),
-      anchorDiscriminator('global', 'set_pool_oracle'),
-    ),
-    0,
+    (fetched as { governance_authority: string }).governance_authority,
+    ZERO.toBase58(),
   );
 });
 
-test('policy series builders use canonical naming and current PDAs', () => {
-  const authority = Keypair.generate();
-  const member = Keypair.generate();
-  const pool = Keypair.generate().publicKey;
-  const program = Keypair.generate();
-  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
-  const client = createProtocolClient(connection, program.publicKey.toBase58());
-  const recentBlockhash = '11111111111111111111111111111111';
-  const seriesRefHashHex = '11'.repeat(32);
-  const seriesRefHash = Buffer.from(seriesRefHashHex, 'hex');
+test('reserve and read-model helpers stay aligned with the canonical economic story', () => {
+  const healthPlanAddress = Keypair.generate().publicKey.toBase58();
+  const rewardSeriesAddress = Keypair.generate().publicKey.toBase58();
+  const protectionSeriesAddress = Keypair.generate().publicKey.toBase58();
+  const fundingLineAddress = Keypair.generate().publicKey.toBase58();
+  const poolAddress = Keypair.generate().publicKey.toBase58();
+  const openClassAddress = Keypair.generate().publicKey.toBase58();
+  const wrapperClassAddress = Keypair.generate().publicKey.toBase58();
+  const memberPositionAddress = Keypair.generate().publicKey.toBase58();
+  const wallet = Keypair.generate().publicKey.toBase58();
 
-  const [configPda] = deriveConfigPda(program.publicKey);
-  const [policySeriesPda] = derivePolicySeriesPda({
-    programId: program.publicKey,
-    poolAddress: pool,
-    seriesRefHash,
-  });
-  const [membershipPda] = deriveMembershipPda({
-    programId: program.publicKey,
-    poolAddress: pool,
-    member: member.publicKey,
-  });
-  const [policyPositionPda] = derivePolicyPositionPda({
-    programId: program.publicKey,
-    poolAddress: pool,
-    seriesRefHash,
-    member: member.publicKey,
-  });
-  const [policyPositionNftPda] = derivePolicyPositionNftPda({
-    programId: program.publicKey,
-    poolAddress: pool,
-    seriesRefHash,
-    member: member.publicKey,
+  const sponsor = buildSponsorReadModel({
+    healthPlan: {
+      address: healthPlanAddress,
+      reserveDomain: Keypair.generate().publicKey.toBase58(),
+      planId: 'nexus-seeker-rewards',
+      displayName: 'Nexus Seeker Rewards',
+      sponsorLabel: 'OmegaX',
+      planAdmin: wallet,
+      sponsorOperator: wallet,
+      claimsOperator: wallet,
+      membershipModel: 'invite',
+      active: true,
+    },
+    policySeries: [
+      {
+        address: rewardSeriesAddress,
+        healthPlan: healthPlanAddress,
+        seriesId: 'seeker-reward-series',
+        displayName: 'Rewards',
+        mode: SERIES_MODE_REWARD,
+        status: 1,
+        assetMint: ZERO.toBase58(),
+        termsVersion: '1',
+        comparabilityKey: 'reward-v1',
+      },
+      {
+        address: protectionSeriesAddress,
+        healthPlan: healthPlanAddress,
+        seriesId: 'protection-series',
+        displayName: 'Protection',
+        mode: SERIES_MODE_PROTECTION,
+        status: 1,
+        assetMint: ZERO.toBase58(),
+        termsVersion: '1',
+        comparabilityKey: 'protect-v1',
+      },
+    ],
+    fundingLines: [
+      {
+        address: fundingLineAddress,
+        reserveDomain: ZERO.toBase58(),
+        healthPlan: healthPlanAddress,
+        assetMint: ZERO.toBase58(),
+        lineId: 'sponsor-budget',
+        displayName: 'Sponsor budget',
+        lineType: FUNDING_LINE_TYPE_SPONSOR_BUDGET,
+        fundingPriority: 1,
+        fundedAmount: 1_000_000n,
+        spentAmount: 125_000n,
+        status: 0,
+        sheet: { funded: 1_000_000n, reserved: 100_000n, settled: 25_000n },
+      },
+    ],
+    obligations: [
+      {
+        address: Keypair.generate().publicKey.toBase58(),
+        reserveDomain: ZERO.toBase58(),
+        assetMint: ZERO.toBase58(),
+        healthPlan: healthPlanAddress,
+        policySeries: rewardSeriesAddress,
+        fundingLine: fundingLineAddress,
+        obligationId: 'reward-1',
+        status: OBLIGATION_STATUS_SETTLED,
+        deliveryMode: 0,
+        principalAmount: 50_000n,
+        settledAmount: 50_000n,
+      },
+    ],
+    claimCases: [
+      {
+        address: Keypair.generate().publicKey.toBase58(),
+        reserveDomain: ZERO.toBase58(),
+        healthPlan: healthPlanAddress,
+        policySeries: protectionSeriesAddress,
+        fundingLine: fundingLineAddress,
+        memberPosition: memberPositionAddress,
+        claimant: wallet,
+        claimId: 'claim-1',
+        intakeStatus: CLAIM_INTAKE_APPROVED,
+        approvedAmount: 25_000n,
+      },
+    ],
+    planLedger: { funded: 1_000_000n, reserved: 100_000n, claimable: 25_000n },
   });
 
-  const createTx = client.buildCreatePolicySeriesTx({
-    authority: authority.publicKey.toBase58(),
-    poolAddress: pool.toBase58(),
-    seriesRefHashHex,
-    status: 1,
-    planMode: 1,
-    sponsorMode: 2,
-    displayName: 'Coverage Prime',
-    metadataUri: 'https://omegax.health/coverage',
-    termsHashHex: '22'.repeat(32),
-    durationSecs: 86_400,
-    premiumDueEverySecs: 3_600,
-    premiumGraceSecs: 600,
-    premiumAmount: 30n,
-    interopProfileHashHex: '33'.repeat(32),
-    oracleProfileHashHex: '44'.repeat(32),
-    riskFamilyHashHex: '55'.repeat(32),
-    issuanceTemplateHashHex: '66'.repeat(32),
-    comparabilityHashHex: '77'.repeat(32),
-    renewalOfHashHex: '88'.repeat(32),
-    termsVersion: 1,
-    mappingVersion: 1,
-    recentBlockhash,
-    programId: program.publicKey.toBase58(),
+  assert.equal(sponsor.fundedSponsorBudget, 1_000_000n);
+  assert.equal(sponsor.paidRewards, 50_000n);
+  assert.equal(sponsor.claimCounts.approved, 1);
+
+  const capital = buildCapitalReadModel({
+    liquidityPool: {
+      address: poolAddress,
+      reserveDomain: ZERO.toBase58(),
+      poolId: 'omega-health-income',
+      displayName: 'Omega Health Income',
+      depositAssetMint: ZERO.toBase58(),
+      strategyThesis: 'health reserves',
+      redemptionPolicy: 1,
+      totalValueLocked: 750_000n,
+      active: true,
+    },
+    capitalClasses: [
+      {
+        address: openClassAddress,
+        liquidityPool: poolAddress,
+        classId: 'open-usdc-class',
+        displayName: 'Open',
+        priority: 1,
+        restrictionMode: 0,
+        totalShares: 500_000n,
+        navAssets: 500_000n,
+        allocatedAssets: 220_000n,
+        pendingRedemptions: 25_000n,
+        active: true,
+      },
+      {
+        address: wrapperClassAddress,
+        liquidityPool: poolAddress,
+        classId: 'wrapper-class',
+        displayName: 'Wrapper',
+        priority: 2,
+        restrictionMode: CAPITAL_CLASS_RESTRICTION_WRAPPER_ONLY,
+        totalShares: 250_000n,
+        navAssets: 250_000n,
+        allocatedAssets: 100_000n,
+        pendingRedemptions: 0n,
+        queueOnlyRedemptions: true,
+        active: true,
+      },
+    ],
+    classLedgers: [
+      {
+        address: Keypair.generate().publicKey.toBase58(),
+        capitalClass: openClassAddress,
+        assetMint: ZERO.toBase58(),
+        totalShares: 500_000n,
+        realizedYieldAmount: 15_000n,
+        sheet: {
+          funded: 500_000n,
+          allocated: 220_000n,
+          reserved: 80_000n,
+          pending_redemption: 25_000n,
+        },
+      },
+      {
+        address: Keypair.generate().publicKey.toBase58(),
+        capitalClass: wrapperClassAddress,
+        assetMint: ZERO.toBase58(),
+        totalShares: 250_000n,
+        realizedYieldAmount: 5_000n,
+        sheet: { funded: 250_000n, allocated: 100_000n, reserved: 30_000n },
+      },
+    ],
+    allocations: [
+      {
+        address: Keypair.generate().publicKey.toBase58(),
+        reserveDomain: ZERO.toBase58(),
+        liquidityPool: poolAddress,
+        capitalClass: openClassAddress,
+        healthPlan: healthPlanAddress,
+        policySeries: protectionSeriesAddress,
+        fundingLine: fundingLineAddress,
+        capAmount: 300_000n,
+        weightBps: 8000,
+        allocatedAmount: 220_000n,
+        reservedCapacity: 80_000n,
+        active: true,
+      },
+    ],
   });
-  assert.deepEqual(toMeta(createTx.instructions[0]), [
-    {
-      pubkey: authority.publicKey.toBase58(),
-      isSigner: true,
-      isWritable: true,
-    },
-    { pubkey: configPda.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: pool.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: policySeriesPda.toBase58(), isSigner: false, isWritable: true },
-    {
-      pubkey: SystemProgram.programId.toBase58(),
-      isSigner: false,
-      isWritable: false,
-    },
-  ]);
+
+  assert.equal(capital.totalNav, 750_000n);
+  assert.equal(capital.classes[0]?.realizedYield, 15_000n);
+  assert.equal(capital.classes[1]?.restriction, 'wrapper_only');
+
+  const member = buildMemberReadModel({
+    wallet,
+    memberPositions: [
+      {
+        address: memberPositionAddress,
+        wallet,
+        healthPlan: healthPlanAddress,
+        policySeries: rewardSeriesAddress,
+        eligibilityStatus: 1,
+        delegatedRights: ['claim'],
+        active: true,
+      },
+    ],
+    obligations: [
+      {
+        address: Keypair.generate().publicKey.toBase58(),
+        reserveDomain: ZERO.toBase58(),
+        assetMint: ZERO.toBase58(),
+        healthPlan: healthPlanAddress,
+        policySeries: rewardSeriesAddress,
+        memberWallet: wallet,
+        fundingLine: fundingLineAddress,
+        obligationId: 'reward-claimable',
+        status: 2,
+        deliveryMode: 0,
+        principalAmount: 10_000n,
+        claimableAmount: 10_000n,
+      },
+    ],
+    claimCases: [
+      {
+        address: Keypair.generate().publicKey.toBase58(),
+        reserveDomain: ZERO.toBase58(),
+        healthPlan: healthPlanAddress,
+        policySeries: rewardSeriesAddress,
+        fundingLine: fundingLineAddress,
+        memberPosition: memberPositionAddress,
+        claimant: wallet,
+        claimId: 'reward-claim',
+        intakeStatus: CLAIM_INTAKE_APPROVED,
+        approvedAmount: 10_000n,
+      },
+    ],
+  });
+
+  assert.equal(member.planParticipations[0]?.claimableRewards, 10_000n);
+  assert.equal(member.planParticipations[0]?.claimStatusCounts.approved, 1);
   assert.equal(
-    Buffer.compare(
-      createTx.instructions[0].data.subarray(0, 8),
-      anchorDiscriminator('global', 'create_policy_series'),
-    ),
-    0,
-  );
-
-  const subscribeTx = client.buildSubscribePolicySeriesTx({
-    member: member.publicKey.toBase58(),
-    poolAddress: pool.toBase58(),
-    seriesRefHashHex,
-    startsAtTs: 1_700_000_000,
-    recentBlockhash,
-    programId: program.publicKey.toBase58(),
-  });
-  assert.deepEqual(toMeta(subscribeTx.instructions[0]), [
-    { pubkey: member.publicKey.toBase58(), isSigner: true, isWritable: true },
-    { pubkey: configPda.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: pool.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: membershipPda.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: policySeriesPda.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: policyPositionPda.toBase58(), isSigner: false, isWritable: true },
-    {
-      pubkey: policyPositionNftPda.toBase58(),
-      isSigner: false,
-      isWritable: true,
-    },
-    {
-      pubkey: SystemProgram.programId.toBase58(),
-      isSigner: false,
-      isWritable: false,
-    },
-  ]);
-  assert.equal(
-    Buffer.compare(
-      subscribeTx.instructions[0].data.subarray(0, 8),
-      anchorDiscriminator('global', 'subscribe_policy_series'),
-    ),
-    0,
-  );
-});
-
-test('coverage claim builders keep canonical claim and policy account ordering', () => {
-  const claimant = Keypair.generate();
-  const member = Keypair.generate();
-  const pool = Keypair.generate().publicKey;
-  const program = Keypair.generate();
-  const connection = createConnection('http://127.0.0.1:8899', 'confirmed');
-  const client = createProtocolClient(connection, program.publicKey.toBase58());
-  const recentBlockhash = '11111111111111111111111111111111';
-  const seriesRefHashHex = '12'.repeat(32);
-  const intentHashHex = '34'.repeat(32);
-  const seriesRefHash = Buffer.from(seriesRefHashHex, 'hex');
-  const intentHash = Buffer.from(intentHashHex, 'hex');
-
-  const [configPda] = deriveConfigPda(program.publicKey);
-  const [policySeriesPda] = derivePolicySeriesPda({
-    programId: program.publicKey,
-    poolAddress: pool,
-    seriesRefHash,
-  });
-  const [policyPositionPda] = derivePolicyPositionPda({
-    programId: program.publicKey,
-    poolAddress: pool,
-    seriesRefHash,
-    member: member.publicKey,
-  });
-  const [poolRiskConfigPda] = derivePoolRiskConfigPda({
-    programId: program.publicKey,
-    poolAddress: pool,
-  });
-  const [claimDelegatePda] = deriveClaimDelegatePda({
-    programId: program.publicKey,
-    poolAddress: pool,
-    member: member.publicKey,
-  });
-  const [coverageClaimPda] = deriveCoverageClaimPda({
-    programId: program.publicKey,
-    poolAddress: pool,
-    seriesRefHash,
-    member: member.publicKey,
-    intentHash,
-  });
-  const [poolCompliancePolicyPda] = derivePoolCompliancePolicyPda({
-    programId: program.publicKey,
-    poolAddress: pool,
-  });
-
-  const submitTx = client.buildSubmitCoverageClaimTx({
-    claimant: claimant.publicKey.toBase58(),
-    poolAddress: pool.toBase58(),
-    member: member.publicKey.toBase58(),
-    seriesRefHashHex,
-    intentHashHex,
-    eventHashHex: '56'.repeat(32),
-    recentBlockhash,
-    programId: program.publicKey.toBase58(),
-    claimDelegate: claimDelegatePda.toBase58(),
-    includePoolCompliancePolicy: true,
-  });
-
-  assert.deepEqual(toMeta(submitTx.instructions[0]), [
-    { pubkey: claimant.publicKey.toBase58(), isSigner: true, isWritable: true },
-    { pubkey: configPda.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: pool.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: policySeriesPda.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: policyPositionPda.toBase58(), isSigner: false, isWritable: true },
-    { pubkey: poolRiskConfigPda.toBase58(), isSigner: false, isWritable: true },
-    { pubkey: claimDelegatePda.toBase58(), isSigner: false, isWritable: false },
-    { pubkey: coverageClaimPda.toBase58(), isSigner: false, isWritable: true },
-    {
-      pubkey: poolCompliancePolicyPda.toBase58(),
-      isSigner: false,
-      isWritable: false,
-    },
-    {
-      pubkey: SystemProgram.programId.toBase58(),
-      isSigner: false,
-      isWritable: false,
-    },
-  ]);
-  assert.equal(
-    Buffer.compare(
-      submitTx.instructions[0].data.subarray(0, 8),
-      anchorDiscriminator('global', 'submit_coverage_claim'),
-    ),
-    0,
+    recomputeReserveBalanceSheet({ funded: 100n, reserved: 10n }).free,
+    90n,
   );
 });

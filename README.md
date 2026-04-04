@@ -1,36 +1,37 @@
 # @omegax/protocol-sdk
 
-TypeScript SDK for OmegaX protocol integrations on Solana.
+TypeScript SDK for the canonical OmegaX health capital markets protocol on Solana.
 
-## Network status
+## Release status
 
-- Current live network: **devnet beta**
-- Public integration target: **devnet beta**
-- Protocol UI: https://protocol.omegax.health
-- Protocol repository: `omegax-protocol`
-- Governance token:
-  - Mainnet CA: `4Aar9R14YMbEie6yh8WcH1gWXrBtfucoFjw6SpjXpump`
-  - Devnet: governance token distribution is via the protocol faucet
+- SDK release target: `0.7.0`
+- Protocol surface target: `omegax-protocol v0.3.0`
+- Current public network target: Solana devnet beta
+- Public docs: [docs.omegax.health](https://docs.omegax.health)
 
-It supports:
+This package exposes the live canonical object model:
 
-- Oracle lifecycle, staking, attestation voting, and reward claims
-- Pool creation, configuration, enrollment, funding, and reward claims
-- Policy series and policy position lifecycle (subscribe, premium, claim, settlement)
-- Deterministic PDA/seed derivation and account readers
-- Unsigned claim-intent building + signed message validation
-- RPC helpers for send/simulate/status workflows
+- protocol governance and scoped controls
+- reserve domains and domain asset vaults
+- health plans and policy series
+- member positions
+- funding lines, obligations, and claim cases
+- liquidity pools, capital classes, LP positions, and allocation positions
+- reserve-aware read models for sponsors, members, and capital providers
+- RPC helpers for unsigned transaction submission flows
+
+No pool-first compatibility layer is kept in this release. If your integration still expects `create_pool`, `set_pool_status`, or `pool_type`, it needs to migrate to the canonical surface.
 
 ## Documentation map
 
-- `/docs/INDEX.md` — start here (guide to all docs)
-- `/docs/GETTING_STARTED.md` — setup, signing, send/simulate patterns
-- `/docs/WORKFLOWS.md` — role-based integration checklists
-- `/docs/API_REFERENCE.md` — complete exported surface
-- `/docs/TROUBLESHOOTING.md` — common failures and fixes
-- `/docs/RELEASE.md` — maintainer release/publish process
-- `/docs/DOCS_SYNC_WORKFLOW.md` — SDK ↔ `omegax-docs` parity workflow and gates
-- `/docs/CROSS_REPO_RELEASE_ORDER.md` — exact merge/tag order for zero-drift releases
+- `/docs/INDEX.md` for the maintainer and integrator reading order
+- `/docs/GETTING_STARTED.md` for installation, client setup, and the unsigned transaction pattern
+- `/docs/WORKFLOWS.md` for canonical sponsor, claims, and capital flows
+- `/docs/API_REFERENCE.md` for the exported package surface
+- `/docs/TROUBLESHOOTING.md` for common failure modes and remediation
+- `/docs/RELEASE.md` for the release checklist
+- `/docs/DOCS_SYNC_WORKFLOW.md` for SDK to portal sync rules
+- `/docs/CROSS_REPO_RELEASE_ORDER.md` for the coordinated protocol + docs + SDK publish order
 
 ## Install
 
@@ -38,33 +39,23 @@ It supports:
 npm install @omegax/protocol-sdk
 ```
 
-## Breaking change in `0.5.0`
-
-- Legacy and `V2` exported names were removed from the public SDK surface.
-- Use the current canonical protocol builders, readers, and PDA helpers only.
-
-## Support matrix
+## Runtime basics
 
 - Node.js `>=20`
-- ESM-only package (`"type": "module"`)
-- Solana dependency: `@solana/web3.js`
-
-## Important behavior
-
-- Builders create **unsigned** transactions. Your app signs and submits them.
-- `programId` is explicit in SDK flows and should be passed from your runtime config.
-- Use `createProtocolClient(connection, programId)` for protocol operations.
-- Keep integrations pointed at `devnet` until OmegaX announces public mainnet availability.
+- ESM-only package
+- Protocol builders are unsigned
+- `programId` must be configured explicitly in runtime integrations
+- Public integrations should stay on devnet until OmegaX announces mainnet availability
 
 ## Quickstart
-
-### 1) Create clients
 
 ```ts
 import {
   createConnection,
   createProtocolClient,
   createRpcClient,
+  deriveProtocolGovernancePda,
+  deriveReserveDomainPda,
 } from '@omegax/protocol-sdk';
 
 const connection = createConnection({
@@ -72,187 +63,98 @@ const connection = createConnection({
   rpcUrl: process.env.SOLANA_RPC_URL,
   commitment: 'confirmed',
 });
-const programId = 'Bn6eixac1QEEVErGBvBjxAd6pgB9e2q4XHvAkinQ5y1B';
 
+const programId = process.env.OMEGAX_PROGRAM_ID!;
 const protocol = createProtocolClient(connection, programId);
 const rpc = createRpcClient(connection);
-```
 
-### 2) Build an unsigned reward-claim transaction
-
-```ts
-const tx = protocol.buildSubmitRewardClaimTx({
-  claimant: '<claimant-pubkey>',
-  poolAddress: '<pool-pubkey>',
-  member: '<member-pubkey>',
-  seriesRefHashHex: '<32-byte-hex>',
-  cycleHashHex: '<32-byte-hex>',
-  ruleHashHex: '<32-byte-hex>',
-  intentHashHex: '<32-byte-hex>',
-  payoutAmount: 1n,
-  recipient: '<recipient-pubkey>',
-  recipientSystemAccount: '<recipient-system-pubkey>',
-  recentBlockhash: await rpc.getRecentBlockhash(),
+const protocolGovernance = deriveProtocolGovernancePda(programId).toBase58();
+const reserveDomain = deriveReserveDomainPda({
+  domainId: 'open-usdc-domain',
   programId,
+}).toBase58();
+
+const tx = protocol.buildCreateReserveDomainTx({
+  args: {
+    domain_id: 'open-usdc-domain',
+    display_name: 'Open USDC Domain',
+    domain_admin: '<domain-admin-pubkey>',
+    settlement_mode: 0,
+    legal_structure_hash: new Uint8Array(32),
+    compliance_baseline_hash: new Uint8Array(32),
+    allowed_rail_mask: 1,
+    pause_flags: 0,
+  },
+  accounts: {
+    authority: '<governance-authority-pubkey>',
+    protocol_governance: protocolGovernance,
+    reserve_domain: reserveDomain,
+  },
+  recentBlockhash: await rpc.getRecentBlockhash(),
 });
 ```
 
-### 3) Sign + broadcast
+Sign and submit with your wallet or signer stack:
 
 ```ts
-const signed = tx.serialize({ requireAllSignatures: false }).toString('base64');
-const result = await rpc.broadcastSignedTx({ signedTxBase64: signed });
+const signedTx = await wallet.signTransaction(tx);
+const signedTxBase64 = Buffer.from(signedTx.serialize()).toString('base64');
+const result = await rpc.broadcastSignedTx({
+  signedTxBase64,
+  commitment: 'confirmed',
+});
 ```
 
-## What this SDK covers (by role)
+## Canonical module map
 
-### Pool creator / operator
+- Root package: connection helpers, RPC helpers, protocol builders, PDA helpers, reserve-model helpers, shared types
+- `@omegax/protocol-sdk/protocol`: IDL-backed builder and reader helpers such as `createProtocolClient(...)`, `listProtocolInstructionNames(...)`, `decodeProtocolAccount(...)`, and `compileTransactionToV0(...)`
+- `@omegax/protocol-sdk/protocol_seeds`: deterministic PDA helpers such as `deriveReserveDomainPda(...)`, `deriveHealthPlanPda(...)`, `deriveFundingLinePda(...)`, and `deriveCapitalClassPda(...)`
+- `@omegax/protocol-sdk/protocol_models`: constants and read-model helpers such as `recomputeReserveBalanceSheet(...)`, `buildSponsorReadModel(...)`, `buildCapitalReadModel(...)`, and `buildMemberReadModel(...)`
+- `@omegax/protocol-sdk/claims`: claim and obligation failure normalization helpers such as `normalizeClaimSimulationFailure(...)`
+- `@omegax/protocol-sdk/rpc`: `createConnection(...)`, `createRpcClient(...)`, and network metadata helpers
+- `@omegax/protocol-sdk/utils`: hashing, binary encoding, and misc utilities
+- `@omegax/protocol-sdk/types`: generated protocol contract types plus SDK RPC and failure types
 
-- Create and configure pools: `buildCreatePoolTx`, `buildSetPoolStatusTx`, `buildSetPoolTermsHashTx`
-- Configure oracle policy/rules: `buildSetPoolOraclePolicyTx`, `buildSetPolicySeriesOutcomeRuleTx`, `buildSetPoolOracleTx`
-- Fund payout liquidity: `buildFundPoolSolTx`, `buildFundPoolSplTx`
-- Manage policy series: `buildCreatePolicySeriesTx`, `buildUpdatePolicySeriesTx`
+## What the SDK is for
 
-### Pool participant / member
+- Sponsors and operators can build reserve-domain, health-plan, policy-series, funding-line, obligation, and claim-case transactions directly.
+- Capital providers can derive capital-class and allocation addresses, inspect ledgers, and build deposit and redemption flows against canonical pool and class objects.
+- Wallet apps and members can inspect plan participation, obligations, claim state, and payout history with the read-model helpers.
+- External integrators can enumerate the live instruction and account surface with `listProtocolInstructionNames(...)` and `listProtocolAccountNames(...)`.
 
-- Enroll: `buildEnrollMemberOpenTx`, `buildEnrollMemberTokenGateTx`, `buildEnrollMemberInvitePermitTx`
-- Authorize claim delegation: `buildSetClaimDelegateTx`
-- Claim rewards: `buildSubmitRewardClaimTx`
-- Participate in policy series: `buildSubscribePolicySeriesTx`, `buildIssuePolicyPositionTx`, `buildPayPremiumSolTx`, `buildPayPremiumSplTx`
+## What the SDK does not do
 
-### Oracle operator
+- It does not keep legacy pool-first aliases.
+- It does not hide settlement-critical accounting in offchain helpers.
+- It does not invent a second protocol surface for wrappers or regulated participation.
+- It does not sign transactions on your behalf.
 
-- Register/update oracle: `buildRegisterOracleTx`, `buildUpdateOracleProfileTx`, `buildUpdateOracleMetadataTx`
-- Stake lifecycle: `buildStakeOracleTx`, `buildRequestUnstakeTx`, `buildFinalizeUnstakeTx`, `buildSlashOracleTx`
-- Outcome + premium attestations: `buildSubmitOutcomeAttestationVoteTx`, `buildAttestPremiumPaidOffchainTx`
-- Claim oracle rewards: `buildClaimOracleTx`
-
-### Coverage claims
-
-- Submit claim: `buildSubmitCoverageClaimTx`
-- Claim approved payout: `buildClaimApprovedCoveragePayoutTx`
-- Settle claim: `buildSettleCoverageClaimTx`
-- Premium payment: `buildPayPremiumSolTx`, `buildPayPremiumSplTx`
-- Optional policy NFT mint: `buildMintPolicyNftTx`
-
-## Module imports
-
-Use root package or stable subpaths:
-
-```ts
-import { createProtocolClient } from '@omegax/protocol-sdk';
-import { buildUnsignedRewardClaimTx } from '@omegax/protocol-sdk/claims';
-import { derivePoolPda } from '@omegax/protocol-sdk/protocol_seeds';
-```
-
-Available subpaths: `claims`, `protocol`, `protocol_seeds`, `rpc`, `oracle`, `types`, `utils`.
-
-## Comprehensive docs
-
-- `/docs/INDEX.md` — docs navigation and recommended reading order
-- `/docs/GETTING_STARTED.md` — installation + end-to-end transaction flow
-- `/docs/API_REFERENCE.md` — full client surface (builders, readers, helpers)
-- `/docs/WORKFLOWS.md` — role-based integration checklists (pool, member, oracle, coverage)
-- `/docs/TROUBLESHOOTING.md` — integration failures, validation reasons, operational fixes
-- `/docs/RELEASE.md` — versioning, CI gates, tag/publish flow
-- `/docs/DOCS_SYNC_WORKFLOW.md` — exact cross-repo docs sync workflow (`omegax-docs`)
-- `/docs/CROSS_REPO_RELEASE_ORDER.md` — commit message templates and release ordering
-- `/PROTOCOL_PARITY_CHECKLIST.md` — protocol parity checklist
-
-## Protocol parity
-
-The SDK includes:
-
-- a strict instruction-account parity test against an Anchor IDL
-- a live protocol-contract parity check when a local `omegax-protocol` workspace is present
-- a local protocol compatibility gate that runs an SDK smoke test plus the full protocol surface matrix through an SDK adapter
-
-- Default fixture path: `tests/fixtures/omegax_protocol.idl.json`
-- Optional local override:
+## Local verification
 
 ```bash
-OMEGAX_PROTOCOL_IDL_PATH=/path/to/omegax_protocol.json npm test
-```
-
-Refresh the fixture:
-
-```bash
-npm run sync:idl-fixture
-```
-
-For the normal local workspace layout, this reads from:
-
-- `../omegax-protocol/idl/omegax_protocol.json`
-
-Run the full local compatibility gate before pushing SDK changes that may affect protocol behavior:
-
-```bash
-npm run typecheck
-npm run lint
-npm run format:check
-npm run verify:protocol:local
-```
-
-This verifies the current local `omegax-protocol` workspace state, including staged, unstaged, and untracked source changes, and records the exact workspace fingerprint it tested.
-
-For targeted localnet-only verification:
-
-```bash
-npm run test:protocol:localnet
-```
-
-If you changed SDK builders that are consumed by the oracle service, refresh the local dependency there after rebuilding the SDK:
-
-```bash
-cd ../omegaxhealth_services/services/protocol-oracle-service
-npm run sdk:refresh
-npm run sdk:check
-```
-
-Latest fixture sync metadata:
-
-- Source commit: `eb6c94226f034233d0eb6990e7feddcf7bf80642`
-- Fixture SHA-256: `1001bdd4a979f115a9589e1dd309676776aad90672a1aeae0ab63863a466cfb2`
-
-## Development commands
-
-```bash
+npm ci
 npm run typecheck
 npm run lint
 npm run format:check
 npm run build
 npm test
-npm pack --dry-run
-npm audit --omit=dev
+npm run docs:check
+npm run verify:protocol:local
 ```
 
-## Cross-repo sync
+To refresh checked-in protocol artifacts from a sibling `omegax-protocol` workspace:
 
-Keep the repos aligned in this order:
+```bash
+npm run generate:protocol-bindings
+```
+
+## Release coordination
+
+This package is released only when all three surfaces agree:
 
 1. `omegax-protocol`
-2. `omegax-sdk`
-3. `protocol-oracle-service`
-4. `omegaxhealth_flutter` if the service DTO changed
+2. `omegax-docs`
+3. `omegax-sdk`
 
-Practical rule:
-
-- protocol interface changes start in `omegax-protocol`
-- SDK mirrors the protocol interface and exposes the supported client surface
-- the oracle service refreshes the local SDK package and owns the app-facing Seeker DTO
-- Flutter only follows the service contract
-
-## OSS docs
-
-- `CONTRIBUTING.md`
-- `SECURITY.md`
-- `CODE_OF_CONDUCT.md`
-- `AUTHORS.md`
-
-## License
-
-This SDK is licensed under Apache-2.0.
-
-The on-chain OmegaX protocol program lives in the separate `omegax-protocol` repository and is licensed independently under AGPL-3.0-or-later.
-
-Maintained by OMEGAX HEALTH FZCO with open-source contributors. Project initiated by Marino Sabijan, MD.
+Use `/docs/CROSS_REPO_RELEASE_ORDER.md` and `/docs/OMEGAX_DOCS_SYNC.json` to keep that publish train honest.

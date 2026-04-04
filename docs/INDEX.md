@@ -1,39 +1,34 @@
 # Documentation Index — `@omegax/protocol-sdk`
 
-Use this page as the navigation hub for package users and maintainers.
+Use this page as the navigation hub for package users and release maintainers.
 
 ## Start here
 
 - New integrator: `GETTING_STARTED.md`
-- Implementing product flows: `WORKFLOWS.md`
-- Looking up exact SDK methods: `API_REFERENCE.md`
+- Mapping sponsor, claim, and capital flows: `WORKFLOWS.md`
+- Looking up exact package exports: `API_REFERENCE.md`
 - Debugging failures: `TROUBLESHOOTING.md`
 - Preparing a release: `RELEASE.md`
-- Keeping portal docs in parity: `DOCS_SYNC_WORKFLOW.md`
-- Running cross-repo release sequence: `CROSS_REPO_RELEASE_ORDER.md`
+- Syncing portal docs: `DOCS_SYNC_WORKFLOW.md`
+- Running the coordinated release train: `CROSS_REPO_RELEASE_ORDER.md`
 
 ## Core docs
 
-- `GETTING_STARTED.md` — prerequisites, client setup, sign/simulate/send lifecycle
-- `WORKFLOWS.md` — role-based checklists for pool operators, members, oracle operators, and coverage
-- `API_REFERENCE.md` — complete public SDK surface and stable subpath modules
-- `TROUBLESHOOTING.md` — known error patterns and concrete remediations
-- `RELEASE.md` — maintainer checklist for versioning, CI, tag publishing, and smoke tests
-- `DOCS_SYNC_WORKFLOW.md` — exact SDK ↔ `omegax-docs` sync rules and gates
-- `OMEGAX_DOCS_SYNC.json` — machine-checkable sync manifest used by CI/release
-- `CROSS_REPO_RELEASE_ORDER.md` — exact merge/tag order and commit message templates
-
-## Governance and community
-
-- `../CONTRIBUTING.md`
-- `../SECURITY.md`
-- `../CODE_OF_CONDUCT.md`
+- `GETTING_STARTED.md` for client setup, unsigned transaction construction, and submission
+- `WORKFLOWS.md` for canonical sponsor, claim, capital, and allocation flows
+- `API_REFERENCE.md` for public builders, readers, PDA helpers, and reserve-model helpers
+- `TROUBLESHOOTING.md` for canonical failure modes and remediation
+- `RELEASE.md` for local release gates and tag/publish steps
+- `DOCS_SYNC_WORKFLOW.md` for SDK to `omegax-docs` parity
+- `OMEGAX_DOCS_SYNC.json` for the machine-checkable portal sync record
+- `CROSS_REPO_RELEASE_ORDER.md` for the protocol + docs + SDK publish sequence
 
 ## Parity assurance
 
 - `../PROTOCOL_PARITY_CHECKLIST.md`
 - `../tests/idl-parity.test.ts`
-- `../tests/fixtures/omegax_protocol.idl.json`
+- `../tests/protocol-contract-parity.test.ts`
+- `../tests/protocol.test.ts`
 
 ## Recommended reading order
 

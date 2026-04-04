@@ -25,6 +25,19 @@ function shouldRetrySignedSimulationWithoutSigVerify(params: {
   return params.sigVerify && /invalid arguments/i.test(message);
 }
 
+function normalizeSimulationCommitment(
+  commitment: Commitment | undefined,
+): 'processed' | 'confirmed' | 'finalized' {
+  switch (commitment) {
+    case 'processed':
+    case 'confirmed':
+    case 'finalized':
+      return commitment;
+    default:
+      return 'confirmed';
+  }
+}
+
 export type OmegaXNetwork = 'devnet' | 'mainnet';
 export type OmegaXNetworkInput = OmegaXNetwork | 'mainnet-beta';
 
@@ -166,7 +179,7 @@ export function createRpcClient(connection: Connection): RpcClient {
       const replaceRecentBlockhash = params.replaceRecentBlockhash ?? true;
       const sigVerify = params.sigVerify ?? true;
       const baseOptions = {
-        commitment: params.commitment ?? 'confirmed',
+        commitment: normalizeSimulationCommitment(params.commitment),
         replaceRecentBlockhash,
         sigVerify,
       };

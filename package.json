@@ -1,7 +1,7 @@
 {
   "name": "@omegax/protocol-sdk",
-  "version": "0.6.3",
-  "description": "TypeScript SDK for OmegaX protocol integrations on Solana devnet beta.",
+  "version": "0.7.0",
+  "description": "TypeScript SDK for the canonical OmegaX health capital markets protocol surface on Solana devnet.",
   "author": "OMEGAX HEALTH FZCO",
   "contributors": [
     "Marino Sabijan, MD"
@@ -52,10 +52,6 @@
       "types": "./dist/rpc.d.ts",
       "import": "./dist/rpc.js"
     },
-    "./oracle": {
-      "types": "./dist/oracle.d.ts",
-      "import": "./dist/oracle.js"
-    },
     "./types": {
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js"
@@ -72,7 +68,7 @@
   ],
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run clean && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.typecheck.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -80,6 +76,7 @@
     "format:write": "prettier --write .",
     "prepare": "npm run build",
     "prepack": "npm run build",
+    "generate:protocol-bindings": "node scripts/sync-idl-fixture.mjs",
     "sync:idl-fixture": "node scripts/sync-idl-fixture.mjs",
     "test:protocol:localnet": "node scripts/run-protocol-localnet.mjs",
     "verify:protocol:local": "node scripts/verify-protocol-local.mjs",
@@ -91,15 +88,20 @@
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
     "@noble/hashes": "^1.8.0",
     "@solana/web3.js": "^1.98.4",
+    "bn.js": "^5.2.3",
     "bs58": "^6.0.0",
     "tweetnacl": "^1.0.3"
   },
   "overrides": {
-    "bn.js": "^5.2.3"
+    "bn.js": "^5.2.3",
+    "brace-expansion": "^5.0.5",
+    "picomatch": "^4.0.4"
   },
   "devDependencies": {
+    "@types/bn.js": "^5.2.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^20.19.37",
     "eslint": "^10.1.0",
@@ -107,7 +109,7 @@
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.1"
+    "typescript-eslint": "^8.57.2"
   },
   "engines": {
     "node": ">=20"
