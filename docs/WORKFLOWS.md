@@ -139,7 +139,43 @@ Readers:
 - `fetchFundingLine(...)`
 - `fetchObligation(...)`
 
-## Workflow F: Member read models
+## Workflow F: Oracle and schema registry operations
+
+Use this when an operator needs to register oracle metadata, configure pool oracle controls, or manage the schema registry through the canonical protocol surface.
+
+Builders:
+
+- `buildRegisterOracleTx(...)`
+- `buildClaimOracleTx(...)`
+- `buildUpdateOracleProfileTx(...)`
+- `buildSetPoolOracleTx(...)`
+- `buildSetPoolOraclePermissionsTx(...)`
+- `buildSetPoolOraclePolicyTx(...)`
+- `buildRegisterOutcomeSchemaTx(...)`
+- `buildVerifyOutcomeSchemaTx(...)`
+- `buildBackfillSchemaDependencyLedgerTx(...)`
+- `buildCloseOutcomeSchemaTx(...)`
+
+Readers:
+
+- `fetchOracleProfile(...)`
+- `fetchPoolOracleApproval(...)`
+- `fetchPoolOraclePolicy(...)`
+- `fetchPoolOraclePermissionSet(...)`
+- `fetchOutcomeSchema(...)`
+- `fetchSchemaDependencyLedger(...)`
+
+## Workflow G: Oracle attestation services
+
+Use this when an external oracle worker or service needs a stable signing surface for outcome attestations before it forwards them into downstream transport or settlement systems.
+
+Helpers:
+
+- `createOracleSignerFromEnv(...)`
+- `createOracleSignerFromKmsAdapter(...)`
+- `attestOutcome(...)`
+
+## Workflow H: Member read models
 
 Use this when you want wallet-facing views rather than raw account objects.
 

@@ -1,6 +1,6 @@
 # API Reference — `@omegax/protocol-sdk`
 
-This page documents the public SDK surface shipped in `0.7.0`.
+This page documents the public SDK surface shipped in `0.8.0`.
 
 ## Core runtime entrypoints
 
@@ -80,6 +80,19 @@ Returned by `createProtocolClient(...)`.
 - `buildDeallocateCapitalTx(...)`
 - `buildMarkImpairmentTx(...)`
 
+### Oracle and schema registry
+
+- `buildRegisterOracleTx(...)`
+- `buildClaimOracleTx(...)`
+- `buildUpdateOracleProfileTx(...)`
+- `buildSetPoolOracleTx(...)`
+- `buildSetPoolOraclePermissionsTx(...)`
+- `buildSetPoolOraclePolicyTx(...)`
+- `buildRegisterOutcomeSchemaTx(...)`
+- `buildVerifyOutcomeSchemaTx(...)`
+- `buildBackfillSchemaDependencyLedgerTx(...)`
+- `buildCloseOutcomeSchemaTx(...)`
+
 Every instruction also exposes a sibling `build...Instruction(...)` helper.
 
 ## Canonical account readers
@@ -105,6 +118,12 @@ Returned by `createProtocolClient(...)`.
 - `fetchLPPosition(...)`
 - `fetchAllocationPosition(...)`
 - `fetchAllocationLedger(...)`
+- `fetchOracleProfile(...)`
+- `fetchPoolOracleApproval(...)`
+- `fetchPoolOraclePolicy(...)`
+- `fetchPoolOraclePermissionSet(...)`
+- `fetchOutcomeSchema(...)`
+- `fetchSchemaDependencyLedger(...)`
 
 ## PDA helpers
 
@@ -135,6 +154,12 @@ Available from the root package and `@omegax/protocol-sdk/protocol_seeds`.
 - `deriveLpPositionPda(...)`
 - `deriveAllocationPositionPda(...)`
 - `deriveAllocationLedgerPda(...)`
+- `deriveOracleProfilePda(...)`
+- `derivePoolOracleApprovalPda(...)`
+- `derivePoolOraclePolicyPda(...)`
+- `derivePoolOraclePermissionSetPda(...)`
+- `deriveOutcomeSchemaPda(...)`
+- `deriveSchemaDependencyLedgerPda(...)`
 
 Seed constants:
 
@@ -157,6 +182,12 @@ Seed constants:
 - `SEED_LP_POSITION`
 - `SEED_ALLOCATION_POSITION`
 - `SEED_ALLOCATION_LEDGER`
+- `SEED_ORACLE_PROFILE`
+- `SEED_POOL_ORACLE_APPROVAL`
+- `SEED_POOL_ORACLE_POLICY`
+- `SEED_POOL_ORACLE_PERMISSION_SET`
+- `SEED_OUTCOME_SCHEMA`
+- `SEED_SCHEMA_DEPENDENCY_LEDGER`
 - `ZERO_PUBKEY`
 - `ZERO_PUBKEY_KEY`
 - `MAX_ID_SEED_BYTES`
@@ -253,6 +284,14 @@ The claims module also re-exports:
 - `describeObligationStatus(...)`
 - claim intake status constants
 - obligation status constants
+
+## Oracle helpers
+
+Available from the root package and `@omegax/protocol-sdk/oracle`.
+
+- `createOracleSignerFromEnv(...)`
+- `createOracleSignerFromKmsAdapter(...)`
+- `attestOutcome(...)`
 
 ## Shared utilities
 

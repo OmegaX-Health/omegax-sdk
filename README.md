@@ -4,10 +4,16 @@ TypeScript SDK for the canonical OmegaX health capital markets protocol on Solan
 
 ## Release status
 
-- SDK release target: `0.7.0`
+- SDK release target: `0.8.0`
 - Protocol surface target: `omegax-protocol v0.3.0`
 - Current public network target: Solana devnet beta
 - Public docs: [docs.omegax.health](https://docs.omegax.health)
+
+## Release notes
+
+- `0.8.0` adds full parity for the current oracle and schema registry surface, plus a first-class oracle attestation helper module for service-side signing flows.
+- The package now exports `@omegax/protocol-sdk/oracle` alongside the root exports so oracle workers can use a narrower import surface when they only need attestation helpers.
+- Canonical protocol builders, readers, seeds, generated bindings, and local surface verification are aligned to the current `omegax-protocol` `main` surface.
 
 This package exposes the live canonical object model:
 
@@ -31,6 +37,7 @@ No pool-first compatibility layer is kept in this release. If your integration s
 - `/docs/WORKFLOWS.md` for canonical sponsor, claims, and capital flows
 - `/docs/API_REFERENCE.md` for the exported package surface
 - `/docs/TROUBLESHOOTING.md` for common failure modes and remediation
+- `/docs/RELEASE_NOTES.md` for versioned SDK release notes
 - `/docs/RELEASE.md` for the release checklist
 - `/docs/DOCS_SYNC_WORKFLOW.md` for SDK to portal sync rules
 - `/docs/CROSS_REPO_RELEASE_ORDER.md` for the coordinated protocol + docs + SDK publish order
@@ -114,6 +121,7 @@ const result = await rpc.broadcastSignedTx({
 - `@omegax/protocol-sdk/protocol_seeds`: deterministic PDA helpers such as `deriveReserveDomainPda(...)`, `deriveHealthPlanPda(...)`, `deriveFundingLinePda(...)`, and `deriveCapitalClassPda(...)`
 - `@omegax/protocol-sdk/protocol_models`: constants and read-model helpers such as `recomputeReserveBalanceSheet(...)`, `buildSponsorReadModel(...)`, `buildCapitalReadModel(...)`, and `buildMemberReadModel(...)`
 - `@omegax/protocol-sdk/claims`: claim and obligation failure normalization helpers such as `normalizeClaimSimulationFailure(...)`
+- `@omegax/protocol-sdk/oracle`: oracle attestation helpers such as `createOracleSignerFromEnv(...)`, `createOracleSignerFromKmsAdapter(...)`, and `attestOutcome(...)`
 - `@omegax/protocol-sdk/rpc`: `createConnection(...)`, `createRpcClient(...)`, and network metadata helpers
 - `@omegax/protocol-sdk/utils`: hashing, binary encoding, and misc utilities
 - `@omegax/protocol-sdk/types`: generated protocol contract types plus SDK RPC and failure types

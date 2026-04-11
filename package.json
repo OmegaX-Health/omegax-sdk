@@ -1,6 +1,6 @@
 {
   "name": "@omegax/protocol-sdk",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "TypeScript SDK for the canonical OmegaX health capital markets protocol surface on Solana devnet.",
   "author": "OMEGAX HEALTH FZCO",
   "contributors": [
@@ -39,6 +39,10 @@
     "./claims": {
       "types": "./dist/claims.d.ts",
       "import": "./dist/claims.js"
+    },
+    "./oracle": {
+      "types": "./dist/oracle.d.ts",
+      "import": "./dist/oracle.js"
     },
     "./protocol": {
       "types": "./dist/protocol.d.ts",

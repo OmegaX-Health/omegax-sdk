@@ -1,8 +1,8 @@
 {
-  "sdkVersion": "0.7.0",
+  "sdkVersion": "0.8.0",
   "omegaxDocsRepo": "https://github.com/OmegaX-Health/omegax-docs",
-  "omegaxDocsCommit": "f9bb0840769365bbc062f145af69c0abf66a9f4c",
-  "syncedAt": "2026-04-03T18:08:32.570Z",
+  "omegaxDocsCommit": "31a0673f9861bf2ec424f50ea30ba91170dc0ece",
+  "syncedAt": "2026-04-11T05:36:19.711Z",
   "syncedBy": "dr_sabijan",
   "pages": [
     {
@@ -20,6 +20,10 @@
     {
       "sdkDoc": "docs/API_REFERENCE.md",
       "omegaxDocsPath": "website/docs/sdk/api-reference.md"
+    },
+    {
+      "sdkDoc": "docs/RELEASE_NOTES.md",
+      "omegaxDocsPath": "website/docs/sdk/release-notes.md"
     },
     {
       "sdkDoc": "docs/TROUBLESHOOTING.md",

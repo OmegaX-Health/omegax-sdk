@@ -86,9 +86,8 @@ export function validateSignedClaimTx(
         params.expectedUnsignedTxBase64,
       );
       const signedMessageBytes = solanaTransactionMessageBytes(tx);
-      const expectedMessageBytes = solanaTransactionMessageBytes(
-        expectedUnsignedTx,
-      );
+      const expectedMessageBytes =
+        solanaTransactionMessageBytes(expectedUnsignedTx);
       if (!bytesEqual(signedMessageBytes, expectedMessageBytes)) {
         const signedIntentBytes = solanaTransactionIntentMessageBytes(tx);
         const expectedIntentBytes =
@@ -131,7 +130,10 @@ export function validateSignedClaimTx(
     };
   }
 
-  const requiredSignature = solanaTransactionSignerSignature(tx, expectedSigner);
+  const requiredSignature = solanaTransactionSignerSignature(
+    tx,
+    expectedSigner,
+  );
   if (!requiredSignature) {
     return {
       valid: false,
@@ -262,9 +264,7 @@ export function normalizeClaimSimulationFailure(params: {
     );
   }
 
-  if (
-    /membershipnotactive|membership member mismatch|membership/.test(text)
-  ) {
+  if (/membershipnotactive|membership member mismatch|membership/.test(text)) {
     return toFailure(
       'simulation_failed_membership_invalid',
       'Membership is not active for this pool.',

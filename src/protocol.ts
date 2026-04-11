@@ -743,7 +743,9 @@ export function buildRegisterOutcomeSchemaTx(params: {
       ),
       schema_key: params.schemaKey,
       version: params.version,
-      schema_hash: Array.from(hexToFixedBytes(params.schemaHashHex, 'schema hash')),
+      schema_hash: Array.from(
+        hexToFixedBytes(params.schemaHashHex, 'schema hash'),
+      ),
       schema_family: params.schemaFamily,
       visibility: params.visibility,
       metadata_uri: params.metadataUri,

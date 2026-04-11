@@ -171,6 +171,7 @@ const versioned = compileTransactionToV0(tx, lookupTableAccounts);
 ## Practical next steps
 
 1. Use `WORKFLOWS.md` to map sponsor, claim, or capital flows to exact builders.
-2. Use `API_REFERENCE.md` to see the exported reader and PDA helper surface.
-3. Run `npm run generate:protocol-bindings` whenever the sibling protocol repo changes.
-4. Run `npm run verify:protocol:local` before shipping SDK changes that affect runtime parity.
+2. Use `API_REFERENCE.md` to see the exported reader, PDA helper, and oracle helper surface.
+3. Use `RELEASE_NOTES.md` to confirm the package version and newly added modules you expect to consume.
+4. Run `npm run generate:protocol-bindings` whenever the sibling protocol repo changes.
+5. Run `npm run verify:protocol:local` before shipping SDK changes that affect runtime parity.

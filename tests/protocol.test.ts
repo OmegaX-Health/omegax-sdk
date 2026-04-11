@@ -98,7 +98,10 @@ test('PDA helpers match manual derivation under canonical seeds', () => {
   assert.equal(reserveDomain.toBase58(), manualDomain.toBase58());
   assert.match(healthPlan.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
   assert.match(liquidityPool.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
-  assert.match(membershipAnchorSeat.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+  assert.match(
+    membershipAnchorSeat.toBase58(),
+    /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
+  );
   assert.match(oracleProfile.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
   assert.match(poolOraclePolicy.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
   assert.match(outcomeSchema.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);

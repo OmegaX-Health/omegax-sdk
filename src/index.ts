@@ -1,6 +1,7 @@
 export * from './types.js';
 export * from './utils.js';
 export * from './claims.js';
+export * from './oracle.js';
 export * from './rpc.js';
 export * from './transactions.js';
 export * from './protocol_models.js';
