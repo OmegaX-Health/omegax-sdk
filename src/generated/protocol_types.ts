@@ -14,30 +14,34 @@ export type PublicKeyish = PublicKey | string;
 export type BigNumberish = bigint | number | string;
 
 export type ProtocolAccountName =
-  | 'AllocationLedger'
-  | 'AllocationPosition'
-  | 'CapitalClass'
-  | 'ClaimCase'
-  | 'DomainAssetLedger'
-  | 'DomainAssetVault'
-  | 'FundingLine'
-  | 'FundingLineLedger'
-  | 'HealthPlan'
-  | 'LPPosition'
-  | 'LiquidityPool'
-  | 'MemberPosition'
-  | 'Obligation'
-  | 'PlanReserveLedger'
-  | 'PolicySeries'
-  | 'PoolClassLedger'
-  | 'ProtocolGovernance'
-  | 'ReserveDomain'
-  | 'SeriesReserveLedger';
+  | "AllocationLedger"
+  | "AllocationPosition"
+  | "CapitalClass"
+  | "ClaimCase"
+  | "DomainAssetLedger"
+  | "DomainAssetVault"
+  | "FundingLine"
+  | "FundingLineLedger"
+  | "HealthPlan"
+  | "LPPosition"
+  | "LiquidityPool"
+  | "MemberPosition"
+  | "MembershipAnchorSeat"
+  | "Obligation"
+  | "OracleProfile"
+  | "OutcomeSchema"
+  | "PlanReserveLedger"
+  | "PolicySeries"
+  | "PoolClassLedger"
+  | "PoolOracleApproval"
+  | "PoolOraclePermissionSet"
+  | "PoolOraclePolicy"
+  | "ProtocolGovernance"
+  | "ReserveDomain"
+  | "SchemaDependencyLedger"
+  | "SeriesReserveLedger";
 
-export type GenericInstructionAccounts = Record<
-  string,
-  PublicKeyish | undefined
->;
+export type GenericInstructionAccounts = Record<string, PublicKeyish | undefined>;
 
 export interface BuildInstructionParams<Args, Accounts> {
   args: Args;
@@ -45,10 +49,8 @@ export interface BuildInstructionParams<Args, Accounts> {
   programId?: PublicKeyish;
 }
 
-export interface BuildTransactionParams<
-  Args,
-  Accounts,
-> extends BuildInstructionParams<Args, Accounts> {
+export interface BuildTransactionParams<Args, Accounts>
+  extends BuildInstructionParams<Args, Accounts> {
   recentBlockhash: string;
   feePayer?: PublicKeyish;
   prependInstructions?: TransactionInstruction[];
@@ -106,6 +108,11 @@ export interface AllocationUpdatedEvent {
 export interface AttachClaimEvidenceRefArgs {
   evidence_ref_hash: Uint8Array | number[];
   decision_support_hash: Uint8Array | number[];
+}
+
+export interface BackfillSchemaDependencyLedgerArgs {
+  schema_key_hash: Uint8Array | number[];
+  pool_rule_addresses: Array<PublicKeyish>;
 }
 
 export interface CapitalClass {
@@ -212,6 +219,10 @@ export interface CreateHealthPlanArgs {
   claims_operator: PublicKeyish;
   oracle_authority: PublicKeyish;
   membership_mode: number;
+  membership_gate_kind: number;
+  membership_gate_mint: PublicKeyish;
+  membership_gate_min_amount: BigNumberish;
+  membership_invite_authority: PublicKeyish;
   allowed_rail_mask: number;
   default_funding_priority: number;
   oracle_policy_hash: Uint8Array | number[];
@@ -287,7 +298,6 @@ export interface DeallocateCapitalArgs {
 export interface DepositIntoCapitalClassArgs {
   amount: BigNumberish;
   shares: BigNumberish;
-  credentialed: boolean;
 }
 
 export interface DomainAssetLedger {
@@ -360,6 +370,10 @@ export interface HealthPlan {
   organization_ref: string;
   metadata_uri: string;
   membership_mode: number;
+  membership_gate_kind: number;
+  membership_gate_mint: string;
+  membership_gate_min_amount: BigNumberish;
+  membership_invite_authority: string;
   allowed_rail_mask: number;
   default_funding_priority: number;
   oracle_policy_hash: Uint8Array | number[];
@@ -401,6 +415,14 @@ export interface LPPosition {
   credentialed: boolean;
   queue_status: number;
   bump: number;
+}
+
+export interface LPPositionCredentialingUpdatedEvent {
+  capital_class: string;
+  owner: string;
+  authority: string;
+  credentialed: boolean;
+  reason_hash: Uint8Array | number[];
 }
 
 export interface LedgerInitializedEvent {
@@ -451,6 +473,23 @@ export interface MemberPosition {
   subject_commitment: Uint8Array | number[];
   eligibility_status: number;
   delegated_rights: number;
+  enrollment_proof_mode: number;
+  membership_gate_kind: number;
+  membership_anchor_ref: string;
+  gate_amount_snapshot: BigNumberish;
+  invite_id_hash: Uint8Array | number[];
+  active: boolean;
+  opened_at: BigNumberish;
+  updated_at: BigNumberish;
+  bump: number;
+}
+
+export interface MembershipAnchorSeat {
+  health_plan: string;
+  anchor_ref: string;
+  gate_kind: number;
+  holder_wallet: string;
+  member_position: string;
   active: boolean;
   opened_at: BigNumberish;
   updated_at: BigNumberish;
@@ -516,6 +555,87 @@ export interface OpenMemberPositionArgs {
   subject_commitment: Uint8Array | number[];
   eligibility_status: number;
   delegated_rights: number;
+  proof_mode: number;
+  token_gate_amount_snapshot: BigNumberish;
+  invite_id_hash: Uint8Array | number[];
+  invite_expires_at: BigNumberish;
+  anchor_ref: PublicKeyish;
+}
+
+export interface OracleProfile {
+  oracle: string;
+  admin: string;
+  oracle_type: number;
+  display_name: string;
+  legal_name: string;
+  website_url: string;
+  app_url: string;
+  logo_uri: string;
+  webhook_url: string;
+  supported_schema_count: number;
+  supported_schema_key_hashes: ReadonlyArray<Uint8Array | number[]>;
+  active: boolean;
+  claimed: boolean;
+  created_at_ts: BigNumberish;
+  updated_at_ts: BigNumberish;
+  bump: number;
+}
+
+export interface OracleProfileClaimedEvent {
+  oracle_profile: string;
+  oracle: string;
+  admin: string;
+}
+
+export interface OracleProfileRegisteredEvent {
+  oracle_profile: string;
+  oracle: string;
+  admin: string;
+  oracle_type: number;
+  claimed: boolean;
+}
+
+export interface OracleProfileUpdatedEvent {
+  oracle_profile: string;
+  oracle: string;
+  authority: string;
+  oracle_type: number;
+}
+
+export interface OutcomeSchema {
+  publisher: string;
+  schema_key_hash: Uint8Array | number[];
+  schema_key: string;
+  version: number;
+  schema_hash: Uint8Array | number[];
+  schema_family: number;
+  visibility: number;
+  metadata_uri: string;
+  verified: boolean;
+  created_at_ts: BigNumberish;
+  updated_at_ts: BigNumberish;
+  bump: number;
+}
+
+export interface OutcomeSchemaClosedEvent {
+  outcome_schema: string;
+  governance_authority: string;
+  schema_key_hash: Uint8Array | number[];
+  recipient: string;
+}
+
+export interface OutcomeSchemaRegisteredEvent {
+  outcome_schema: string;
+  publisher: string;
+  schema_key_hash: Uint8Array | number[];
+  version: number;
+}
+
+export interface OutcomeSchemaStateChangedEvent {
+  outcome_schema: string;
+  governance_authority: string;
+  schema_key_hash: Uint8Array | number[];
+  verified: boolean;
 }
 
 export interface PlanReserveLedger {
@@ -575,6 +695,56 @@ export interface PoolClassLedger {
   bump: number;
 }
 
+export interface PoolOracleApproval {
+  liquidity_pool: string;
+  oracle: string;
+  active: boolean;
+  updated_at_ts: BigNumberish;
+  bump: number;
+}
+
+export interface PoolOracleApprovalChangedEvent {
+  liquidity_pool: string;
+  oracle: string;
+  authority: string;
+  active: boolean;
+}
+
+export interface PoolOraclePermissionSet {
+  liquidity_pool: string;
+  oracle: string;
+  permissions: number;
+  updated_at_ts: BigNumberish;
+  bump: number;
+}
+
+export interface PoolOraclePermissionsChangedEvent {
+  liquidity_pool: string;
+  oracle: string;
+  authority: string;
+  permissions: number;
+}
+
+export interface PoolOraclePolicy {
+  liquidity_pool: string;
+  quorum_m: number;
+  quorum_n: number;
+  require_verified_schema: boolean;
+  oracle_fee_bps: number;
+  allow_delegate_claim: boolean;
+  challenge_window_secs: number;
+  updated_at_ts: BigNumberish;
+  bump: number;
+}
+
+export interface PoolOraclePolicyChangedEvent {
+  liquidity_pool: string;
+  authority: string;
+  quorum_m: number;
+  quorum_n: number;
+  oracle_fee_bps: number;
+}
+
 export interface ProcessRedemptionQueueArgs {
   shares: BigNumberish;
   asset_amount: BigNumberish;
@@ -603,6 +773,28 @@ export interface RedemptionRequestedEvent {
   owner: string;
   shares: BigNumberish;
   asset_amount: BigNumberish;
+}
+
+export interface RegisterOracleArgs {
+  oracle: PublicKeyish;
+  oracle_type: number;
+  display_name: string;
+  legal_name: string;
+  website_url: string;
+  app_url: string;
+  logo_uri: string;
+  webhook_url: string;
+  supported_schema_key_hashes: Array<Uint8Array | number[]>;
+}
+
+export interface RegisterOutcomeSchemaArgs {
+  schema_key_hash: Uint8Array | number[];
+  schema_key: string;
+  version: number;
+  schema_hash: Uint8Array | number[];
+  schema_family: number;
+  visibility: number;
+  metadata_uri: string;
 }
 
 export interface ReleaseReserveArgs {
@@ -654,6 +846,20 @@ export interface ReserveObligationArgs {
   amount: BigNumberish;
 }
 
+export interface SchemaDependencyLedger {
+  schema_key_hash: Uint8Array | number[];
+  pool_rule_addresses: Array<string>;
+  updated_at_ts: BigNumberish;
+  bump: number;
+}
+
+export interface SchemaDependencyLedgerUpdatedEvent {
+  schema_dependency_ledger: string;
+  governance_authority: string;
+  schema_key_hash: Uint8Array | number[];
+  dependency_count: number;
+}
+
 export interface ScopedControlChangedEvent {
   scope_kind: number;
   scope: string;
@@ -668,6 +874,23 @@ export interface SeriesReserveLedger {
   asset_mint: string;
   sheet: ReserveBalanceSheet;
   bump: number;
+}
+
+export interface SetPoolOracleArgs {
+  active: boolean;
+}
+
+export interface SetPoolOraclePermissionsArgs {
+  permissions: number;
+}
+
+export interface SetPoolOraclePolicyArgs {
+  quorum_m: number;
+  quorum_n: number;
+  require_verified_schema: boolean;
+  oracle_fee_bps: number;
+  allow_delegate_claim: boolean;
+  challenge_window_secs: number;
 }
 
 export interface SetProtocolEmergencyPauseArgs {
@@ -704,6 +927,11 @@ export interface UpdateHealthPlanControlsArgs {
   sponsor_operator: PublicKeyish;
   claims_operator: PublicKeyish;
   oracle_authority: PublicKeyish;
+  membership_mode: number;
+  membership_gate_kind: number;
+  membership_gate_mint: PublicKeyish;
+  membership_gate_min_amount: BigNumberish;
+  membership_invite_authority: PublicKeyish;
   allowed_rail_mask: number;
   default_funding_priority: number;
   oracle_policy_hash: Uint8Array | number[];
@@ -714,10 +942,27 @@ export interface UpdateHealthPlanControlsArgs {
   reason_hash: Uint8Array | number[];
 }
 
+export interface UpdateLpPositionCredentialingArgs {
+  owner: PublicKeyish;
+  credentialed: boolean;
+  reason_hash: Uint8Array | number[];
+}
+
 export interface UpdateMemberEligibilityArgs {
   eligibility_status: number;
   delegated_rights: number;
   active: boolean;
+}
+
+export interface UpdateOracleProfileArgs {
+  oracle_type: number;
+  display_name: string;
+  legal_name: string;
+  website_url: string;
+  app_url: string;
+  logo_uri: string;
+  webhook_url: string;
+  supported_schema_key_hashes: Array<Uint8Array | number[]>;
 }
 
 export interface UpdateReserveDomainControlsArgs {
@@ -725,6 +970,10 @@ export interface UpdateReserveDomainControlsArgs {
   pause_flags: number;
   active: boolean;
   reason_hash: Uint8Array | number[];
+}
+
+export interface VerifyOutcomeSchemaArgs {
+  verified: boolean;
 }
 
 export interface VersionPolicySeriesArgs {
@@ -767,6 +1016,27 @@ export interface AttachClaimEvidenceRefAccounts {
   protocol_governance: PublicKeyish;
   health_plan: PublicKeyish;
   claim_case: PublicKeyish;
+}
+
+export interface BackfillSchemaDependencyLedgerAccounts {
+  governance_authority: PublicKeyish;
+  protocol_governance: PublicKeyish;
+  outcome_schema: PublicKeyish;
+  schema_dependency_ledger: PublicKeyish;
+  system_program?: PublicKeyish;
+}
+
+export interface ClaimOracleAccounts {
+  oracle: PublicKeyish;
+  oracle_profile: PublicKeyish;
+}
+
+export interface CloseOutcomeSchemaAccounts {
+  governance_authority: PublicKeyish;
+  protocol_governance: PublicKeyish;
+  outcome_schema: PublicKeyish;
+  schema_dependency_ledger: PublicKeyish;
+  recipient_system_account: PublicKeyish;
 }
 
 export interface CreateAllocationPositionAccounts {
@@ -930,6 +1200,9 @@ export interface OpenMemberPositionAccounts {
   protocol_governance: PublicKeyish;
   health_plan: PublicKeyish;
   member_position: PublicKeyish;
+  membership_anchor_seat?: PublicKeyish;
+  token_gate_account?: PublicKeyish;
+  invite_authority?: PublicKeyish;
   system_program?: PublicKeyish;
 }
 
@@ -955,6 +1228,19 @@ export interface RecordPremiumPaymentAccounts {
   plan_reserve_ledger: PublicKeyish;
   series_reserve_ledger?: PublicKeyish;
   pool_class_ledger?: PublicKeyish;
+}
+
+export interface RegisterOracleAccounts {
+  admin: PublicKeyish;
+  oracle_profile: PublicKeyish;
+  system_program?: PublicKeyish;
+}
+
+export interface RegisterOutcomeSchemaAccounts {
+  publisher: PublicKeyish;
+  outcome_schema: PublicKeyish;
+  schema_dependency_ledger: PublicKeyish;
+  system_program?: PublicKeyish;
 }
 
 export interface ReleaseReserveAccounts {
@@ -994,6 +1280,33 @@ export interface ReserveObligationAccounts {
   allocation_position?: PublicKeyish;
   allocation_ledger?: PublicKeyish;
   obligation: PublicKeyish;
+}
+
+export interface SetPoolOracleAccounts {
+  authority: PublicKeyish;
+  protocol_governance: PublicKeyish;
+  liquidity_pool: PublicKeyish;
+  oracle_profile: PublicKeyish;
+  pool_oracle_approval: PublicKeyish;
+  system_program?: PublicKeyish;
+}
+
+export interface SetPoolOraclePermissionsAccounts {
+  authority: PublicKeyish;
+  protocol_governance: PublicKeyish;
+  liquidity_pool: PublicKeyish;
+  oracle_profile: PublicKeyish;
+  pool_oracle_approval: PublicKeyish;
+  pool_oracle_permission_set: PublicKeyish;
+  system_program?: PublicKeyish;
+}
+
+export interface SetPoolOraclePolicyAccounts {
+  authority: PublicKeyish;
+  protocol_governance: PublicKeyish;
+  liquidity_pool: PublicKeyish;
+  pool_oracle_policy: PublicKeyish;
+  system_program?: PublicKeyish;
 }
 
 export interface SetProtocolEmergencyPauseAccounts {
@@ -1054,17 +1367,39 @@ export interface UpdateHealthPlanControlsAccounts {
   health_plan: PublicKeyish;
 }
 
+export interface UpdateLpPositionCredentialingAccounts {
+  authority: PublicKeyish;
+  protocol_governance: PublicKeyish;
+  liquidity_pool: PublicKeyish;
+  capital_class: PublicKeyish;
+  lp_position: PublicKeyish;
+  system_program?: PublicKeyish;
+}
+
 export interface UpdateMemberEligibilityAccounts {
   authority: PublicKeyish;
   protocol_governance: PublicKeyish;
   health_plan: PublicKeyish;
   member_position: PublicKeyish;
+  membership_anchor_seat?: PublicKeyish;
+}
+
+export interface UpdateOracleProfileAccounts {
+  authority: PublicKeyish;
+  protocol_governance: PublicKeyish;
+  oracle_profile: PublicKeyish;
 }
 
 export interface UpdateReserveDomainControlsAccounts {
   authority: PublicKeyish;
   protocol_governance: PublicKeyish;
   reserve_domain: PublicKeyish;
+}
+
+export interface VerifyOutcomeSchemaAccounts {
+  governance_authority: PublicKeyish;
+  protocol_governance: PublicKeyish;
+  outcome_schema: PublicKeyish;
 }
 
 export interface VersionPolicySeriesAccounts {
@@ -1082,18 +1417,12 @@ export interface ProtocolClient {
   readonly programId: PublicKey;
   getProgramId(): PublicKey;
   buildInstruction(
-    params: BuildInstructionParams<
-      Record<string, unknown>,
-      GenericInstructionAccounts
-    > & {
+    params: BuildInstructionParams<Record<string, unknown>, GenericInstructionAccounts> & {
       instructionName: ProtocolInstructionName;
     },
   ): TransactionInstruction;
   buildTransaction(
-    params: BuildTransactionParams<
-      Record<string, unknown>,
-      GenericInstructionAccounts
-    > & {
+    params: BuildTransactionParams<Record<string, unknown>, GenericInstructionAccounts> & {
       instructionName: ProtocolInstructionName;
     },
   ): Transaction;
@@ -1106,184 +1435,112 @@ export interface ProtocolClient {
     address: PublicKeyish,
   ): Promise<T | null>;
   buildAdjudicateClaimCaseInstruction(
-    params: BuildInstructionParams<
-      AdjudicateClaimCaseArgs,
-      AdjudicateClaimCaseAccounts
-    >,
+    params: BuildInstructionParams<AdjudicateClaimCaseArgs, AdjudicateClaimCaseAccounts>,
   ): TransactionInstruction;
   buildAdjudicateClaimCaseTx(
-    params: BuildTransactionParams<
-      AdjudicateClaimCaseArgs,
-      AdjudicateClaimCaseAccounts
-    >,
+    params: BuildTransactionParams<AdjudicateClaimCaseArgs, AdjudicateClaimCaseAccounts>,
   ): Transaction;
   buildAllocateCapitalInstruction(
-    params: BuildInstructionParams<
-      AllocateCapitalArgs,
-      AllocateCapitalAccounts
-    >,
+    params: BuildInstructionParams<AllocateCapitalArgs, AllocateCapitalAccounts>,
   ): TransactionInstruction;
   buildAllocateCapitalTx(
-    params: BuildTransactionParams<
-      AllocateCapitalArgs,
-      AllocateCapitalAccounts
-    >,
+    params: BuildTransactionParams<AllocateCapitalArgs, AllocateCapitalAccounts>,
   ): Transaction;
   buildAttachClaimEvidenceRefInstruction(
-    params: BuildInstructionParams<
-      AttachClaimEvidenceRefArgs,
-      AttachClaimEvidenceRefAccounts
-    >,
+    params: BuildInstructionParams<AttachClaimEvidenceRefArgs, AttachClaimEvidenceRefAccounts>,
   ): TransactionInstruction;
   buildAttachClaimEvidenceRefTx(
-    params: BuildTransactionParams<
-      AttachClaimEvidenceRefArgs,
-      AttachClaimEvidenceRefAccounts
-    >,
+    params: BuildTransactionParams<AttachClaimEvidenceRefArgs, AttachClaimEvidenceRefAccounts>,
+  ): Transaction;
+  buildBackfillSchemaDependencyLedgerInstruction(
+    params: BuildInstructionParams<BackfillSchemaDependencyLedgerArgs, BackfillSchemaDependencyLedgerAccounts>,
+  ): TransactionInstruction;
+  buildBackfillSchemaDependencyLedgerTx(
+    params: BuildTransactionParams<BackfillSchemaDependencyLedgerArgs, BackfillSchemaDependencyLedgerAccounts>,
+  ): Transaction;
+  buildClaimOracleInstruction(
+    params: BuildInstructionParams<Record<string, unknown>, ClaimOracleAccounts>,
+  ): TransactionInstruction;
+  buildClaimOracleTx(
+    params: BuildTransactionParams<Record<string, unknown>, ClaimOracleAccounts>,
+  ): Transaction;
+  buildCloseOutcomeSchemaInstruction(
+    params: BuildInstructionParams<Record<string, unknown>, CloseOutcomeSchemaAccounts>,
+  ): TransactionInstruction;
+  buildCloseOutcomeSchemaTx(
+    params: BuildTransactionParams<Record<string, unknown>, CloseOutcomeSchemaAccounts>,
   ): Transaction;
   buildCreateAllocationPositionInstruction(
-    params: BuildInstructionParams<
-      CreateAllocationPositionArgs,
-      CreateAllocationPositionAccounts
-    >,
+    params: BuildInstructionParams<CreateAllocationPositionArgs, CreateAllocationPositionAccounts>,
   ): TransactionInstruction;
   buildCreateAllocationPositionTx(
-    params: BuildTransactionParams<
-      CreateAllocationPositionArgs,
-      CreateAllocationPositionAccounts
-    >,
+    params: BuildTransactionParams<CreateAllocationPositionArgs, CreateAllocationPositionAccounts>,
   ): Transaction;
   buildCreateCapitalClassInstruction(
-    params: BuildInstructionParams<
-      CreateCapitalClassArgs,
-      CreateCapitalClassAccounts
-    >,
+    params: BuildInstructionParams<CreateCapitalClassArgs, CreateCapitalClassAccounts>,
   ): TransactionInstruction;
   buildCreateCapitalClassTx(
-    params: BuildTransactionParams<
-      CreateCapitalClassArgs,
-      CreateCapitalClassAccounts
-    >,
+    params: BuildTransactionParams<CreateCapitalClassArgs, CreateCapitalClassAccounts>,
   ): Transaction;
   buildCreateDomainAssetVaultInstruction(
-    params: BuildInstructionParams<
-      CreateDomainAssetVaultArgs,
-      CreateDomainAssetVaultAccounts
-    >,
+    params: BuildInstructionParams<CreateDomainAssetVaultArgs, CreateDomainAssetVaultAccounts>,
   ): TransactionInstruction;
   buildCreateDomainAssetVaultTx(
-    params: BuildTransactionParams<
-      CreateDomainAssetVaultArgs,
-      CreateDomainAssetVaultAccounts
-    >,
+    params: BuildTransactionParams<CreateDomainAssetVaultArgs, CreateDomainAssetVaultAccounts>,
   ): Transaction;
   buildCreateHealthPlanInstruction(
-    params: BuildInstructionParams<
-      CreateHealthPlanArgs,
-      CreateHealthPlanAccounts
-    >,
+    params: BuildInstructionParams<CreateHealthPlanArgs, CreateHealthPlanAccounts>,
   ): TransactionInstruction;
   buildCreateHealthPlanTx(
-    params: BuildTransactionParams<
-      CreateHealthPlanArgs,
-      CreateHealthPlanAccounts
-    >,
+    params: BuildTransactionParams<CreateHealthPlanArgs, CreateHealthPlanAccounts>,
   ): Transaction;
   buildCreateLiquidityPoolInstruction(
-    params: BuildInstructionParams<
-      CreateLiquidityPoolArgs,
-      CreateLiquidityPoolAccounts
-    >,
+    params: BuildInstructionParams<CreateLiquidityPoolArgs, CreateLiquidityPoolAccounts>,
   ): TransactionInstruction;
   buildCreateLiquidityPoolTx(
-    params: BuildTransactionParams<
-      CreateLiquidityPoolArgs,
-      CreateLiquidityPoolAccounts
-    >,
+    params: BuildTransactionParams<CreateLiquidityPoolArgs, CreateLiquidityPoolAccounts>,
   ): Transaction;
   buildCreateObligationInstruction(
-    params: BuildInstructionParams<
-      CreateObligationArgs,
-      CreateObligationAccounts
-    >,
+    params: BuildInstructionParams<CreateObligationArgs, CreateObligationAccounts>,
   ): TransactionInstruction;
   buildCreateObligationTx(
-    params: BuildTransactionParams<
-      CreateObligationArgs,
-      CreateObligationAccounts
-    >,
+    params: BuildTransactionParams<CreateObligationArgs, CreateObligationAccounts>,
   ): Transaction;
   buildCreatePolicySeriesInstruction(
-    params: BuildInstructionParams<
-      CreatePolicySeriesArgs,
-      CreatePolicySeriesAccounts
-    >,
+    params: BuildInstructionParams<CreatePolicySeriesArgs, CreatePolicySeriesAccounts>,
   ): TransactionInstruction;
   buildCreatePolicySeriesTx(
-    params: BuildTransactionParams<
-      CreatePolicySeriesArgs,
-      CreatePolicySeriesAccounts
-    >,
+    params: BuildTransactionParams<CreatePolicySeriesArgs, CreatePolicySeriesAccounts>,
   ): Transaction;
   buildCreateReserveDomainInstruction(
-    params: BuildInstructionParams<
-      CreateReserveDomainArgs,
-      CreateReserveDomainAccounts
-    >,
+    params: BuildInstructionParams<CreateReserveDomainArgs, CreateReserveDomainAccounts>,
   ): TransactionInstruction;
   buildCreateReserveDomainTx(
-    params: BuildTransactionParams<
-      CreateReserveDomainArgs,
-      CreateReserveDomainAccounts
-    >,
+    params: BuildTransactionParams<CreateReserveDomainArgs, CreateReserveDomainAccounts>,
   ): Transaction;
   buildDeallocateCapitalInstruction(
-    params: BuildInstructionParams<
-      DeallocateCapitalArgs,
-      DeallocateCapitalAccounts
-    >,
+    params: BuildInstructionParams<DeallocateCapitalArgs, DeallocateCapitalAccounts>,
   ): TransactionInstruction;
   buildDeallocateCapitalTx(
-    params: BuildTransactionParams<
-      DeallocateCapitalArgs,
-      DeallocateCapitalAccounts
-    >,
+    params: BuildTransactionParams<DeallocateCapitalArgs, DeallocateCapitalAccounts>,
   ): Transaction;
   buildDepositIntoCapitalClassInstruction(
-    params: BuildInstructionParams<
-      DepositIntoCapitalClassArgs,
-      DepositIntoCapitalClassAccounts
-    >,
+    params: BuildInstructionParams<DepositIntoCapitalClassArgs, DepositIntoCapitalClassAccounts>,
   ): TransactionInstruction;
   buildDepositIntoCapitalClassTx(
-    params: BuildTransactionParams<
-      DepositIntoCapitalClassArgs,
-      DepositIntoCapitalClassAccounts
-    >,
+    params: BuildTransactionParams<DepositIntoCapitalClassArgs, DepositIntoCapitalClassAccounts>,
   ): Transaction;
   buildFundSponsorBudgetInstruction(
-    params: BuildInstructionParams<
-      FundSponsorBudgetArgs,
-      FundSponsorBudgetAccounts
-    >,
+    params: BuildInstructionParams<FundSponsorBudgetArgs, FundSponsorBudgetAccounts>,
   ): TransactionInstruction;
   buildFundSponsorBudgetTx(
-    params: BuildTransactionParams<
-      FundSponsorBudgetArgs,
-      FundSponsorBudgetAccounts
-    >,
+    params: BuildTransactionParams<FundSponsorBudgetArgs, FundSponsorBudgetAccounts>,
   ): Transaction;
   buildInitializeProtocolGovernanceInstruction(
-    params: BuildInstructionParams<
-      InitializeProtocolGovernanceArgs,
-      InitializeProtocolGovernanceAccounts
-    >,
+    params: BuildInstructionParams<InitializeProtocolGovernanceArgs, InitializeProtocolGovernanceAccounts>,
   ): TransactionInstruction;
   buildInitializeProtocolGovernanceTx(
-    params: BuildTransactionParams<
-      InitializeProtocolGovernanceArgs,
-      InitializeProtocolGovernanceAccounts
-    >,
+    params: BuildTransactionParams<InitializeProtocolGovernanceArgs, InitializeProtocolGovernanceAccounts>,
   ): Transaction;
   buildMarkImpairmentInstruction(
     params: BuildInstructionParams<MarkImpairmentArgs, MarkImpairmentAccounts>,
@@ -1298,52 +1555,40 @@ export interface ProtocolClient {
     params: BuildTransactionParams<OpenClaimCaseArgs, OpenClaimCaseAccounts>,
   ): Transaction;
   buildOpenFundingLineInstruction(
-    params: BuildInstructionParams<
-      OpenFundingLineArgs,
-      OpenFundingLineAccounts
-    >,
+    params: BuildInstructionParams<OpenFundingLineArgs, OpenFundingLineAccounts>,
   ): TransactionInstruction;
   buildOpenFundingLineTx(
-    params: BuildTransactionParams<
-      OpenFundingLineArgs,
-      OpenFundingLineAccounts
-    >,
+    params: BuildTransactionParams<OpenFundingLineArgs, OpenFundingLineAccounts>,
   ): Transaction;
   buildOpenMemberPositionInstruction(
-    params: BuildInstructionParams<
-      OpenMemberPositionArgs,
-      OpenMemberPositionAccounts
-    >,
+    params: BuildInstructionParams<OpenMemberPositionArgs, OpenMemberPositionAccounts>,
   ): TransactionInstruction;
   buildOpenMemberPositionTx(
-    params: BuildTransactionParams<
-      OpenMemberPositionArgs,
-      OpenMemberPositionAccounts
-    >,
+    params: BuildTransactionParams<OpenMemberPositionArgs, OpenMemberPositionAccounts>,
   ): Transaction;
   buildProcessRedemptionQueueInstruction(
-    params: BuildInstructionParams<
-      ProcessRedemptionQueueArgs,
-      ProcessRedemptionQueueAccounts
-    >,
+    params: BuildInstructionParams<ProcessRedemptionQueueArgs, ProcessRedemptionQueueAccounts>,
   ): TransactionInstruction;
   buildProcessRedemptionQueueTx(
-    params: BuildTransactionParams<
-      ProcessRedemptionQueueArgs,
-      ProcessRedemptionQueueAccounts
-    >,
+    params: BuildTransactionParams<ProcessRedemptionQueueArgs, ProcessRedemptionQueueAccounts>,
   ): Transaction;
   buildRecordPremiumPaymentInstruction(
-    params: BuildInstructionParams<
-      RecordPremiumPaymentArgs,
-      RecordPremiumPaymentAccounts
-    >,
+    params: BuildInstructionParams<RecordPremiumPaymentArgs, RecordPremiumPaymentAccounts>,
   ): TransactionInstruction;
   buildRecordPremiumPaymentTx(
-    params: BuildTransactionParams<
-      RecordPremiumPaymentArgs,
-      RecordPremiumPaymentAccounts
-    >,
+    params: BuildTransactionParams<RecordPremiumPaymentArgs, RecordPremiumPaymentAccounts>,
+  ): Transaction;
+  buildRegisterOracleInstruction(
+    params: BuildInstructionParams<RegisterOracleArgs, RegisterOracleAccounts>,
+  ): TransactionInstruction;
+  buildRegisterOracleTx(
+    params: BuildTransactionParams<RegisterOracleArgs, RegisterOracleAccounts>,
+  ): Transaction;
+  buildRegisterOutcomeSchemaInstruction(
+    params: BuildInstructionParams<RegisterOutcomeSchemaArgs, RegisterOutcomeSchemaAccounts>,
+  ): TransactionInstruction;
+  buildRegisterOutcomeSchemaTx(
+    params: BuildTransactionParams<RegisterOutcomeSchemaArgs, RegisterOutcomeSchemaAccounts>,
   ): Transaction;
   buildReleaseReserveInstruction(
     params: BuildInstructionParams<ReleaseReserveArgs, ReleaseReserveAccounts>,
@@ -1352,136 +1597,106 @@ export interface ProtocolClient {
     params: BuildTransactionParams<ReleaseReserveArgs, ReleaseReserveAccounts>,
   ): Transaction;
   buildRequestRedemptionInstruction(
-    params: BuildInstructionParams<
-      RequestRedemptionArgs,
-      RequestRedemptionAccounts
-    >,
+    params: BuildInstructionParams<RequestRedemptionArgs, RequestRedemptionAccounts>,
   ): TransactionInstruction;
   buildRequestRedemptionTx(
-    params: BuildTransactionParams<
-      RequestRedemptionArgs,
-      RequestRedemptionAccounts
-    >,
+    params: BuildTransactionParams<RequestRedemptionArgs, RequestRedemptionAccounts>,
   ): Transaction;
   buildReserveObligationInstruction(
-    params: BuildInstructionParams<
-      ReserveObligationArgs,
-      ReserveObligationAccounts
-    >,
+    params: BuildInstructionParams<ReserveObligationArgs, ReserveObligationAccounts>,
   ): TransactionInstruction;
   buildReserveObligationTx(
-    params: BuildTransactionParams<
-      ReserveObligationArgs,
-      ReserveObligationAccounts
-    >,
+    params: BuildTransactionParams<ReserveObligationArgs, ReserveObligationAccounts>,
+  ): Transaction;
+  buildSetPoolOracleInstruction(
+    params: BuildInstructionParams<SetPoolOracleArgs, SetPoolOracleAccounts>,
+  ): TransactionInstruction;
+  buildSetPoolOracleTx(
+    params: BuildTransactionParams<SetPoolOracleArgs, SetPoolOracleAccounts>,
+  ): Transaction;
+  buildSetPoolOraclePermissionsInstruction(
+    params: BuildInstructionParams<SetPoolOraclePermissionsArgs, SetPoolOraclePermissionsAccounts>,
+  ): TransactionInstruction;
+  buildSetPoolOraclePermissionsTx(
+    params: BuildTransactionParams<SetPoolOraclePermissionsArgs, SetPoolOraclePermissionsAccounts>,
+  ): Transaction;
+  buildSetPoolOraclePolicyInstruction(
+    params: BuildInstructionParams<SetPoolOraclePolicyArgs, SetPoolOraclePolicyAccounts>,
+  ): TransactionInstruction;
+  buildSetPoolOraclePolicyTx(
+    params: BuildTransactionParams<SetPoolOraclePolicyArgs, SetPoolOraclePolicyAccounts>,
   ): Transaction;
   buildSetProtocolEmergencyPauseInstruction(
-    params: BuildInstructionParams<
-      SetProtocolEmergencyPauseArgs,
-      SetProtocolEmergencyPauseAccounts
-    >,
+    params: BuildInstructionParams<SetProtocolEmergencyPauseArgs, SetProtocolEmergencyPauseAccounts>,
   ): TransactionInstruction;
   buildSetProtocolEmergencyPauseTx(
-    params: BuildTransactionParams<
-      SetProtocolEmergencyPauseArgs,
-      SetProtocolEmergencyPauseAccounts
-    >,
+    params: BuildTransactionParams<SetProtocolEmergencyPauseArgs, SetProtocolEmergencyPauseAccounts>,
   ): Transaction;
   buildSettleClaimCaseInstruction(
-    params: BuildInstructionParams<
-      SettleClaimCaseArgs,
-      SettleClaimCaseAccounts
-    >,
+    params: BuildInstructionParams<SettleClaimCaseArgs, SettleClaimCaseAccounts>,
   ): TransactionInstruction;
   buildSettleClaimCaseTx(
-    params: BuildTransactionParams<
-      SettleClaimCaseArgs,
-      SettleClaimCaseAccounts
-    >,
+    params: BuildTransactionParams<SettleClaimCaseArgs, SettleClaimCaseAccounts>,
   ): Transaction;
   buildSettleObligationInstruction(
-    params: BuildInstructionParams<
-      SettleObligationArgs,
-      SettleObligationAccounts
-    >,
+    params: BuildInstructionParams<SettleObligationArgs, SettleObligationAccounts>,
   ): TransactionInstruction;
   buildSettleObligationTx(
-    params: BuildTransactionParams<
-      SettleObligationArgs,
-      SettleObligationAccounts
-    >,
+    params: BuildTransactionParams<SettleObligationArgs, SettleObligationAccounts>,
   ): Transaction;
   buildUpdateAllocationCapsInstruction(
-    params: BuildInstructionParams<
-      UpdateAllocationCapsArgs,
-      UpdateAllocationCapsAccounts
-    >,
+    params: BuildInstructionParams<UpdateAllocationCapsArgs, UpdateAllocationCapsAccounts>,
   ): TransactionInstruction;
   buildUpdateAllocationCapsTx(
-    params: BuildTransactionParams<
-      UpdateAllocationCapsArgs,
-      UpdateAllocationCapsAccounts
-    >,
+    params: BuildTransactionParams<UpdateAllocationCapsArgs, UpdateAllocationCapsAccounts>,
   ): Transaction;
   buildUpdateCapitalClassControlsInstruction(
-    params: BuildInstructionParams<
-      UpdateCapitalClassControlsArgs,
-      UpdateCapitalClassControlsAccounts
-    >,
+    params: BuildInstructionParams<UpdateCapitalClassControlsArgs, UpdateCapitalClassControlsAccounts>,
   ): TransactionInstruction;
   buildUpdateCapitalClassControlsTx(
-    params: BuildTransactionParams<
-      UpdateCapitalClassControlsArgs,
-      UpdateCapitalClassControlsAccounts
-    >,
+    params: BuildTransactionParams<UpdateCapitalClassControlsArgs, UpdateCapitalClassControlsAccounts>,
   ): Transaction;
   buildUpdateHealthPlanControlsInstruction(
-    params: BuildInstructionParams<
-      UpdateHealthPlanControlsArgs,
-      UpdateHealthPlanControlsAccounts
-    >,
+    params: BuildInstructionParams<UpdateHealthPlanControlsArgs, UpdateHealthPlanControlsAccounts>,
   ): TransactionInstruction;
   buildUpdateHealthPlanControlsTx(
-    params: BuildTransactionParams<
-      UpdateHealthPlanControlsArgs,
-      UpdateHealthPlanControlsAccounts
-    >,
+    params: BuildTransactionParams<UpdateHealthPlanControlsArgs, UpdateHealthPlanControlsAccounts>,
+  ): Transaction;
+  buildUpdateLpPositionCredentialingInstruction(
+    params: BuildInstructionParams<UpdateLpPositionCredentialingArgs, UpdateLpPositionCredentialingAccounts>,
+  ): TransactionInstruction;
+  buildUpdateLpPositionCredentialingTx(
+    params: BuildTransactionParams<UpdateLpPositionCredentialingArgs, UpdateLpPositionCredentialingAccounts>,
   ): Transaction;
   buildUpdateMemberEligibilityInstruction(
-    params: BuildInstructionParams<
-      UpdateMemberEligibilityArgs,
-      UpdateMemberEligibilityAccounts
-    >,
+    params: BuildInstructionParams<UpdateMemberEligibilityArgs, UpdateMemberEligibilityAccounts>,
   ): TransactionInstruction;
   buildUpdateMemberEligibilityTx(
-    params: BuildTransactionParams<
-      UpdateMemberEligibilityArgs,
-      UpdateMemberEligibilityAccounts
-    >,
+    params: BuildTransactionParams<UpdateMemberEligibilityArgs, UpdateMemberEligibilityAccounts>,
+  ): Transaction;
+  buildUpdateOracleProfileInstruction(
+    params: BuildInstructionParams<UpdateOracleProfileArgs, UpdateOracleProfileAccounts>,
+  ): TransactionInstruction;
+  buildUpdateOracleProfileTx(
+    params: BuildTransactionParams<UpdateOracleProfileArgs, UpdateOracleProfileAccounts>,
   ): Transaction;
   buildUpdateReserveDomainControlsInstruction(
-    params: BuildInstructionParams<
-      UpdateReserveDomainControlsArgs,
-      UpdateReserveDomainControlsAccounts
-    >,
+    params: BuildInstructionParams<UpdateReserveDomainControlsArgs, UpdateReserveDomainControlsAccounts>,
   ): TransactionInstruction;
   buildUpdateReserveDomainControlsTx(
-    params: BuildTransactionParams<
-      UpdateReserveDomainControlsArgs,
-      UpdateReserveDomainControlsAccounts
-    >,
+    params: BuildTransactionParams<UpdateReserveDomainControlsArgs, UpdateReserveDomainControlsAccounts>,
+  ): Transaction;
+  buildVerifyOutcomeSchemaInstruction(
+    params: BuildInstructionParams<VerifyOutcomeSchemaArgs, VerifyOutcomeSchemaAccounts>,
+  ): TransactionInstruction;
+  buildVerifyOutcomeSchemaTx(
+    params: BuildTransactionParams<VerifyOutcomeSchemaArgs, VerifyOutcomeSchemaAccounts>,
   ): Transaction;
   buildVersionPolicySeriesInstruction(
-    params: BuildInstructionParams<
-      VersionPolicySeriesArgs,
-      VersionPolicySeriesAccounts
-    >,
+    params: BuildInstructionParams<VersionPolicySeriesArgs, VersionPolicySeriesAccounts>,
   ): TransactionInstruction;
   buildVersionPolicySeriesTx(
-    params: BuildTransactionParams<
-      VersionPolicySeriesArgs,
-      VersionPolicySeriesAccounts
-    >,
+    params: BuildTransactionParams<VersionPolicySeriesArgs, VersionPolicySeriesAccounts>,
   ): Transaction;
   fetchAllocationLedger(
     address: PublicKeyish,
@@ -1489,32 +1704,75 @@ export interface ProtocolClient {
   fetchAllocationPosition(
     address: PublicKeyish,
   ): Promise<AllocationPosition | null>;
-  fetchCapitalClass(address: PublicKeyish): Promise<CapitalClass | null>;
-  fetchClaimCase(address: PublicKeyish): Promise<ClaimCase | null>;
+  fetchCapitalClass(
+    address: PublicKeyish,
+  ): Promise<CapitalClass | null>;
+  fetchClaimCase(
+    address: PublicKeyish,
+  ): Promise<ClaimCase | null>;
   fetchDomainAssetLedger(
     address: PublicKeyish,
   ): Promise<DomainAssetLedger | null>;
   fetchDomainAssetVault(
     address: PublicKeyish,
   ): Promise<DomainAssetVault | null>;
-  fetchFundingLine(address: PublicKeyish): Promise<FundingLine | null>;
+  fetchFundingLine(
+    address: PublicKeyish,
+  ): Promise<FundingLine | null>;
   fetchFundingLineLedger(
     address: PublicKeyish,
   ): Promise<FundingLineLedger | null>;
-  fetchHealthPlan(address: PublicKeyish): Promise<HealthPlan | null>;
-  fetchLPPosition(address: PublicKeyish): Promise<LPPosition | null>;
-  fetchLiquidityPool(address: PublicKeyish): Promise<LiquidityPool | null>;
-  fetchMemberPosition(address: PublicKeyish): Promise<MemberPosition | null>;
-  fetchObligation(address: PublicKeyish): Promise<Obligation | null>;
+  fetchHealthPlan(
+    address: PublicKeyish,
+  ): Promise<HealthPlan | null>;
+  fetchLPPosition(
+    address: PublicKeyish,
+  ): Promise<LPPosition | null>;
+  fetchLiquidityPool(
+    address: PublicKeyish,
+  ): Promise<LiquidityPool | null>;
+  fetchMemberPosition(
+    address: PublicKeyish,
+  ): Promise<MemberPosition | null>;
+  fetchMembershipAnchorSeat(
+    address: PublicKeyish,
+  ): Promise<MembershipAnchorSeat | null>;
+  fetchObligation(
+    address: PublicKeyish,
+  ): Promise<Obligation | null>;
+  fetchOracleProfile(
+    address: PublicKeyish,
+  ): Promise<OracleProfile | null>;
+  fetchOutcomeSchema(
+    address: PublicKeyish,
+  ): Promise<OutcomeSchema | null>;
   fetchPlanReserveLedger(
     address: PublicKeyish,
   ): Promise<PlanReserveLedger | null>;
-  fetchPolicySeries(address: PublicKeyish): Promise<PolicySeries | null>;
-  fetchPoolClassLedger(address: PublicKeyish): Promise<PoolClassLedger | null>;
+  fetchPolicySeries(
+    address: PublicKeyish,
+  ): Promise<PolicySeries | null>;
+  fetchPoolClassLedger(
+    address: PublicKeyish,
+  ): Promise<PoolClassLedger | null>;
+  fetchPoolOracleApproval(
+    address: PublicKeyish,
+  ): Promise<PoolOracleApproval | null>;
+  fetchPoolOraclePermissionSet(
+    address: PublicKeyish,
+  ): Promise<PoolOraclePermissionSet | null>;
+  fetchPoolOraclePolicy(
+    address: PublicKeyish,
+  ): Promise<PoolOraclePolicy | null>;
   fetchProtocolGovernance(
     address?: PublicKeyish,
   ): Promise<ProtocolGovernance | null>;
-  fetchReserveDomain(address: PublicKeyish): Promise<ReserveDomain | null>;
+  fetchReserveDomain(
+    address: PublicKeyish,
+  ): Promise<ReserveDomain | null>;
+  fetchSchemaDependencyLedger(
+    address: PublicKeyish,
+  ): Promise<SchemaDependencyLedger | null>;
   fetchSeriesReserveLedger(
     address: PublicKeyish,
   ): Promise<SeriesReserveLedger | null>;

@@ -37,6 +37,16 @@ This checklist tracks the current public SDK surface against the canonical `omeg
 - [x] `allocate_capital`
 - [x] `deallocate_capital`
 - [x] `mark_impairment`
+- [x] `register_oracle`
+- [x] `claim_oracle`
+- [x] `update_oracle_profile`
+- [x] `set_pool_oracle`
+- [x] `set_pool_oracle_permissions`
+- [x] `set_pool_oracle_policy`
+- [x] `register_outcome_schema`
+- [x] `verify_outcome_schema`
+- [x] `backfill_schema_dependency_ledger`
+- [x] `close_outcome_schema`
 
 ## Canonical account readers
 
@@ -59,6 +69,12 @@ This checklist tracks the current public SDK surface against the canonical `omeg
 - [x] `fetchLPPosition`
 - [x] `fetchAllocationPosition`
 - [x] `fetchAllocationLedger`
+- [x] `fetchOracleProfile`
+- [x] `fetchPoolOracleApproval`
+- [x] `fetchPoolOraclePermissionSet`
+- [x] `fetchPoolOraclePolicy`
+- [x] `fetchOutcomeSchema`
+- [x] `fetchSchemaDependencyLedger`
 
 ## Canonical PDA derivations
 
@@ -71,6 +87,7 @@ This checklist tracks the current public SDK surface against the canonical `omeg
 - [x] `derivePolicySeriesPda`
 - [x] `deriveSeriesReserveLedgerPda`
 - [x] `deriveMemberPositionPda`
+- [x] `deriveMembershipAnchorSeatPda`
 - [x] `deriveFundingLinePda`
 - [x] `deriveFundingLineLedgerPda`
 - [x] `deriveClaimCasePda`
@@ -81,6 +98,12 @@ This checklist tracks the current public SDK surface against the canonical `omeg
 - [x] `deriveLpPositionPda`
 - [x] `deriveAllocationPositionPda`
 - [x] `deriveAllocationLedgerPda`
+- [x] `deriveOracleProfilePda`
+- [x] `derivePoolOracleApprovalPda`
+- [x] `derivePoolOraclePolicyPda`
+- [x] `derivePoolOraclePermissionSetPda`
+- [x] `deriveOutcomeSchemaPda`
+- [x] `deriveSchemaDependencyLedgerPda`
 
 ## Reserve-model helper parity
 

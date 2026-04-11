@@ -17,6 +17,8 @@ This package exposes the live canonical object model:
 - member positions
 - funding lines, obligations, and claim cases
 - liquidity pools, capital classes, LP positions, and allocation positions
+- oracle profiles, pool oracle approvals, oracle policies, and permission sets
+- outcome schemas and schema dependency ledgers
 - reserve-aware read models for sponsors, members, and capital providers
 - RPC helpers for unsigned transaction submission flows
 

@@ -20,6 +20,10 @@ import {
   deriveAllocationPositionPda,
   deriveHealthPlanPda,
   deriveLiquidityPoolPda,
+  deriveMembershipAnchorSeatPda,
+  deriveOracleProfilePda,
+  deriveOutcomeSchemaPda,
+  derivePoolOraclePolicyPda,
   deriveProtocolGovernancePda,
   deriveReserveDomainPda,
   getProgramId,
@@ -59,6 +63,20 @@ test('PDA helpers match manual derivation under canonical seeds', () => {
     reserveDomain,
     poolId: 'omega-health-income',
   });
+  const membershipAnchorSeat = deriveMembershipAnchorSeatPda({
+    healthPlan,
+    anchorRef: 'anchor-seat-alpha',
+  });
+  const oracleProfile = deriveOracleProfilePda({
+    oracle: Keypair.generate().publicKey,
+  });
+  const poolOraclePolicy = derivePoolOraclePolicyPda({
+    liquidityPool,
+  });
+  const outcomeSchema = deriveOutcomeSchemaPda({
+    schemaKeyHashHex:
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+  });
   const allocation = deriveAllocationPositionPda({
     capitalClass: Keypair.generate().publicKey,
     fundingLine: Keypair.generate().publicKey,
@@ -80,6 +98,10 @@ test('PDA helpers match manual derivation under canonical seeds', () => {
   assert.equal(reserveDomain.toBase58(), manualDomain.toBase58());
   assert.match(healthPlan.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
   assert.match(liquidityPool.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+  assert.match(membershipAnchorSeat.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+  assert.match(oracleProfile.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+  assert.match(poolOraclePolicy.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+  assert.match(outcomeSchema.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
   assert.match(allocation.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
 });
 

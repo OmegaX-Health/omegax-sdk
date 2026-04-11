@@ -1,4 +1,21 @@
-import type { ClaimFailureCode, ClaimFailureDetail } from './types.js';
+import nacl from 'tweetnacl';
+import { PublicKey } from '@solana/web3.js';
+
+import type {
+  ClaimFailureCode,
+  ClaimFailureDetail,
+  ValidateSignedClaimTxParams,
+  ValidateSignedClaimTxReason,
+  ValidateSignedClaimTxResult,
+} from './types.js';
+import {
+  decodeSolanaTransaction,
+  solanaTransactionFirstSignature,
+  solanaTransactionIntentMessageBytes,
+  solanaTransactionMessageBytes,
+  solanaTransactionRequiredSigner,
+  solanaTransactionSignerSignature,
+} from './transactions.js';
 export {
   CLAIM_INTAKE_APPROVED,
   CLAIM_INTAKE_CLOSED,
@@ -31,23 +48,142 @@ function toFailure(
 ): ClaimFailureDetail {
   return {
     code,
+    message: reason,
     reason,
     logs,
     retryable,
   };
 }
 
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+}
+
+export function validateSignedClaimTx(
+  params: ValidateSignedClaimTxParams,
+): ValidateSignedClaimTxResult {
+  let tx;
+  try {
+    tx = decodeSolanaTransaction(params.signedTxBase64);
+  } catch {
+    return {
+      valid: false,
+      txSignature: null,
+      reason: 'invalid_transaction_base64',
+      signer: null,
+    };
+  }
+
+  if (
+    typeof params.expectedUnsignedTxBase64 === 'string' &&
+    params.expectedUnsignedTxBase64.length > 0
+  ) {
+    try {
+      const expectedUnsignedTx = decodeSolanaTransaction(
+        params.expectedUnsignedTxBase64,
+      );
+      const signedMessageBytes = solanaTransactionMessageBytes(tx);
+      const expectedMessageBytes = solanaTransactionMessageBytes(
+        expectedUnsignedTx,
+      );
+      if (!bytesEqual(signedMessageBytes, expectedMessageBytes)) {
+        const signedIntentBytes = solanaTransactionIntentMessageBytes(tx);
+        const expectedIntentBytes =
+          solanaTransactionIntentMessageBytes(expectedUnsignedTx);
+        if (!bytesEqual(signedIntentBytes, expectedIntentBytes)) {
+          return {
+            valid: false,
+            txSignature: solanaTransactionFirstSignature(tx),
+            reason: 'intent_message_mismatch',
+            signer: solanaTransactionRequiredSigner(tx),
+          };
+        }
+      }
+    } catch {
+      return {
+        valid: false,
+        txSignature: solanaTransactionFirstSignature(tx),
+        reason: 'intent_message_mismatch',
+        signer: solanaTransactionRequiredSigner(tx),
+      };
+    }
+  }
+
+  const expectedSigner = params.requiredSigner.trim();
+  const signer = solanaTransactionRequiredSigner(tx);
+  if (!signer) {
+    return {
+      valid: false,
+      txSignature: null,
+      reason: 'missing_fee_payer',
+      signer: null,
+    };
+  }
+  if (signer !== expectedSigner) {
+    return {
+      valid: false,
+      txSignature: solanaTransactionFirstSignature(tx),
+      reason: 'required_signer_mismatch',
+      signer,
+    };
+  }
+
+  const requiredSignature = solanaTransactionSignerSignature(tx, expectedSigner);
+  if (!requiredSignature) {
+    return {
+      valid: false,
+      txSignature: solanaTransactionFirstSignature(tx),
+      reason: 'missing_required_signature',
+      signer,
+    };
+  }
+
+  const ok = nacl.sign.detached.verify(
+    solanaTransactionMessageBytes(tx),
+    requiredSignature,
+    new PublicKey(expectedSigner).toBytes(),
+  );
+  if (!ok) {
+    return {
+      valid: false,
+      txSignature: solanaTransactionFirstSignature(tx),
+      reason: 'invalid_required_signature',
+      signer,
+    };
+  }
+
+  return {
+    valid: true,
+    txSignature: solanaTransactionFirstSignature(tx),
+    reason: null,
+    signer,
+  };
+}
+
+export function mapValidationReasonToClaimFailure(
+  reason: ValidateSignedClaimTxReason | null,
+): ClaimFailureCode | null {
+  if (!reason) return null;
+  if (reason === 'intent_message_mismatch') return 'intent_message_mismatch';
+  if (reason === 'required_signer_mismatch') return 'required_signer_mismatch';
+  return 'unknown';
+}
+
 export function normalizeClaimSimulationFailure(params: {
   err: unknown;
-  logs: string[];
+  logs?: string[] | null;
 }): ClaimFailureDetail {
-  const text = collapseFailureText(params);
+  const logs = params.logs ?? [];
+  const text = collapseFailureText({ err: params.err, logs });
 
   if (/claim intake pause|claim intake paused/.test(text)) {
     return toFailure(
       'claim_intake_paused',
       'Claim intake is paused for the current scope.',
-      params.logs,
+      logs,
       true,
     );
   }
@@ -55,7 +191,7 @@ export function normalizeClaimSimulationFailure(params: {
     return toFailure(
       'protocol_paused',
       'Protocol controls currently block the claim flow.',
-      params.logs,
+      logs,
       true,
     );
   }
@@ -63,7 +199,7 @@ export function normalizeClaimSimulationFailure(params: {
     return toFailure(
       'not_eligible',
       'The member position is not currently eligible for this claim or payout.',
-      params.logs,
+      logs,
       false,
     );
   }
@@ -73,7 +209,7 @@ export function normalizeClaimSimulationFailure(params: {
     return toFailure(
       'funding_exhausted',
       'The applicable funding line does not have enough free capital.',
-      params.logs,
+      logs,
       false,
     );
   }
@@ -81,7 +217,7 @@ export function normalizeClaimSimulationFailure(params: {
     return toFailure(
       'allocation_frozen',
       'Capital allocation controls currently freeze this surface.',
-      params.logs,
+      logs,
       true,
     );
   }
@@ -89,7 +225,7 @@ export function normalizeClaimSimulationFailure(params: {
     return toFailure(
       'queue_only',
       'The current capital surface is operating in queue-only mode.',
-      params.logs,
+      logs,
       true,
     );
   }
@@ -99,15 +235,48 @@ export function normalizeClaimSimulationFailure(params: {
     return toFailure(
       'invalid_claim_state',
       'The claim or obligation is not in a state that allows this action.',
-      params.logs,
+      logs,
+      false,
+    );
+  }
+
+  if (
+    /insufficientpoolliquidity|insufficient funds|insufficient lamports/.test(
+      text,
+    )
+  ) {
+    return toFailure(
+      'simulation_failed_insufficient_funds',
+      'Pool does not have sufficient liquidity for this claim.',
+      logs,
+      false,
+    );
+  }
+
+  if (/poolnotactive|pool is not active/.test(text)) {
+    return toFailure(
+      'simulation_failed_pool_paused',
+      'Pool is paused or not active for claims.',
+      logs,
+      false,
+    );
+  }
+
+  if (
+    /membershipnotactive|membership member mismatch|membership/.test(text)
+  ) {
+    return toFailure(
+      'simulation_failed_membership_invalid',
+      'Membership is not active for this pool.',
+      logs,
       false,
     );
   }
 
   return toFailure(
-    'unknown',
+    'simulation_failed_unknown',
     'Simulation failed for an unclassified claim or obligation reason.',
-    params.logs,
+    logs,
     false,
   );
 }
@@ -139,7 +308,7 @@ export function normalizeClaimRpcFailure(error: unknown): ClaimFailureDetail {
   }
 
   return toFailure(
-    'unknown',
+    'rpc_rejected',
     'RPC submission failed for an unclassified reason.',
     [],
     false,

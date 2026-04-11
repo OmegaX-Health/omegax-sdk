@@ -4,6 +4,7 @@ import {
   AddressLookupTableAccount,
   Connection,
   PublicKey,
+  SystemProgram,
   Transaction,
   TransactionInstruction,
   TransactionMessage,
@@ -28,6 +29,12 @@ import type {
   PublicKeyish,
 } from './generated/protocol_types.js';
 import {
+  deriveOracleProfilePda,
+  deriveOutcomeSchemaPda,
+  derivePoolOracleApprovalPda,
+  derivePoolOraclePermissionSetPda,
+  derivePoolOraclePolicyPda,
+  deriveSchemaDependencyLedgerPda,
   deriveProtocolGovernancePda,
   getProgramId,
   toPublicKey,
@@ -134,6 +141,18 @@ function requireStruct(typeName: string): IdlStruct {
     );
   }
   return type;
+}
+
+function normalizeHex32(value: string, label: string): string {
+  const normalized = value.trim().toLowerCase().replace(/^0x/, '');
+  if (!/^[0-9a-f]{64}$/.test(normalized)) {
+    throw new Error(`${label} must be a 32-byte hex string`);
+  }
+  return normalized;
+}
+
+function hexToFixedBytes(value: string, label: string): Uint8Array {
+  return Uint8Array.from(Buffer.from(normalizeHex32(value, label), 'hex'));
 }
 
 function normalizeInputValue(type: IdlType, value: unknown): unknown {
@@ -442,6 +461,418 @@ export function buildProtocolTransaction(
   }
 
   return transaction;
+}
+
+function buildConvenienceTransaction(params: {
+  instructionName: ProtocolInstructionName;
+  feePayer: PublicKeyish;
+  recentBlockhash: string;
+  args: Record<string, unknown>;
+  accounts: GenericInstructionAccounts;
+  programId?: PublicKeyish;
+}): Transaction {
+  return buildProtocolTransaction({
+    instructionName: params.instructionName,
+    args: params.args,
+    accounts: params.accounts,
+    feePayer: params.feePayer,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+  });
+}
+
+export function buildRegisterOracleTx(params: {
+  admin: PublicKeyish;
+  oracle: PublicKeyish;
+  recentBlockhash: string;
+  oracleType: number;
+  displayName: string;
+  legalName: string;
+  websiteUrl: string;
+  appUrl: string;
+  logoUri: string;
+  webhookUrl: string;
+  supportedSchemaKeyHashesHex: string[];
+  programId?: PublicKeyish;
+}): Transaction {
+  const admin = toPublicKey(params.admin);
+  const oracle = toPublicKey(params.oracle);
+  return buildConvenienceTransaction({
+    instructionName: 'register_oracle',
+    feePayer: admin,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+    args: {
+      oracle,
+      oracle_type: params.oracleType,
+      display_name: params.displayName,
+      legal_name: params.legalName,
+      website_url: params.websiteUrl,
+      app_url: params.appUrl,
+      logo_uri: params.logoUri,
+      webhook_url: params.webhookUrl,
+      supported_schema_key_hashes: params.supportedSchemaKeyHashesHex.map(
+        (value) => Array.from(hexToFixedBytes(value, 'schema key hash')),
+      ),
+    },
+    accounts: {
+      admin,
+      oracle_profile: deriveOracleProfilePda({
+        oracle,
+        programId: params.programId,
+      }),
+      system_program: SystemProgram.programId,
+    },
+  });
+}
+
+export function buildClaimOracleTx(params: {
+  oracle: PublicKeyish;
+  recentBlockhash: string;
+  programId?: PublicKeyish;
+}): Transaction {
+  const oracle = toPublicKey(params.oracle);
+  return buildConvenienceTransaction({
+    instructionName: 'claim_oracle',
+    feePayer: oracle,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+    args: {},
+    accounts: {
+      oracle,
+      oracle_profile: deriveOracleProfilePda({
+        oracle,
+        programId: params.programId,
+      }),
+    },
+  });
+}
+
+export function buildUpdateOracleProfileTx(params: {
+  authority: PublicKeyish;
+  oracle: PublicKeyish;
+  recentBlockhash: string;
+  oracleType: number;
+  displayName: string;
+  legalName: string;
+  websiteUrl: string;
+  appUrl: string;
+  logoUri: string;
+  webhookUrl: string;
+  supportedSchemaKeyHashesHex: string[];
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  const oracle = toPublicKey(params.oracle);
+  return buildConvenienceTransaction({
+    instructionName: 'update_oracle_profile',
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+    args: {
+      oracle_type: params.oracleType,
+      display_name: params.displayName,
+      legal_name: params.legalName,
+      website_url: params.websiteUrl,
+      app_url: params.appUrl,
+      logo_uri: params.logoUri,
+      webhook_url: params.webhookUrl,
+      supported_schema_key_hashes: params.supportedSchemaKeyHashesHex.map(
+        (value) => Array.from(hexToFixedBytes(value, 'schema key hash')),
+      ),
+    },
+    accounts: {
+      authority,
+      protocol_governance: deriveProtocolGovernancePda(
+        params.programId ?? getProgramId(),
+      ),
+      oracle_profile: deriveOracleProfilePda({
+        oracle,
+        programId: params.programId,
+      }),
+    },
+  });
+}
+
+export function buildSetPoolOracleTx(params: {
+  authority: PublicKeyish;
+  poolAddress: PublicKeyish;
+  oracle: PublicKeyish;
+  recentBlockhash: string;
+  active: boolean;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  const liquidityPool = toPublicKey(params.poolAddress);
+  const oracle = toPublicKey(params.oracle);
+  return buildConvenienceTransaction({
+    instructionName: 'set_pool_oracle',
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+    args: { active: params.active },
+    accounts: {
+      authority,
+      protocol_governance: deriveProtocolGovernancePda(
+        params.programId ?? getProgramId(),
+      ),
+      liquidity_pool: liquidityPool,
+      oracle_profile: deriveOracleProfilePda({
+        oracle,
+        programId: params.programId,
+      }),
+      pool_oracle_approval: derivePoolOracleApprovalPda({
+        liquidityPool,
+        oracle,
+        programId: params.programId,
+      }),
+      system_program: SystemProgram.programId,
+    },
+  });
+}
+
+export function buildSetPoolOraclePermissionsTx(params: {
+  authority: PublicKeyish;
+  poolAddress: PublicKeyish;
+  oracle: PublicKeyish;
+  permissions: number;
+  recentBlockhash: string;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  const liquidityPool = toPublicKey(params.poolAddress);
+  const oracle = toPublicKey(params.oracle);
+  return buildConvenienceTransaction({
+    instructionName: 'set_pool_oracle_permissions',
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+    args: { permissions: params.permissions },
+    accounts: {
+      authority,
+      protocol_governance: deriveProtocolGovernancePda(
+        params.programId ?? getProgramId(),
+      ),
+      liquidity_pool: liquidityPool,
+      oracle_profile: deriveOracleProfilePda({
+        oracle,
+        programId: params.programId,
+      }),
+      pool_oracle_approval: derivePoolOracleApprovalPda({
+        liquidityPool,
+        oracle,
+        programId: params.programId,
+      }),
+      pool_oracle_permission_set: derivePoolOraclePermissionSetPda({
+        liquidityPool,
+        oracle,
+        programId: params.programId,
+      }),
+      system_program: SystemProgram.programId,
+    },
+  });
+}
+
+export function buildSetPoolOraclePolicyTx(params: {
+  authority: PublicKeyish;
+  poolAddress: PublicKeyish;
+  recentBlockhash: string;
+  quorumM: number;
+  quorumN: number;
+  requireVerifiedSchema: boolean;
+  oracleFeeBps: number;
+  allowDelegateClaim: boolean;
+  challengeWindowSecs: number;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  const liquidityPool = toPublicKey(params.poolAddress);
+  return buildConvenienceTransaction({
+    instructionName: 'set_pool_oracle_policy',
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+    args: {
+      quorum_m: params.quorumM,
+      quorum_n: params.quorumN,
+      require_verified_schema: params.requireVerifiedSchema,
+      oracle_fee_bps: params.oracleFeeBps,
+      allow_delegate_claim: params.allowDelegateClaim,
+      challenge_window_secs: params.challengeWindowSecs,
+    },
+    accounts: {
+      authority,
+      protocol_governance: deriveProtocolGovernancePda(
+        params.programId ?? getProgramId(),
+      ),
+      liquidity_pool: liquidityPool,
+      pool_oracle_policy: derivePoolOraclePolicyPda({
+        liquidityPool,
+        programId: params.programId,
+      }),
+      system_program: SystemProgram.programId,
+    },
+  });
+}
+
+export function buildRegisterOutcomeSchemaTx(params: {
+  publisher: PublicKeyish;
+  recentBlockhash: string;
+  schemaKeyHashHex: string;
+  schemaKey: string;
+  version: number;
+  schemaHashHex: string;
+  schemaFamily: number;
+  visibility: number;
+  metadataUri: string;
+  programId?: PublicKeyish;
+}): Transaction {
+  const publisher = toPublicKey(params.publisher);
+  const normalizedSchemaKeyHash = normalizeHex32(
+    params.schemaKeyHashHex,
+    'schema key hash',
+  );
+  return buildConvenienceTransaction({
+    instructionName: 'register_outcome_schema',
+    feePayer: publisher,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+    args: {
+      schema_key_hash: Array.from(
+        hexToFixedBytes(normalizedSchemaKeyHash, 'schema key hash'),
+      ),
+      schema_key: params.schemaKey,
+      version: params.version,
+      schema_hash: Array.from(hexToFixedBytes(params.schemaHashHex, 'schema hash')),
+      schema_family: params.schemaFamily,
+      visibility: params.visibility,
+      metadata_uri: params.metadataUri,
+    },
+    accounts: {
+      publisher,
+      outcome_schema: deriveOutcomeSchemaPda({
+        schemaKeyHashHex: normalizedSchemaKeyHash,
+        programId: params.programId,
+      }),
+      schema_dependency_ledger: deriveSchemaDependencyLedgerPda({
+        schemaKeyHashHex: normalizedSchemaKeyHash,
+        programId: params.programId,
+      }),
+      system_program: SystemProgram.programId,
+    },
+  });
+}
+
+export function buildVerifyOutcomeSchemaTx(params: {
+  governanceAuthority: PublicKeyish;
+  recentBlockhash: string;
+  schemaKeyHashHex: string;
+  verified: boolean;
+  programId?: PublicKeyish;
+}): Transaction {
+  const governanceAuthority = toPublicKey(params.governanceAuthority);
+  const normalizedSchemaKeyHash = normalizeHex32(
+    params.schemaKeyHashHex,
+    'schema key hash',
+  );
+  return buildConvenienceTransaction({
+    instructionName: 'verify_outcome_schema',
+    feePayer: governanceAuthority,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+    args: {
+      verified: params.verified,
+    },
+    accounts: {
+      governance_authority: governanceAuthority,
+      protocol_governance: deriveProtocolGovernancePda(
+        params.programId ?? getProgramId(),
+      ),
+      outcome_schema: deriveOutcomeSchemaPda({
+        schemaKeyHashHex: normalizedSchemaKeyHash,
+        programId: params.programId,
+      }),
+    },
+  });
+}
+
+export function buildBackfillSchemaDependencyLedgerTx(params: {
+  governanceAuthority: PublicKeyish;
+  recentBlockhash: string;
+  schemaKeyHashHex: string;
+  poolRuleAddresses: PublicKeyish[];
+  programId?: PublicKeyish;
+}): Transaction {
+  const governanceAuthority = toPublicKey(params.governanceAuthority);
+  const normalizedSchemaKeyHash = normalizeHex32(
+    params.schemaKeyHashHex,
+    'schema key hash',
+  );
+  return buildConvenienceTransaction({
+    instructionName: 'backfill_schema_dependency_ledger',
+    feePayer: governanceAuthority,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+    args: {
+      schema_key_hash: Array.from(
+        hexToFixedBytes(normalizedSchemaKeyHash, 'schema key hash'),
+      ),
+      pool_rule_addresses: params.poolRuleAddresses.map((value) =>
+        toPublicKey(value),
+      ),
+    },
+    accounts: {
+      governance_authority: governanceAuthority,
+      protocol_governance: deriveProtocolGovernancePda(
+        params.programId ?? getProgramId(),
+      ),
+      outcome_schema: deriveOutcomeSchemaPda({
+        schemaKeyHashHex: normalizedSchemaKeyHash,
+        programId: params.programId,
+      }),
+      schema_dependency_ledger: deriveSchemaDependencyLedgerPda({
+        schemaKeyHashHex: normalizedSchemaKeyHash,
+        programId: params.programId,
+      }),
+      system_program: SystemProgram.programId,
+    },
+  });
+}
+
+export function buildCloseOutcomeSchemaTx(params: {
+  governanceAuthority: PublicKeyish;
+  recipientSystemAccount: PublicKeyish;
+  recentBlockhash: string;
+  schemaKeyHashHex: string;
+  programId?: PublicKeyish;
+}): Transaction {
+  const governanceAuthority = toPublicKey(params.governanceAuthority);
+  const normalizedSchemaKeyHash = normalizeHex32(
+    params.schemaKeyHashHex,
+    'schema key hash',
+  );
+  return buildConvenienceTransaction({
+    instructionName: 'close_outcome_schema',
+    feePayer: governanceAuthority,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+    args: {},
+    accounts: {
+      governance_authority: governanceAuthority,
+      protocol_governance: deriveProtocolGovernancePda(
+        params.programId ?? getProgramId(),
+      ),
+      outcome_schema: deriveOutcomeSchemaPda({
+        schemaKeyHashHex: normalizedSchemaKeyHash,
+        programId: params.programId,
+      }),
+      schema_dependency_ledger: deriveSchemaDependencyLedgerPda({
+        schemaKeyHashHex: normalizedSchemaKeyHash,
+        programId: params.programId,
+      }),
+      recipient_system_account: toPublicKey(params.recipientSystemAccount),
+    },
+  });
 }
 
 export function compileTransactionToV0(

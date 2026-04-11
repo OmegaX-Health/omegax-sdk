@@ -20,6 +20,7 @@ const pdaSeedFunctionMap: Record<string, string> = {
   policy_series: 'derivePolicySeriesPda',
   series_reserve_ledger: 'deriveSeriesReserveLedgerPda',
   member_position: 'deriveMemberPositionPda',
+  membership_anchor_seat: 'deriveMembershipAnchorSeatPda',
   funding_line: 'deriveFundingLinePda',
   funding_line_ledger: 'deriveFundingLineLedgerPda',
   claim_case: 'deriveClaimCasePda',
@@ -30,6 +31,12 @@ const pdaSeedFunctionMap: Record<string, string> = {
   lp_position: 'deriveLpPositionPda',
   allocation_position: 'deriveAllocationPositionPda',
   allocation_ledger: 'deriveAllocationLedgerPda',
+  oracle_profile: 'deriveOracleProfilePda',
+  pool_oracle_approval: 'derivePoolOracleApprovalPda',
+  pool_oracle_policy: 'derivePoolOraclePolicyPda',
+  pool_oracle_permission_set: 'derivePoolOraclePermissionSetPda',
+  outcome_schema: 'deriveOutcomeSchemaPda',
+  schema_dependency_ledger: 'deriveSchemaDependencyLedgerPda',
 };
 
 test('every canonical instruction has transaction and instruction builders', () => {

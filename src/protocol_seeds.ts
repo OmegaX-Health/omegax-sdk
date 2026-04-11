@@ -19,6 +19,7 @@ export const SEED_PLAN_RESERVE_LEDGER = 'plan_reserve_ledger';
 export const SEED_POLICY_SERIES = 'policy_series';
 export const SEED_SERIES_RESERVE_LEDGER = 'series_reserve_ledger';
 export const SEED_MEMBER_POSITION = 'member_position';
+export const SEED_MEMBERSHIP_ANCHOR_SEAT = 'membership_anchor_seat';
 export const SEED_FUNDING_LINE = 'funding_line';
 export const SEED_FUNDING_LINE_LEDGER = 'funding_line_ledger';
 export const SEED_CLAIM_CASE = 'claim_case';
@@ -29,6 +30,12 @@ export const SEED_POOL_CLASS_LEDGER = 'pool_class_ledger';
 export const SEED_LP_POSITION = 'lp_position';
 export const SEED_ALLOCATION_POSITION = 'allocation_position';
 export const SEED_ALLOCATION_LEDGER = 'allocation_ledger';
+export const SEED_ORACLE_PROFILE = 'oracle_profile';
+export const SEED_POOL_ORACLE_APPROVAL = 'pool_oracle_approval';
+export const SEED_POOL_ORACLE_POLICY = 'pool_oracle_policy';
+export const SEED_POOL_ORACLE_PERMISSION_SET = 'pool_oracle_permission_set';
+export const SEED_OUTCOME_SCHEMA = 'outcome_schema';
+export const SEED_SCHEMA_DEPENDENCY_LEDGER = 'schema_dependency_ledger';
 
 export function getProgramId(): PublicKey {
   return PROGRAM_ID;
@@ -49,8 +56,27 @@ export function assertSeedId(value: string, label = 'seed id'): void {
   }
 }
 
+function isPublicKeyLike(value: unknown): value is {
+  toBase58(): string;
+} {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    typeof (value as { toBase58?: unknown }).toBase58 === 'function'
+  );
+}
+
 export function toPublicKey(value: PublicKeyish): PublicKey {
-  return value instanceof PublicKey ? value : new PublicKey(value);
+  if (value instanceof PublicKey) {
+    return value;
+  }
+  if (isPublicKeyLike(value)) {
+    return new PublicKey(value.toBase58());
+  }
+  if (value === null || value === undefined) {
+    throw new Error('public key value is required');
+  }
+  return new PublicKey(value);
 }
 
 export function normalizeAddress(value: PublicKeyish): string {
@@ -67,6 +93,18 @@ function derivePda(
 function stringSeed(value: string, label: string): Uint8Array {
   assertSeedId(value, label);
   return TEXT_ENCODER.encode(value);
+}
+
+function normalizeHex32(value: string, label: string): string {
+  const normalized = value.trim().toLowerCase().replace(/^0x/, '');
+  if (!/^[0-9a-f]{64}$/.test(normalized)) {
+    throw new Error(`${label} must be a 32-byte hex string.`);
+  }
+  return normalized;
+}
+
+function hexSeed(value: string, label: string): Uint8Array {
+  return Uint8Array.from(Buffer.from(normalizeHex32(value, label), 'hex'));
 }
 
 export function deriveProtocolGovernancePda(
@@ -190,6 +228,21 @@ export function deriveMemberPositionPda(params: {
       toPublicKey(params.healthPlan).toBytes(),
       toPublicKey(params.wallet).toBytes(),
       toPublicKey(params.seriesScope ?? ZERO_PUBKEY_KEY).toBytes(),
+    ],
+    params.programId ?? PROGRAM_ID,
+  );
+}
+
+export function deriveMembershipAnchorSeatPda(params: {
+  healthPlan: PublicKeyish;
+  anchorRef: string;
+  programId?: PublicKeyish;
+}): PublicKey {
+  return derivePda(
+    [
+      TEXT_ENCODER.encode(SEED_MEMBERSHIP_ANCHOR_SEAT),
+      toPublicKey(params.healthPlan).toBytes(),
+      stringSeed(params.anchorRef, 'anchor ref'),
     ],
     params.programId ?? PROGRAM_ID,
   );
@@ -340,6 +393,88 @@ export function deriveAllocationLedgerPda(params: {
       TEXT_ENCODER.encode(SEED_ALLOCATION_LEDGER),
       toPublicKey(params.allocationPosition).toBytes(),
       toPublicKey(params.assetMint).toBytes(),
+    ],
+    params.programId ?? PROGRAM_ID,
+  );
+}
+
+export function deriveOracleProfilePda(params: {
+  oracle: PublicKeyish;
+  programId?: PublicKeyish;
+}): PublicKey {
+  return derivePda(
+    [
+      TEXT_ENCODER.encode(SEED_ORACLE_PROFILE),
+      toPublicKey(params.oracle).toBytes(),
+    ],
+    params.programId ?? PROGRAM_ID,
+  );
+}
+
+export function derivePoolOracleApprovalPda(params: {
+  liquidityPool: PublicKeyish;
+  oracle: PublicKeyish;
+  programId?: PublicKeyish;
+}): PublicKey {
+  return derivePda(
+    [
+      TEXT_ENCODER.encode(SEED_POOL_ORACLE_APPROVAL),
+      toPublicKey(params.liquidityPool).toBytes(),
+      toPublicKey(params.oracle).toBytes(),
+    ],
+    params.programId ?? PROGRAM_ID,
+  );
+}
+
+export function derivePoolOraclePolicyPda(params: {
+  liquidityPool: PublicKeyish;
+  programId?: PublicKeyish;
+}): PublicKey {
+  return derivePda(
+    [
+      TEXT_ENCODER.encode(SEED_POOL_ORACLE_POLICY),
+      toPublicKey(params.liquidityPool).toBytes(),
+    ],
+    params.programId ?? PROGRAM_ID,
+  );
+}
+
+export function derivePoolOraclePermissionSetPda(params: {
+  liquidityPool: PublicKeyish;
+  oracle: PublicKeyish;
+  programId?: PublicKeyish;
+}): PublicKey {
+  return derivePda(
+    [
+      TEXT_ENCODER.encode(SEED_POOL_ORACLE_PERMISSION_SET),
+      toPublicKey(params.liquidityPool).toBytes(),
+      toPublicKey(params.oracle).toBytes(),
+    ],
+    params.programId ?? PROGRAM_ID,
+  );
+}
+
+export function deriveOutcomeSchemaPda(params: {
+  schemaKeyHashHex: string;
+  programId?: PublicKeyish;
+}): PublicKey {
+  return derivePda(
+    [
+      TEXT_ENCODER.encode(SEED_OUTCOME_SCHEMA),
+      hexSeed(params.schemaKeyHashHex, 'schema key hash'),
+    ],
+    params.programId ?? PROGRAM_ID,
+  );
+}
+
+export function deriveSchemaDependencyLedgerPda(params: {
+  schemaKeyHashHex: string;
+  programId?: PublicKeyish;
+}): PublicKey {
+  return derivePda(
+    [
+      TEXT_ENCODER.encode(SEED_SCHEMA_DEPENDENCY_LEDGER),
+      hexSeed(params.schemaKeyHashHex, 'schema key hash'),
     ],
     params.programId ?? PROGRAM_ID,
   );
