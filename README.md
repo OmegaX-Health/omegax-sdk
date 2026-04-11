@@ -1,46 +1,52 @@
 # @omegax/protocol-sdk
 
-TypeScript SDK for the canonical OmegaX health capital markets protocol on Solana.
+Build health apps, oracle services, and outcome-triggered settlement flows on Solana devnet beta with the canonical OmegaX Protocol SDK.
 
-## Release status
+`@omegax/protocol-sdk` gives builders unsigned transaction builders, readers, PDA helpers, reserve-aware read models, and oracle attestation helpers for the current public OmegaX surface.
 
-- SDK release target: `0.8.0`
-- Protocol surface target: `omegax-protocol v0.3.0`
-- Current public network target: Solana devnet beta
-- Public docs: [docs.omegax.health](https://docs.omegax.health)
+## What you can build today
 
-## Release notes
+- oracle and event-production services that register operators, manage policy, and emit compatible outcome attestations
+- health apps, wallets, and agents that read member, claim, obligation, and payout state
+- sponsor and capital integrations that create plans, funding lines, pools, classes, allocations, and redemptions
 
-- `0.8.0` adds full parity for the current oracle and schema registry surface, plus a first-class oracle attestation helper module for service-side signing flows.
-- The package now exports `@omegax/protocol-sdk/oracle` alongside the root exports so oracle workers can use a narrower import surface when they only need attestation helpers.
-- Canonical protocol builders, readers, seeds, generated bindings, and local surface verification are aligned to the current `omegax-protocol` `main` surface.
+## Who should use it
 
-This package exposes the live canonical object model:
+- oracle and event producers
+- health / wallet / app builders
+- sponsor, treasury, and capital integrators
 
-- protocol governance and scoped controls
-- reserve domains and domain asset vaults
-- health plans and policy series
-- member positions
-- funding lines, obligations, and claim cases
-- liquidity pools, capital classes, LP positions, and allocation positions
-- oracle profiles, pool oracle approvals, oracle policies, and permission sets
-- outcome schemas and schema dependency ledgers
-- reserve-aware read models for sponsors, members, and capital providers
-- RPC helpers for unsigned transaction submission flows
+## Choose your path
 
-No pool-first compatibility layer is kept in this release. If your integration still expects `create_pool`, `set_pool_status`, or `pool_type`, it needs to migrate to the canonical surface.
+### Oracle and event producers
 
-## Documentation map
+Use the protocol registry builders plus `@omegax/protocol-sdk/oracle` to register oracles, manage pool policy, and package attestations.
 
-- `/docs/INDEX.md` for the maintainer and integrator reading order
-- `/docs/GETTING_STARTED.md` for installation, client setup, and the unsigned transaction pattern
-- `/docs/WORKFLOWS.md` for canonical sponsor, claims, and capital flows
-- `/docs/API_REFERENCE.md` for the exported package surface
-- `/docs/TROUBLESHOOTING.md` for common failure modes and remediation
-- `/docs/RELEASE_NOTES.md` for versioned SDK release notes
-- `/docs/RELEASE.md` for the release checklist
-- `/docs/DOCS_SYNC_WORKFLOW.md` for SDK to portal sync rules
-- `/docs/CROSS_REPO_RELEASE_ORDER.md` for the coordinated protocol + docs + SDK publish order
+Start with:
+
+- `/docs/GETTING_STARTED.md`
+- `/docs/WORKFLOWS.md`
+- [Oracle Event Production](https://docs.omegax.health/docs/oracle/event-production)
+
+### Health / wallet / app builders
+
+Use reader helpers and member / claim builders to power user-facing views and outcome-driven product flows.
+
+Start with:
+
+- `/docs/GETTING_STARTED.md`
+- `/docs/WORKFLOWS.md`
+- `/docs/API_REFERENCE.md`
+
+### Sponsor and capital integrators
+
+Use reserve-domain, plan, capital, allocation, and queue builders to launch or manage sponsor and LP lanes on the canonical model.
+
+Start with:
+
+- `/docs/WORKFLOWS.md`
+- `/docs/API_REFERENCE.md`
+- `/docs/TROUBLESHOOTING.md`
 
 ## Install
 
@@ -58,61 +64,79 @@ npm install @omegax/protocol-sdk
 
 ## Quickstart
 
+Create clients once, then branch into the workflow that matches your product.
+
 ```ts
 import {
+  PROTOCOL_PROGRAM_ID,
   createConnection,
   createProtocolClient,
   createRpcClient,
-  deriveProtocolGovernancePda,
-  deriveReserveDomainPda,
+  getOmegaXNetworkInfo,
+  listProtocolInstructionNames,
 } from '@omegax/protocol-sdk';
 
+const network =
+  (process.env.OMEGAX_NETWORK as 'devnet' | 'mainnet' | undefined) ?? 'devnet';
+const networkInfo = getOmegaXNetworkInfo(network);
+
 const connection = createConnection({
-  network: 'devnet',
-  rpcUrl: process.env.SOLANA_RPC_URL,
+  network,
+  rpcUrl: process.env.SOLANA_RPC_URL ?? networkInfo.defaultRpcUrl,
   commitment: 'confirmed',
 });
 
-const programId = process.env.OMEGAX_PROGRAM_ID!;
+const programId = process.env.OMEGAX_PROGRAM_ID ?? PROTOCOL_PROGRAM_ID;
 const protocol = createProtocolClient(connection, programId);
 const rpc = createRpcClient(connection);
-
-const protocolGovernance = deriveProtocolGovernancePda(programId).toBase58();
-const reserveDomain = deriveReserveDomainPda({
-  domainId: 'open-usdc-domain',
-  programId,
-}).toBase58();
-
-const tx = protocol.buildCreateReserveDomainTx({
-  args: {
-    domain_id: 'open-usdc-domain',
-    display_name: 'Open USDC Domain',
-    domain_admin: '<domain-admin-pubkey>',
-    settlement_mode: 0,
-    legal_structure_hash: new Uint8Array(32),
-    compliance_baseline_hash: new Uint8Array(32),
-    allowed_rail_mask: 1,
-    pause_flags: 0,
-  },
-  accounts: {
-    authority: '<governance-authority-pubkey>',
-    protocol_governance: protocolGovernance,
-    reserve_domain: reserveDomain,
-  },
-  recentBlockhash: await rpc.getRecentBlockhash(),
-});
+const instructions = listProtocolInstructionNames();
 ```
 
-Sign and submit with your wallet or signer stack:
+From there:
 
-```ts
-const signedTx = await wallet.signTransaction(tx);
-const signedTxBase64 = Buffer.from(signedTx.serialize()).toString('base64');
-const result = await rpc.broadcastSignedTx({
-  signedTxBase64,
-  commitment: 'confirmed',
-});
-```
+- oracle and event producers usually move into `buildRegisterOracleTx(...)`, `buildClaimOracleTx(...)`, `buildSetPoolOraclePolicyTx(...)`, and `attestOutcome(...)`
+- health and wallet builders usually move into member / claim reads plus `buildOpenMemberPositionTx(...)` and `buildOpenClaimCaseTx(...)`
+- sponsor and capital integrators usually move into reserve-domain, plan, pool, class, allocation, and redemption builders from `/docs/WORKFLOWS.md`
+
+## Public surface coverage
+
+This package exposes the live canonical object model:
+
+- protocol governance and scoped controls
+- reserve domains and domain asset vaults
+- health plans and policy series
+- member positions
+- funding lines, obligations, and claim cases
+- liquidity pools, capital classes, LP positions, and allocation positions
+- oracle profiles, pool oracle approvals, oracle policies, and permission sets
+- outcome schemas and schema dependency ledgers
+- reserve-aware read models for sponsors, members, and capital providers
+- RPC helpers for unsigned transaction submission flows
+
+## Release status
+
+- SDK release target: `0.8.0`
+- Protocol surface target: `omegax-protocol v0.3.0`
+- Current public network target: Solana devnet beta
+- Public docs: [docs.omegax.health](https://docs.omegax.health)
+
+## Release notes
+
+- `0.8.0` adds full parity for the current oracle and schema registry surface, plus a first-class oracle attestation helper module for service-side signing flows.
+- The package now exports `@omegax/protocol-sdk/oracle` alongside the root exports so oracle workers can use a narrower import surface when they only need attestation helpers.
+- Canonical protocol builders, readers, seeds, generated bindings, and local surface verification are aligned to the current `omegax-protocol` `main` surface.
+
+## Documentation map
+
+- `/docs/INDEX.md` for the maintainer and builder reading order
+- `/docs/GETTING_STARTED.md` for installation, client setup, and choosing the right builder path
+- `/docs/WORKFLOWS.md` for oracle, app, sponsor, and capital flows on the canonical surface
+- `/docs/API_REFERENCE.md` for the exported package surface
+- `/docs/TROUBLESHOOTING.md` for common failure modes and remediation
+- `/docs/RELEASE_NOTES.md` for versioned SDK release notes
+- `/docs/RELEASE.md` for the release checklist
+- `/docs/DOCS_SYNC_WORKFLOW.md` for SDK to portal sync rules
+- `/docs/CROSS_REPO_RELEASE_ORDER.md` for the coordinated protocol + docs + SDK publish order
 
 ## Canonical module map
 
@@ -131,11 +155,12 @@ const result = await rpc.broadcastSignedTx({
 - Sponsors and operators can build reserve-domain, health-plan, policy-series, funding-line, obligation, and claim-case transactions directly.
 - Capital providers can derive capital-class and allocation addresses, inspect ledgers, and build deposit and redemption flows against canonical pool and class objects.
 - Wallet apps and members can inspect plan participation, obligations, claim state, and payout history with the read-model helpers.
+- Oracle operators can register profiles, configure pool policy, and use a narrower attestation helper surface for outcome packaging.
 - External integrators can enumerate the live instruction and account surface with `listProtocolInstructionNames(...)` and `listProtocolAccountNames(...)`.
 
 ## What the SDK does not do
 
-- It does not keep legacy pool-first aliases.
+- It does not keep pool-first compatibility aliases.
 - It does not hide settlement-critical accounting in offchain helpers.
 - It does not invent a second protocol surface for wrappers or regulated participation.
 - It does not sign transactions on your behalf.

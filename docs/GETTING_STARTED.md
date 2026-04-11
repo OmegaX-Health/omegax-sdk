@@ -1,6 +1,6 @@
 # Getting Started — `@omegax/protocol-sdk`
 
-This guide gets you from install to a signed canonical OmegaX transaction.
+This guide gets you from install to a usable OmegaX client on Solana devnet beta, then points you into the right builder path.
 
 ## Prerequisites
 
@@ -16,6 +16,12 @@ Public integrations should target devnet beta until OmegaX announces public main
 ```bash
 npm install @omegax/protocol-sdk
 ```
+
+## Choose your builder path
+
+- Oracle and event producers: register oracle operators, configure pool policy, and package compatible outcome attestations.
+- Health / wallet / app builders: read member, claim, and payout state, then build user-facing enrollment or claim flows.
+- Sponsor and capital integrators: launch reserve domains, plans, funding lines, pools, classes, and allocation flows on the canonical surface.
 
 ## Create clients
 
@@ -43,9 +49,93 @@ const protocol = createProtocolClient(connection, programId);
 const rpc = createRpcClient(connection);
 ```
 
-## Derive canonical addresses
+## Inspect the current public surface
 
-Use PDA helpers from `@omegax/protocol-sdk/protocol_seeds` or the root package to keep runtime state deterministic.
+Use the SDK to inspect the live contract shape before choosing builders.
+
+```ts
+import { listProtocolInstructionNames } from '@omegax/protocol-sdk';
+
+const instructions = listProtocolInstructionNames();
+```
+
+## Build, sign, and broadcast
+
+Every canonical instruction follows the same pattern:
+
+- choose the workflow-specific `build...Tx(...)`
+- pass the required `args`
+- pass the runtime `accounts`
+- attach a fresh `recentBlockhash`
+
+When you have a transaction:
+
+```ts
+const signedTx = await wallet.signTransaction(tx);
+const signedTxBase64 = Buffer.from(signedTx.serialize()).toString('base64');
+const result = await rpc.broadcastSignedTx({
+  signedTxBase64,
+  commitment: 'confirmed',
+});
+```
+
+Simulate before sending when you want preflight detail:
+
+```ts
+const signedTxBase64 = Buffer.from(tx.serialize()).toString('base64');
+const simulation = await rpc.simulateSignedTx({
+  signedTxBase64,
+  sigVerify: true,
+});
+```
+
+## Path A: Oracle and event producers
+
+Start here when your service needs to turn private or messy inputs into OmegaX-compatible outcome events.
+
+Relevant builders and helpers:
+
+- `buildRegisterOracleTx(...)`
+- `buildClaimOracleTx(...)`
+- `buildUpdateOracleProfileTx(...)`
+- `buildSetPoolOracleTx(...)`
+- `buildSetPoolOraclePermissionsTx(...)`
+- `buildSetPoolOraclePolicyTx(...)`
+- `createOracleSignerFromEnv(...)`
+- `createOracleSignerFromKmsAdapter(...)`
+- `attestOutcome(...)`
+
+Then continue with:
+
+- `WORKFLOWS.md`
+- `API_REFERENCE.md`
+- `https://docs.omegax.health/docs/oracle/event-production`
+
+## Path B: Health / wallet / app builders
+
+Start here when your product needs to show users what they hold, what happened, and what can be paid.
+
+Relevant builders and helpers:
+
+- `buildOpenMemberPositionTx(...)`
+- `buildOpenClaimCaseTx(...)`
+- `buildAttachClaimEvidenceRefTx(...)`
+- `buildMemberReadModel(...)`
+- `describeEligibilityStatus(...)`
+- `describeClaimStatus(...)`
+- `describeObligationStatus(...)`
+
+Then continue with:
+
+- `WORKFLOWS.md`
+- `API_REFERENCE.md`
+- `TROUBLESHOOTING.md`
+
+## Path C: Sponsor and capital integrators
+
+Start here when you need to create settlement boundaries, plan lanes, or LP capital flows on the canonical model.
+
+Example: derive canonical addresses for a sponsor-side deployment:
 
 ```ts
 import {
@@ -61,117 +151,34 @@ const reserveDomain = deriveReserveDomainPda({
 }).toBase58();
 const healthPlan = deriveHealthPlanPda({
   reserveDomain,
-  planId: 'nexus-seeker-rewards',
+  planId: 'builder-demo-plan',
   programId,
 }).toBase58();
 ```
 
-## Build an unsigned transaction
+Relevant builders and helpers:
 
-The canonical SDK uses the live IDL-backed builder surface. Every instruction follows the same shape:
+- `buildInitializeProtocolGovernanceTx(...)`
+- `buildCreateReserveDomainTx(...)`
+- `buildCreateDomainAssetVaultTx(...)`
+- `buildCreateHealthPlanTx(...)`
+- `buildCreatePolicySeriesTx(...)`
+- `buildOpenFundingLineTx(...)`
+- `buildCreateLiquidityPoolTx(...)`
+- `buildCreateCapitalClassTx(...)`
+- `buildCreateAllocationPositionTx(...)`
+- `recomputeReserveBalanceSheet(...)`
 
-- `args`: instruction arguments
-- `accounts`: non-static accounts in the order implied by the IDL
-- `recentBlockhash`: fresh blockhash
+Then continue with:
 
-Example: `buildCreateReserveDomainTx(...)`.
+- `WORKFLOWS.md`
+- `API_REFERENCE.md`
+- `RELEASE_NOTES.md`
 
-```ts
-const tx = protocol.buildCreateReserveDomainTx({
-  args: {
-    domain_id: 'open-usdc-domain',
-    display_name: 'Open USDC Domain',
-    domain_admin: '<domain-admin-pubkey>',
-    settlement_mode: 0,
-    legal_structure_hash: new Uint8Array(32),
-    compliance_baseline_hash: new Uint8Array(32),
-    allowed_rail_mask: 1,
-    pause_flags: 0,
-  },
-  accounts: {
-    authority: '<governance-authority-pubkey>',
-    protocol_governance: protocolGovernance,
-    reserve_domain: reserveDomain,
-  },
-  recentBlockhash: await rpc.getRecentBlockhash(),
-});
-```
+## Next steps
 
-## Sign and broadcast
-
-### Wallet adapter / browser signer
-
-```ts
-const signedTx = await wallet.signTransaction(tx);
-const signedTxBase64 = Buffer.from(signedTx.serialize()).toString('base64');
-const broadcast = await rpc.broadcastSignedTx({
-  signedTxBase64,
-  commitment: 'confirmed',
-});
-```
-
-### Backend signer
-
-```ts
-tx.sign(serverKeypair);
-const signedTxBase64 = Buffer.from(tx.serialize()).toString('base64');
-const broadcast = await rpc.broadcastSignedTx({
-  signedTxBase64,
-  commitment: 'confirmed',
-});
-```
-
-## Simulate before sending
-
-```ts
-const signedTxBase64 = Buffer.from(tx.serialize()).toString('base64');
-const simulation = await rpc.simulateSignedTx({
-  signedTxBase64,
-  sigVerify: true,
-});
-
-if (!simulation.ok) {
-  console.error(simulation.failure);
-}
-```
-
-## Verify resulting state
-
-Use canonical reader helpers rather than ad hoc account decoding.
-
-```ts
-const domain = await protocol.fetchReserveDomain(reserveDomain);
-const plan = await protocol.fetchHealthPlan(healthPlan);
-```
-
-You can also inspect the live contract shape programmatically:
-
-```ts
-const instructions = protocol.listProtocolInstructionNames?.() ?? [];
-```
-
-or from the root module:
-
-```ts
-import { listProtocolInstructionNames } from '@omegax/protocol-sdk';
-
-const instructions = listProtocolInstructionNames();
-```
-
-## Optional v0 transaction compilation
-
-If your runtime uses lookup tables, compile a built transaction with `compileTransactionToV0(...)`.
-
-```ts
-import { compileTransactionToV0 } from '@omegax/protocol-sdk';
-
-const versioned = compileTransactionToV0(tx, lookupTableAccounts);
-```
-
-## Practical next steps
-
-1. Use `WORKFLOWS.md` to map sponsor, claim, or capital flows to exact builders.
-2. Use `API_REFERENCE.md` to see the exported reader, PDA helper, and oracle helper surface.
-3. Use `RELEASE_NOTES.md` to confirm the package version and newly added modules you expect to consume.
+1. Use `WORKFLOWS.md` to map your builder path to the right canonical builders and readers.
+2. Use `API_REFERENCE.md` to inspect the exported reader, helper, and builder surface in detail.
+3. Use `RELEASE_NOTES.md` to confirm the current SDK version and newly added modules.
 4. Run `npm run generate:protocol-bindings` whenever the sibling protocol repo changes.
 5. Run `npm run verify:protocol:local` before shipping SDK changes that affect runtime parity.

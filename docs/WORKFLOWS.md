@@ -2,6 +2,8 @@
 
 These workflows map the canonical OmegaX economic model to the actual SDK builders and readers.
 
+Use them by builder lane rather than reading the entire catalog in protocol-object order.
+
 ## Shared integration pattern
 
 1. Create `connection`, `protocol`, and `rpc` clients.
@@ -11,7 +13,99 @@ These workflows map the canonical OmegaX economic model to the actual SDK builde
 5. Broadcast with `broadcastSignedTx(...)`.
 6. Verify state with `fetch...(...)` readers and reserve-model helpers.
 
-## Workflow A: Governance and reserve-domain bootstrap
+## Path A: Oracle and event producers
+
+Use this path when your service needs to normalize private inputs into OmegaX-compatible outcome events and policy-bound oracle actions.
+
+### Workflow A1: Oracle and schema registry operations
+
+Use this when an operator needs to register oracle metadata, configure pool oracle controls, or manage the schema registry through the canonical protocol surface.
+
+Builders:
+
+- `buildRegisterOracleTx(...)`
+- `buildClaimOracleTx(...)`
+- `buildUpdateOracleProfileTx(...)`
+- `buildSetPoolOracleTx(...)`
+- `buildSetPoolOraclePermissionsTx(...)`
+- `buildSetPoolOraclePolicyTx(...)`
+- `buildRegisterOutcomeSchemaTx(...)`
+- `buildVerifyOutcomeSchemaTx(...)`
+- `buildBackfillSchemaDependencyLedgerTx(...)`
+- `buildCloseOutcomeSchemaTx(...)`
+
+Readers:
+
+- `fetchOracleProfile(...)`
+- `fetchPoolOracleApproval(...)`
+- `fetchPoolOraclePolicy(...)`
+- `fetchPoolOraclePermissionSet(...)`
+- `fetchOutcomeSchema(...)`
+- `fetchSchemaDependencyLedger(...)`
+
+### Workflow A2: Oracle attestation services
+
+Use this when an external oracle worker or service needs a stable signing surface for outcome attestations before it forwards them into downstream transport or settlement systems.
+
+Helpers:
+
+- `createOracleSignerFromEnv(...)`
+- `createOracleSignerFromKmsAdapter(...)`
+- `attestOutcome(...)`
+
+## Path B: Health / wallet / app builders
+
+Use this path when your app needs member, claim, obligation, and payout state without owning the entire sponsor or capital stack.
+
+### Workflow B1: Protection claims and premium flows
+
+Use this when a policy series needs explicit premium intake, claim review, and settlement consequences.
+
+Builders:
+
+- `buildRecordPremiumPaymentTx(...)`
+- `buildOpenClaimCaseTx(...)`
+- `buildAttachClaimEvidenceRefTx(...)`
+- `buildAdjudicateClaimCaseTx(...)`
+- `buildSettleClaimCaseTx(...)`
+- `buildCreateObligationTx(...)`
+- `buildReserveObligationTx(...)`
+- `buildSettleObligationTx(...)`
+
+Readers:
+
+- `fetchClaimCase(...)`
+- `fetchObligation(...)`
+- `fetchFundingLineLedger(...)`
+- `fetchPlanReserveLedger(...)`
+- `fetchSeriesReserveLedger(...)`
+
+Failure helpers:
+
+- `normalizeClaimSimulationFailure(...)`
+- `normalizeClaimRpcFailure(...)`
+
+### Workflow B2: Member read models
+
+Use this when you want wallet-facing or app-facing views rather than raw account objects.
+
+Helpers:
+
+- `buildMemberReadModel(...)`
+- `describeEligibilityStatus(...)`
+- `describeClaimStatus(...)`
+- `describeObligationStatus(...)`
+- `shortenAddress(...)`
+
+Note:
+
+- `buildOpenMemberPositionTx(...)` lives in the sponsor-funded plan workflow below because the same canonical builder can be used by self-serve products or sponsor-controlled products depending on plan configuration.
+
+## Path C: Sponsor and capital integrators
+
+Use this path when you need to create the settlement boundary, launch sponsor programs, or connect LP capital to those lanes.
+
+### Workflow C1: Governance and reserve-domain bootstrap
 
 Use this when preparing the settlement boundary for a new domain and asset.
 
@@ -30,7 +124,7 @@ Readers:
 - `fetchDomainAssetVault(...)`
 - `fetchDomainAssetLedger(...)`
 
-## Workflow B: Sponsor-funded health plan
+### Workflow C2: Sponsor-funded health plan
 
 Use this for sponsor budgets, reward programs, or early-stage plans that do not need LP capital.
 
@@ -65,35 +159,7 @@ Reserve helpers:
 - `recomputeReserveBalanceSheet(...)`
 - `buildSponsorReadModel(...)`
 
-## Workflow C: Protection claims and premium flows
-
-Use this when a policy series needs explicit premium intake, claim review, and settlement consequences.
-
-Builders:
-
-- `buildRecordPremiumPaymentTx(...)`
-- `buildOpenClaimCaseTx(...)`
-- `buildAttachClaimEvidenceRefTx(...)`
-- `buildAdjudicateClaimCaseTx(...)`
-- `buildSettleClaimCaseTx(...)`
-- `buildCreateObligationTx(...)`
-- `buildReserveObligationTx(...)`
-- `buildSettleObligationTx(...)`
-
-Readers:
-
-- `fetchClaimCase(...)`
-- `fetchObligation(...)`
-- `fetchFundingLineLedger(...)`
-- `fetchPlanReserveLedger(...)`
-- `fetchSeriesReserveLedger(...)`
-
-Failure helpers:
-
-- `normalizeClaimSimulationFailure(...)`
-- `normalizeClaimRpcFailure(...)`
-
-## Workflow D: LP capital, classes, and redemptions
+### Workflow C3: LP capital, classes, and redemptions
 
 Use this when capital providers enter through canonical liquidity pools and capital classes.
 
@@ -119,7 +185,7 @@ Reserve helpers:
 - `recomputeReserveBalanceSheet(...)`
 - `buildCapitalReadModel(...)`
 
-## Workflow E: Allocation and impairment
+### Workflow C4: Allocation and impairment
 
 Use this when LP capital is bridged into plan-side funding lines.
 
@@ -138,54 +204,6 @@ Readers:
 - `fetchCapitalClass(...)`
 - `fetchFundingLine(...)`
 - `fetchObligation(...)`
-
-## Workflow F: Oracle and schema registry operations
-
-Use this when an operator needs to register oracle metadata, configure pool oracle controls, or manage the schema registry through the canonical protocol surface.
-
-Builders:
-
-- `buildRegisterOracleTx(...)`
-- `buildClaimOracleTx(...)`
-- `buildUpdateOracleProfileTx(...)`
-- `buildSetPoolOracleTx(...)`
-- `buildSetPoolOraclePermissionsTx(...)`
-- `buildSetPoolOraclePolicyTx(...)`
-- `buildRegisterOutcomeSchemaTx(...)`
-- `buildVerifyOutcomeSchemaTx(...)`
-- `buildBackfillSchemaDependencyLedgerTx(...)`
-- `buildCloseOutcomeSchemaTx(...)`
-
-Readers:
-
-- `fetchOracleProfile(...)`
-- `fetchPoolOracleApproval(...)`
-- `fetchPoolOraclePolicy(...)`
-- `fetchPoolOraclePermissionSet(...)`
-- `fetchOutcomeSchema(...)`
-- `fetchSchemaDependencyLedger(...)`
-
-## Workflow G: Oracle attestation services
-
-Use this when an external oracle worker or service needs a stable signing surface for outcome attestations before it forwards them into downstream transport or settlement systems.
-
-Helpers:
-
-- `createOracleSignerFromEnv(...)`
-- `createOracleSignerFromKmsAdapter(...)`
-- `attestOutcome(...)`
-
-## Workflow H: Member read models
-
-Use this when you want wallet-facing views rather than raw account objects.
-
-Helpers:
-
-- `buildMemberReadModel(...)`
-- `describeEligibilityStatus(...)`
-- `describeClaimStatus(...)`
-- `describeObligationStatus(...)`
-- `shortenAddress(...)`
 
 ## Local release preflight
 

@@ -1,22 +1,26 @@
 # Documentation Index — `@omegax/protocol-sdk`
 
-Use this page as the navigation hub for package users and release maintainers.
+Use this page as the navigation hub for builders and release maintainers.
 
-## Start here
+## Start with your builder path
 
-- New integrator: `GETTING_STARTED.md`
-- Mapping sponsor, claim, and capital flows: `WORKFLOWS.md`
-- Looking up exact package exports: `API_REFERENCE.md`
-- Debugging failures: `TROUBLESHOOTING.md`
-- Reviewing version changes: `RELEASE_NOTES.md`
-- Preparing a release: `RELEASE.md`
-- Syncing portal docs: `DOCS_SYNC_WORKFLOW.md`
-- Running the coordinated release train: `CROSS_REPO_RELEASE_ORDER.md`
+- Oracle and event producers:
+  - `GETTING_STARTED.md`
+  - `WORKFLOWS.md`
+  - `API_REFERENCE.md`
+- Health / wallet / app builders:
+  - `GETTING_STARTED.md`
+  - `WORKFLOWS.md`
+  - `TROUBLESHOOTING.md`
+- Sponsor and capital integrators:
+  - `WORKFLOWS.md`
+  - `API_REFERENCE.md`
+  - `RELEASE_NOTES.md`
 
 ## Core docs
 
-- `GETTING_STARTED.md` for client setup, unsigned transaction construction, and submission
-- `WORKFLOWS.md` for canonical sponsor, claim, capital, and allocation flows
+- `GETTING_STARTED.md` for client setup, path selection, and the shared unsigned transaction pattern
+- `WORKFLOWS.md` for oracle, app, sponsor, and capital flows on the canonical surface
 - `API_REFERENCE.md` for public builders, readers, PDA helpers, and reserve-model helpers
 - `TROUBLESHOOTING.md` for canonical failure modes and remediation
 - `RELEASE_NOTES.md` for versioned SDK changes and rollout notes
