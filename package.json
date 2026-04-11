@@ -22,7 +22,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/OmegaX-Health/omegax-sdk.git"
+    "url": "git+https://github.com/OmegaX-Health/omegax-sdk.git"
   },
   "homepage": "https://github.com/OmegaX-Health/omegax-sdk#readme",
   "bugs": {
