@@ -36,6 +36,7 @@ export const SEED_POOL_ORACLE_POLICY = 'pool_oracle_policy';
 export const SEED_POOL_ORACLE_PERMISSION_SET = 'pool_oracle_permission_set';
 export const SEED_OUTCOME_SCHEMA = 'outcome_schema';
 export const SEED_SCHEMA_DEPENDENCY_LEDGER = 'schema_dependency_ledger';
+export const SEED_CLAIM_ATTESTATION = 'claim_attestation';
 
 export function getProgramId(): PublicKey {
   return PROGRAM_ID;
@@ -475,6 +476,21 @@ export function deriveSchemaDependencyLedgerPda(params: {
     [
       TEXT_ENCODER.encode(SEED_SCHEMA_DEPENDENCY_LEDGER),
       hexSeed(params.schemaKeyHashHex, 'schema key hash'),
+    ],
+    params.programId ?? PROGRAM_ID,
+  );
+}
+
+export function deriveClaimAttestationPda(params: {
+  claimCase: PublicKeyish;
+  oracle: PublicKeyish;
+  programId?: PublicKeyish;
+}): PublicKey {
+  return derivePda(
+    [
+      TEXT_ENCODER.encode(SEED_CLAIM_ATTESTATION),
+      toPublicKey(params.claimCase).toBytes(),
+      toPublicKey(params.oracle).toBytes(),
     ],
     params.programId ?? PROGRAM_ID,
   );

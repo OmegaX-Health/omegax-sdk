@@ -6,6 +6,7 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 
 import idl from '../src/generated/omegax_protocol.idl.json' with { type: 'json' };
 import {
+  buildAttestClaimCaseTx,
   CLAIM_INTAKE_APPROVED,
   CAPITAL_CLASS_RESTRICTION_WRAPPER_ONLY,
   FUNDING_LINE_TYPE_SPONSOR_BUDGET,
@@ -17,6 +18,7 @@ import {
   buildSponsorReadModel,
   createProtocolClient,
   decodeProtocolAccount,
+  deriveClaimAttestationPda,
   deriveAllocationPositionPda,
   deriveHealthPlanPda,
   deriveLiquidityPoolPda,
@@ -142,6 +144,54 @@ test('decodeProtocolAccount normalizes pubkeys and bigints for canonical readers
   assert.equal(
     (fetched as { governance_authority: string }).governance_authority,
     ZERO.toBase58(),
+  );
+});
+
+test('buildAttestClaimCaseTx includes the schema-bound outcome schema account', () => {
+  const oracle = Keypair.generate().publicKey;
+  const claimCaseAddress = Keypair.generate().publicKey;
+  const schemaKeyHashHex = '12'.repeat(32);
+  const tx = buildAttestClaimCaseTx({
+    oracle,
+    claimCaseAddress,
+    recentBlockhash: '11111111111111111111111111111111',
+    decision: 0,
+    attestationHashHex: '34'.repeat(32),
+    attestationRefHashHex: '56'.repeat(32),
+    schemaKeyHashHex,
+  });
+
+  assert.equal(tx.instructions.length, 1);
+  const keys = tx.instructions[0]?.keys ?? [];
+  assert.equal(keys[0]?.pubkey.toBase58(), oracle.toBase58());
+  assert.equal(keys[1]?.pubkey.toBase58(), deriveOracleProfilePda({ oracle }).toBase58());
+  assert.equal(keys[2]?.pubkey.toBase58(), claimCaseAddress.toBase58());
+  assert.equal(
+    keys[3]?.pubkey.toBase58(),
+    deriveOutcomeSchemaPda({ schemaKeyHashHex }).toBase58(),
+  );
+  assert.equal(
+    keys[4]?.pubkey.toBase58(),
+    deriveClaimAttestationPda({ claimCase: claimCaseAddress, oracle }).toBase58(),
+  );
+});
+
+test('buildAttestClaimCaseTx rejects unsupported attestation decisions before submission', () => {
+  const oracle = Keypair.generate().publicKey;
+  const claimCaseAddress = Keypair.generate().publicKey;
+
+  assert.throws(
+    () =>
+      buildAttestClaimCaseTx({
+        oracle,
+        claimCaseAddress,
+        recentBlockhash: '11111111111111111111111111111111',
+        decision: 99,
+        attestationHashHex: '34'.repeat(32),
+        attestationRefHashHex: '56'.repeat(32),
+        schemaKeyHashHex: '12'.repeat(32),
+      }),
+    /claim attestation decision must be one of 0/,
   );
 });
 

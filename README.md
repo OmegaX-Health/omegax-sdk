@@ -6,7 +6,7 @@ Build health apps, oracle services, and outcome-triggered settlement flows on So
 
 ## What you can build today
 
-- oracle and event-production services that register operators, manage policy, and emit compatible outcome attestations
+- oracle and event-production services that register operators, manage policy, and emit compatible outcome and claim-case attestations
 - health apps, wallets, and agents that read member, claim, obligation, and payout state
 - sponsor and capital integrations that create plans, funding lines, pools, classes, allocations, and redemptions
 
@@ -94,7 +94,7 @@ const instructions = listProtocolInstructionNames();
 
 From there:
 
-- oracle and event producers usually move into `buildRegisterOracleTx(...)`, `buildClaimOracleTx(...)`, `buildSetPoolOraclePolicyTx(...)`, and `attestOutcome(...)`
+- oracle and event producers usually move into `buildRegisterOracleTx(...)`, `buildClaimOracleTx(...)`, `buildSetPoolOraclePolicyTx(...)`, `buildAttestClaimCaseTx(...)`, and `attestOutcome(...)`
 - health and wallet builders usually move into member / claim reads plus `buildOpenMemberPositionTx(...)` and `buildOpenClaimCaseTx(...)`
 - sponsor and capital integrators usually move into reserve-domain, plan, pool, class, allocation, and redemption builders from `/docs/WORKFLOWS.md`
 
@@ -145,7 +145,7 @@ This package exposes the live canonical object model:
 - `@omegax/protocol-sdk/protocol_seeds`: deterministic PDA helpers such as `deriveReserveDomainPda(...)`, `deriveHealthPlanPda(...)`, `deriveFundingLinePda(...)`, and `deriveCapitalClassPda(...)`
 - `@omegax/protocol-sdk/protocol_models`: constants and read-model helpers such as `recomputeReserveBalanceSheet(...)`, `buildSponsorReadModel(...)`, `buildCapitalReadModel(...)`, and `buildMemberReadModel(...)`
 - `@omegax/protocol-sdk/claims`: claim and obligation failure normalization helpers such as `normalizeClaimSimulationFailure(...)`
-- `@omegax/protocol-sdk/oracle`: oracle attestation helpers such as `createOracleSignerFromEnv(...)`, `createOracleSignerFromKmsAdapter(...)`, and `attestOutcome(...)`
+- `@omegax/protocol-sdk/oracle`: oracle attestation helpers such as `createOracleSignerFromEnv(...)`, `createOracleSignerFromKmsAdapter(...)`, and `attestOutcome(...)`, alongside the root-level `buildAttestClaimCaseTx(...)` helper for on-chain claim-case attestations
 - `@omegax/protocol-sdk/rpc`: `createConnection(...)`, `createRpcClient(...)`, and network metadata helpers
 - `@omegax/protocol-sdk/utils`: hashing, binary encoding, and misc utilities
 - `@omegax/protocol-sdk/types`: generated protocol contract types plus SDK RPC and failure types

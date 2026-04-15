@@ -29,6 +29,7 @@ import type {
   PublicKeyish,
 } from './generated/protocol_types.js';
 import {
+  deriveClaimAttestationPda,
   deriveOracleProfilePda,
   deriveOutcomeSchemaPda,
   derivePoolOracleApprovalPda,
@@ -873,6 +874,83 @@ export function buildCloseOutcomeSchemaTx(params: {
         programId: params.programId,
       }),
       recipient_system_account: toPublicKey(params.recipientSystemAccount),
+    },
+  });
+}
+
+export const CLAIM_ATTESTATION_DECISION_SUPPORT_APPROVE = 0;
+export const CLAIM_ATTESTATION_DECISION_SUPPORT_DENY = 1;
+export const CLAIM_ATTESTATION_DECISION_REQUEST_REVIEW = 2;
+export const CLAIM_ATTESTATION_DECISION_ABSTAIN = 3;
+
+function assertValidClaimAttestationDecision(decision: number): void {
+  if (
+    decision !== CLAIM_ATTESTATION_DECISION_SUPPORT_APPROVE &&
+    decision !== CLAIM_ATTESTATION_DECISION_SUPPORT_DENY &&
+    decision !== CLAIM_ATTESTATION_DECISION_REQUEST_REVIEW &&
+    decision !== CLAIM_ATTESTATION_DECISION_ABSTAIN
+  ) {
+    throw new Error(
+      'claim attestation decision must be one of 0 (approve), 1 (deny), 2 (review), or 3 (abstain)',
+    );
+  }
+}
+
+export function buildAttestClaimCaseTx(params: {
+  oracle: PublicKeyish;
+  claimCaseAddress: PublicKeyish;
+  recentBlockhash: string;
+  decision: number;
+  attestationHashHex: string;
+  attestationRefHashHex?: string | null;
+  schemaKeyHashHex: string;
+  programId?: PublicKeyish;
+}): Transaction {
+  const oracle = toPublicKey(params.oracle);
+  const claimCase = toPublicKey(params.claimCaseAddress);
+  assertValidClaimAttestationDecision(params.decision);
+  const attestationHash = normalizeHex32(
+    params.attestationHashHex,
+    'attestation hash',
+  );
+  const attestationRefHash = normalizeHex32(
+    params.attestationRefHashHex ?? '0'.repeat(64),
+    'attestation ref hash',
+  );
+  const schemaKeyHash = normalizeHex32(
+    params.schemaKeyHashHex,
+    'schema key hash',
+  );
+  return buildConvenienceTransaction({
+    instructionName: 'attest_claim_case',
+    feePayer: oracle,
+    recentBlockhash: params.recentBlockhash,
+    programId: params.programId,
+    args: {
+      decision: params.decision,
+      attestation_hash: Array.from(hexToFixedBytes(attestationHash, 'attestation hash')),
+      attestation_ref_hash: Array.from(
+        hexToFixedBytes(attestationRefHash, 'attestation ref hash'),
+      ),
+      schema_key_hash: Array.from(hexToFixedBytes(schemaKeyHash, 'schema key hash')),
+    },
+    accounts: {
+      oracle,
+      oracle_profile: deriveOracleProfilePda({
+        oracle,
+        programId: params.programId,
+      }),
+      claim_case: claimCase,
+      outcome_schema: deriveOutcomeSchemaPda({
+        schemaKeyHashHex: schemaKeyHash,
+        programId: params.programId,
+      }),
+      claim_attestation: deriveClaimAttestationPda({
+        claimCase,
+        oracle,
+        programId: params.programId,
+      }),
+      system_program: SystemProgram.programId,
     },
   });
 }

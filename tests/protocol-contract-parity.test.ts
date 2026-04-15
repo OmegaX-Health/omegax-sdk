@@ -37,6 +37,7 @@ const pdaSeedFunctionMap: Record<string, string> = {
   pool_oracle_permission_set: 'derivePoolOraclePermissionSetPda',
   outcome_schema: 'deriveOutcomeSchemaPda',
   schema_dependency_ledger: 'deriveSchemaDependencyLedgerPda',
+  claim_attestation: 'deriveClaimAttestationPda',
 };
 
 test('every canonical instruction has transaction and instruction builders', () => {
