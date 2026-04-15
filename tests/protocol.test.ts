@@ -164,7 +164,10 @@ test('buildAttestClaimCaseTx includes the schema-bound outcome schema account', 
   assert.equal(tx.instructions.length, 1);
   const keys = tx.instructions[0]?.keys ?? [];
   assert.equal(keys[0]?.pubkey.toBase58(), oracle.toBase58());
-  assert.equal(keys[1]?.pubkey.toBase58(), deriveOracleProfilePda({ oracle }).toBase58());
+  assert.equal(
+    keys[1]?.pubkey.toBase58(),
+    deriveOracleProfilePda({ oracle }).toBase58(),
+  );
   assert.equal(keys[2]?.pubkey.toBase58(), claimCaseAddress.toBase58());
   assert.equal(
     keys[3]?.pubkey.toBase58(),
@@ -172,7 +175,10 @@ test('buildAttestClaimCaseTx includes the schema-bound outcome schema account', 
   );
   assert.equal(
     keys[4]?.pubkey.toBase58(),
-    deriveClaimAttestationPda({ claimCase: claimCaseAddress, oracle }).toBase58(),
+    deriveClaimAttestationPda({
+      claimCase: claimCaseAddress,
+      oracle,
+    }).toBase58(),
   );
 });
 

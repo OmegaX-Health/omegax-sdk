@@ -928,11 +928,15 @@ export function buildAttestClaimCaseTx(params: {
     programId: params.programId,
     args: {
       decision: params.decision,
-      attestation_hash: Array.from(hexToFixedBytes(attestationHash, 'attestation hash')),
+      attestation_hash: Array.from(
+        hexToFixedBytes(attestationHash, 'attestation hash'),
+      ),
       attestation_ref_hash: Array.from(
         hexToFixedBytes(attestationRefHash, 'attestation ref hash'),
       ),
-      schema_key_hash: Array.from(hexToFixedBytes(schemaKeyHash, 'schema key hash')),
+      schema_key_hash: Array.from(
+        hexToFixedBytes(schemaKeyHash, 'schema key hash'),
+      ),
     },
     accounts: {
       oracle,
