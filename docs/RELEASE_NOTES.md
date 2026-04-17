@@ -1,5 +1,11 @@
 # Release Notes — `@omegax/protocol-sdk`
 
+## `0.8.1`
+
+- Refreshed generated IDL, contract, and type bindings against the latest public `omegax-protocol v0.3.0` surface.
+- Updated SDK parity for the linked protection-claim and obligation-settlement hardening, including the newer obligation lifecycle account metadata and tighter claim linkage invariants.
+- Kept the package on the devnet-first public release track while preserving the current `omegax-protocol v0.3.0` contract target.
+
 ## `0.8.0`
 
 - Added first-class SDK coverage for the current oracle and schema registry surface, including canonical builders and generated contract parity for oracle profiles, pool oracle controls, outcome schemas, and schema dependency ledgers.

@@ -115,13 +115,14 @@ This package exposes the live canonical object model:
 
 ## Release status
 
-- SDK release target: `0.8.0`
+- SDK release target: `0.8.1`
 - Protocol surface target: `omegax-protocol v0.3.0`
 - Current public network target: Solana devnet beta
 - Public docs: [docs.omegax.health](https://docs.omegax.health)
 
 ## Release notes
 
+- `0.8.1` refreshes generated bindings and protocol parity for the latest linked-claim and obligation-settlement hardening on the public `v0.3.0` surface.
 - `0.8.0` adds full parity for the current oracle and schema registry surface, plus a first-class oracle attestation helper module for service-side signing flows.
 - The package now exports `@omegax/protocol-sdk/oracle` alongside the root exports so oracle workers can use a narrower import surface when they only need attestation helpers.
 - Canonical protocol builders, readers, seeds, generated bindings, and local surface verification are aligned to the current `omegax-protocol` `main` surface.

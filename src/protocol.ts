@@ -29,16 +29,32 @@ import type {
   PublicKeyish,
 } from './generated/protocol_types.js';
 import {
+  deriveAllocationLedgerPda,
   deriveClaimAttestationPda,
+  deriveClaimCasePda,
+  deriveDomainAssetLedgerPda,
+  deriveDomainAssetVaultPda,
+  deriveFundingLineLedgerPda,
+  deriveFundingLinePda,
+  deriveLpPositionPda,
+  deriveMemberPositionPda,
+  deriveMembershipAnchorSeatPda,
   deriveOracleProfilePda,
+  deriveObligationPda,
   deriveOutcomeSchemaPda,
+  derivePlanReserveLedgerPda,
   derivePoolOracleApprovalPda,
   derivePoolOraclePermissionSetPda,
   derivePoolOraclePolicyPda,
   deriveSchemaDependencyLedgerPda,
   deriveProtocolGovernancePda,
+  derivePoolClassLedgerPda,
+  derivePolicySeriesPda,
+  deriveReserveDomainPda,
+  deriveSeriesReserveLedgerPda,
   getProgramId,
   toPublicKey,
+  ZERO_PUBKEY_KEY,
 } from './protocol_seeds.js';
 
 type IdlField = { name: string; type: IdlType };
@@ -68,6 +84,7 @@ type IdlInstructionEntry = {
 };
 
 const CODER = new BorshCoder(protocolIdl as never);
+const ZERO_HASH_HEX = '00'.repeat(32);
 const TYPE_BY_NAME = new Map<string, IdlStruct>(
   ((protocolIdl as { types?: IdlTypeEntry[] }).types ?? []).map((entry) => [
     entry.name,
@@ -154,6 +171,12 @@ function normalizeHex32(value: string, label: string): string {
 
 function hexToFixedBytes(value: string, label: string): Uint8Array {
   return Uint8Array.from(Buffer.from(normalizeHex32(value, label), 'hex'));
+}
+
+function normalizeOptionalHex32(value?: string | null): string {
+  const trimmed = value?.trim();
+  if (!trimmed) return ZERO_HASH_HEX;
+  return normalizeHex32(trimmed, 'hex value');
 }
 
 function normalizeInputValue(type: IdlType, value: unknown): unknown {
@@ -479,6 +502,995 @@ function buildConvenienceTransaction(params: {
     feePayer: params.feePayer,
     recentBlockhash: params.recentBlockhash,
     programId: params.programId,
+  });
+}
+
+export type ProtocolInstructionAccountInput = {
+  pubkey?: PublicKeyish | null;
+  isSigner?: boolean;
+  isWritable?: boolean;
+};
+
+function normalizeOrderedInstructionAccounts(
+  accounts: ProtocolInstructionAccountInput[],
+): Array<{ pubkey: PublicKey; isSigner: boolean; isWritable: boolean }> {
+  return accounts.map((account) => {
+    const pubkey = toPublicKey(account.pubkey ?? getProgramId());
+    return {
+      pubkey,
+      isSigner: account.pubkey ? Boolean(account.isSigner) : false,
+      isWritable: account.pubkey ? Boolean(account.isWritable) : false,
+    };
+  });
+}
+
+function buildOrderedInstruction(params: {
+  instructionName: ProtocolInstructionName;
+  args: Record<string, unknown>;
+  accounts: ProtocolInstructionAccountInput[];
+  programId?: PublicKeyish;
+}): TransactionInstruction {
+  const instructionArgsType = ARG_TYPE_BY_INSTRUCTION.get(
+    params.instructionName,
+  );
+  const normalizedArgs = instructionArgsType
+    ? { args: normalizeInputValue(instructionArgsType, params.args) }
+    : {};
+
+  const encoded = CODER.instruction.encode(
+    params.instructionName,
+    normalizedArgs,
+  );
+
+  return new TransactionInstruction({
+    programId: toPublicKey(params.programId ?? PROTOCOL_PROGRAM_ID),
+    keys: normalizeOrderedInstructionAccounts(params.accounts),
+    data: Buffer.from(encoded),
+  });
+}
+
+function buildOrderedTransaction(params: {
+  feePayer: PublicKeyish;
+  recentBlockhash: string;
+  instructionName: ProtocolInstructionName;
+  args: Record<string, unknown>;
+  accounts: ProtocolInstructionAccountInput[];
+  programId?: PublicKeyish;
+}): Transaction {
+  return new Transaction({
+    feePayer: toPublicKey(params.feePayer),
+    recentBlockhash: params.recentBlockhash,
+  }).add(
+    buildOrderedInstruction({
+      instructionName: params.instructionName,
+      args: params.args,
+      accounts: params.accounts,
+      programId: params.programId,
+    }),
+  );
+}
+
+function optionalProtocolAccount(
+  pubkey?: PublicKeyish | null,
+  isWritable = false,
+): ProtocolInstructionAccountInput {
+  return pubkey
+    ? { pubkey, isWritable }
+    : { pubkey: undefined, isWritable: false };
+}
+
+function optionalSeriesReserveLedgerAccount(
+  policySeriesAddress: PublicKeyish | null | undefined,
+  assetMint: PublicKeyish | null | undefined,
+): ProtocolInstructionAccountInput {
+  if (!policySeriesAddress || !assetMint) return optionalProtocolAccount();
+  return optionalProtocolAccount(
+    deriveSeriesReserveLedgerPda({
+      policySeries: policySeriesAddress,
+      assetMint,
+    }),
+    true,
+  );
+}
+
+function optionalPoolClassLedgerAccount(
+  capitalClassAddress: PublicKeyish | null | undefined,
+  poolAssetMint: PublicKeyish | null | undefined,
+): ProtocolInstructionAccountInput {
+  if (!capitalClassAddress || !poolAssetMint) return optionalProtocolAccount();
+  return optionalProtocolAccount(
+    derivePoolClassLedgerPda({
+      capitalClass: capitalClassAddress,
+      assetMint: poolAssetMint,
+    }),
+    true,
+  );
+}
+
+function optionalAllocationLedgerAccount(
+  allocationPositionAddress: PublicKeyish | null | undefined,
+  assetMint: PublicKeyish | null | undefined,
+): ProtocolInstructionAccountInput {
+  if (!allocationPositionAddress || !assetMint)
+    return optionalProtocolAccount();
+  return optionalProtocolAccount(
+    deriveAllocationLedgerPda({
+      allocationPosition: allocationPositionAddress,
+      assetMint,
+    }),
+    true,
+  );
+}
+
+export function buildInitializeProtocolGovernanceTx(params: {
+  governanceAuthority: PublicKeyish;
+  recentBlockhash: string;
+  protocolFeeBps: number;
+  emergencyPaused: boolean;
+  programId?: PublicKeyish;
+}): Transaction {
+  const governanceAuthority = toPublicKey(params.governanceAuthority);
+  return buildOrderedTransaction({
+    feePayer: governanceAuthority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'initialize_protocol_governance',
+    programId: params.programId,
+    args: {
+      protocol_fee_bps: params.protocolFeeBps,
+      emergency_pause: params.emergencyPaused,
+    },
+    accounts: [
+      { pubkey: governanceAuthority, isSigner: true, isWritable: true },
+      { pubkey: deriveProtocolGovernancePda(), isWritable: true },
+      { pubkey: SystemProgram.programId },
+    ],
+  });
+}
+
+export function buildCreateReserveDomainTx(params: {
+  authority: PublicKeyish;
+  recentBlockhash: string;
+  domainId: string;
+  displayName: string;
+  domainAdmin?: PublicKeyish | null;
+  settlementMode: number;
+  legalStructureHashHex?: string | null;
+  complianceBaselineHashHex?: string | null;
+  allowedRailMask: number;
+  pauseFlags: number;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  return buildOrderedTransaction({
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'create_reserve_domain',
+    programId: params.programId,
+    args: {
+      domain_id: params.domainId,
+      display_name: params.displayName,
+      domain_admin: toPublicKey(params.domainAdmin ?? authority),
+      settlement_mode: params.settlementMode,
+      legal_structure_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.legalStructureHashHex),
+          'legal structure hash',
+        ),
+      ),
+      compliance_baseline_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.complianceBaselineHashHex),
+          'compliance baseline hash',
+        ),
+      ),
+      allowed_rail_mask: params.allowedRailMask,
+      pause_flags: params.pauseFlags,
+    },
+    accounts: [
+      { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: deriveProtocolGovernancePda() },
+      {
+        pubkey: deriveReserveDomainPda({ domainId: params.domainId }),
+        isWritable: true,
+      },
+      { pubkey: SystemProgram.programId },
+    ],
+  });
+}
+
+export function buildCreateDomainAssetVaultTx(params: {
+  authority: PublicKeyish;
+  reserveDomainAddress: PublicKeyish;
+  assetMint: PublicKeyish;
+  recentBlockhash: string;
+  vaultTokenAccountAddress?: PublicKeyish | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  const assetMint = toPublicKey(params.assetMint);
+  return buildOrderedTransaction({
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'create_domain_asset_vault',
+    programId: params.programId,
+    args: {
+      asset_mint: assetMint,
+      vault_token_account: toPublicKey(
+        params.vaultTokenAccountAddress ?? ZERO_PUBKEY_KEY,
+      ),
+    },
+    accounts: [
+      { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: params.reserveDomainAddress, isWritable: true },
+      {
+        pubkey: deriveDomainAssetVaultPda({
+          reserveDomain: params.reserveDomainAddress,
+          assetMint,
+        }),
+        isWritable: true,
+      },
+      {
+        pubkey: deriveDomainAssetLedgerPda({
+          reserveDomain: params.reserveDomainAddress,
+          assetMint,
+        }),
+        isWritable: true,
+      },
+      { pubkey: SystemProgram.programId },
+    ],
+  });
+}
+
+export function buildCreatePolicySeriesTx(params: {
+  authority: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  assetMint: PublicKeyish;
+  recentBlockhash: string;
+  seriesId: string;
+  displayName: string;
+  metadataUri: string;
+  mode: number;
+  status: number;
+  adjudicationMode: number;
+  termsHashHex?: string | null;
+  pricingHashHex?: string | null;
+  payoutHashHex?: string | null;
+  reserveModelHashHex?: string | null;
+  evidenceRequirementsHashHex?: string | null;
+  comparabilityHashHex?: string | null;
+  policyOverridesHashHex?: string | null;
+  cycleSeconds: bigint;
+  termsVersion: number;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  const policySeries = derivePolicySeriesPda({
+    healthPlan: params.healthPlanAddress,
+    seriesId: params.seriesId,
+  });
+  const seriesReserveLedger = deriveSeriesReserveLedgerPda({
+    policySeries,
+    assetMint: params.assetMint,
+  });
+  return buildOrderedTransaction({
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'create_policy_series',
+    programId: params.programId,
+    args: {
+      series_id: params.seriesId,
+      display_name: params.displayName,
+      metadata_uri: params.metadataUri,
+      asset_mint: toPublicKey(params.assetMint),
+      mode: params.mode,
+      status: params.status,
+      adjudication_mode: params.adjudicationMode,
+      terms_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.termsHashHex),
+          'terms hash',
+        ),
+      ),
+      pricing_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.pricingHashHex),
+          'pricing hash',
+        ),
+      ),
+      payout_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.payoutHashHex),
+          'payout hash',
+        ),
+      ),
+      reserve_model_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.reserveModelHashHex),
+          'reserve model hash',
+        ),
+      ),
+      evidence_requirements_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.evidenceRequirementsHashHex),
+          'evidence requirements hash',
+        ),
+      ),
+      comparability_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.comparabilityHashHex),
+          'comparability hash',
+        ),
+      ),
+      policy_overrides_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.policyOverridesHashHex),
+          'policy overrides hash',
+        ),
+      ),
+      cycle_seconds: params.cycleSeconds,
+      terms_version: params.termsVersion,
+    },
+    accounts: [
+      { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: params.healthPlanAddress },
+      { pubkey: policySeries, isWritable: true },
+      { pubkey: seriesReserveLedger, isWritable: true },
+      { pubkey: SystemProgram.programId },
+    ],
+  });
+}
+
+export function buildOpenFundingLineTx(params: {
+  authority: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  reserveDomainAddress: PublicKeyish;
+  assetMint: PublicKeyish;
+  recentBlockhash: string;
+  lineId: string;
+  policySeriesAddress?: PublicKeyish | null;
+  lineType: number;
+  fundingPriority: number;
+  committedAmount: bigint;
+  capsHashHex?: string | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  const assetMint = toPublicKey(params.assetMint);
+  const fundingLine = deriveFundingLinePda({
+    healthPlan: params.healthPlanAddress,
+    lineId: params.lineId,
+  });
+  return buildOrderedTransaction({
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'open_funding_line',
+    programId: params.programId,
+    args: {
+      line_id: params.lineId,
+      policy_series: toPublicKey(params.policySeriesAddress ?? ZERO_PUBKEY_KEY),
+      asset_mint: assetMint,
+      line_type: params.lineType,
+      funding_priority: params.fundingPriority,
+      committed_amount: params.committedAmount,
+      caps_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.capsHashHex),
+          'caps hash',
+        ),
+      ),
+    },
+    accounts: [
+      { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: params.healthPlanAddress },
+      {
+        pubkey: deriveDomainAssetVaultPda({
+          reserveDomain: params.reserveDomainAddress,
+          assetMint,
+        }),
+      },
+      {
+        pubkey: deriveDomainAssetLedgerPda({
+          reserveDomain: params.reserveDomainAddress,
+          assetMint,
+        }),
+        isWritable: true,
+      },
+      { pubkey: fundingLine, isWritable: true },
+      {
+        pubkey: deriveFundingLineLedgerPda({
+          fundingLine,
+          assetMint,
+        }),
+        isWritable: true,
+      },
+      {
+        pubkey: derivePlanReserveLedgerPda({
+          healthPlan: params.healthPlanAddress,
+          assetMint,
+        }),
+        isWritable: true,
+      },
+      optionalSeriesReserveLedgerAccount(params.policySeriesAddress, assetMint),
+      { pubkey: SystemProgram.programId },
+    ],
+  });
+}
+
+export function buildOpenMemberPositionTx(params: {
+  wallet: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  recentBlockhash: string;
+  seriesScopeAddress?: PublicKeyish | null;
+  subjectCommitmentHashHex?: string | null;
+  eligibilityStatus: number;
+  delegatedRightsMask: number;
+  proofMode: number;
+  tokenGateAmountSnapshot: bigint;
+  inviteIdHashHex?: string | null;
+  inviteExpiresAt: bigint;
+  anchorRefAddress?: PublicKeyish | null;
+  tokenGateAccountAddress?: PublicKeyish | null;
+  inviteAuthorityAddress?: PublicKeyish | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  const wallet = toPublicKey(params.wallet);
+  const seriesScope = toPublicKey(params.seriesScopeAddress ?? ZERO_PUBKEY_KEY);
+  const anchorRef = toPublicKey(params.anchorRefAddress ?? ZERO_PUBKEY_KEY);
+  const memberPosition = deriveMemberPositionPda({
+    healthPlan: params.healthPlanAddress,
+    wallet,
+    seriesScope,
+  });
+  const membershipAnchorSeat = !anchorRef.equals(ZERO_PUBKEY_KEY)
+    ? deriveMembershipAnchorSeatPda({
+        healthPlan: params.healthPlanAddress,
+        anchorRef: anchorRef.toBase58(),
+      })
+    : undefined;
+
+  return buildOrderedTransaction({
+    feePayer: wallet,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'open_member_position',
+    programId: params.programId,
+    args: {
+      series_scope: seriesScope,
+      subject_commitment: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.subjectCommitmentHashHex),
+          'subject commitment hash',
+        ),
+      ),
+      eligibility_status: params.eligibilityStatus,
+      delegated_rights: params.delegatedRightsMask,
+      proof_mode: params.proofMode,
+      token_gate_amount_snapshot: params.tokenGateAmountSnapshot,
+      invite_id_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.inviteIdHashHex),
+          'invite id hash',
+        ),
+      ),
+      invite_expires_at: params.inviteExpiresAt,
+      anchor_ref: anchorRef,
+    },
+    accounts: [
+      { pubkey: wallet, isSigner: true, isWritable: true },
+      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: params.healthPlanAddress },
+      { pubkey: memberPosition, isWritable: true },
+      optionalProtocolAccount(membershipAnchorSeat, true),
+      optionalProtocolAccount(params.tokenGateAccountAddress),
+      optionalProtocolAccount(params.inviteAuthorityAddress),
+      { pubkey: SystemProgram.programId },
+    ],
+  });
+}
+
+export function buildCreateObligationTx(params: {
+  authority: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  reserveDomainAddress: PublicKeyish;
+  fundingLineAddress: PublicKeyish;
+  assetMint: PublicKeyish;
+  recentBlockhash: string;
+  obligationId: string;
+  policySeriesAddress?: PublicKeyish | null;
+  memberWalletAddress?: PublicKeyish | null;
+  beneficiaryAddress?: PublicKeyish | null;
+  claimCaseAddress?: PublicKeyish | null;
+  liquidityPoolAddress?: PublicKeyish | null;
+  capitalClassAddress?: PublicKeyish | null;
+  allocationPositionAddress?: PublicKeyish | null;
+  deliveryMode: number;
+  amount: bigint;
+  creationReasonHashHex?: string | null;
+  poolAssetMint?: PublicKeyish | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  const obligation = deriveObligationPda({
+    fundingLine: params.fundingLineAddress,
+    obligationId: params.obligationId,
+  });
+  return buildOrderedTransaction({
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'create_obligation',
+    programId: params.programId,
+    args: {
+      obligation_id: params.obligationId,
+      asset_mint: toPublicKey(params.assetMint),
+      policy_series: toPublicKey(params.policySeriesAddress ?? ZERO_PUBKEY_KEY),
+      member_wallet: toPublicKey(params.memberWalletAddress ?? ZERO_PUBKEY_KEY),
+      beneficiary: toPublicKey(params.beneficiaryAddress ?? ZERO_PUBKEY_KEY),
+      claim_case: toPublicKey(params.claimCaseAddress ?? ZERO_PUBKEY_KEY),
+      liquidity_pool: toPublicKey(
+        params.liquidityPoolAddress ?? ZERO_PUBKEY_KEY,
+      ),
+      capital_class: toPublicKey(params.capitalClassAddress ?? ZERO_PUBKEY_KEY),
+      allocation_position: toPublicKey(
+        params.allocationPositionAddress ?? ZERO_PUBKEY_KEY,
+      ),
+      delivery_mode: params.deliveryMode,
+      amount: params.amount,
+      creation_reason_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.creationReasonHashHex),
+          'creation reason hash',
+        ),
+      ),
+    },
+    accounts: [
+      { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: params.healthPlanAddress },
+      {
+        pubkey: deriveDomainAssetLedgerPda({
+          reserveDomain: params.reserveDomainAddress,
+          assetMint: params.assetMint,
+        }),
+        isWritable: true,
+      },
+      { pubkey: params.fundingLineAddress, isWritable: true },
+      {
+        pubkey: deriveFundingLineLedgerPda({
+          fundingLine: params.fundingLineAddress,
+          assetMint: params.assetMint,
+        }),
+        isWritable: true,
+      },
+      {
+        pubkey: derivePlanReserveLedgerPda({
+          healthPlan: params.healthPlanAddress,
+          assetMint: params.assetMint,
+        }),
+        isWritable: true,
+      },
+      optionalSeriesReserveLedgerAccount(
+        params.policySeriesAddress,
+        params.assetMint,
+      ),
+      optionalPoolClassLedgerAccount(
+        params.capitalClassAddress,
+        params.poolAssetMint,
+      ),
+      optionalAllocationLedgerAccount(
+        params.allocationPositionAddress,
+        params.assetMint,
+      ),
+      { pubkey: obligation, isWritable: true },
+      { pubkey: SystemProgram.programId },
+    ],
+  });
+}
+
+export function buildOpenClaimCaseTx(params: {
+  authority: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  memberPositionAddress: PublicKeyish;
+  fundingLineAddress: PublicKeyish;
+  recentBlockhash: string;
+  claimId: string;
+  policySeriesAddress?: PublicKeyish | null;
+  claimantAddress?: PublicKeyish | null;
+  evidenceRefHashHex?: string | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  const claimCase = deriveClaimCasePda({
+    healthPlan: params.healthPlanAddress,
+    claimId: params.claimId,
+  });
+  return buildOrderedTransaction({
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'open_claim_case',
+    programId: params.programId,
+    args: {
+      claim_id: params.claimId,
+      policy_series: toPublicKey(params.policySeriesAddress ?? ZERO_PUBKEY_KEY),
+      claimant: toPublicKey(params.claimantAddress ?? authority),
+      evidence_ref_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.evidenceRefHashHex),
+          'evidence ref hash',
+        ),
+      ),
+    },
+    accounts: [
+      { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: params.healthPlanAddress },
+      { pubkey: params.memberPositionAddress },
+      { pubkey: params.fundingLineAddress },
+      { pubkey: claimCase, isWritable: true },
+      { pubkey: SystemProgram.programId },
+    ],
+  });
+}
+
+export function buildAttachClaimEvidenceRefTx(params: {
+  authority: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  claimCaseAddress: PublicKeyish;
+  recentBlockhash: string;
+  evidenceRefHashHex?: string | null;
+  decisionSupportHashHex?: string | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  return buildOrderedTransaction({
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'attach_claim_evidence_ref',
+    programId: params.programId,
+    args: {
+      evidence_ref_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.evidenceRefHashHex),
+          'evidence ref hash',
+        ),
+      ),
+      decision_support_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.decisionSupportHashHex),
+          'decision support hash',
+        ),
+      ),
+    },
+    accounts: [
+      { pubkey: authority, isSigner: true },
+      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: params.healthPlanAddress },
+      { pubkey: params.claimCaseAddress, isWritable: true },
+    ],
+  });
+}
+
+export function buildAdjudicateClaimCaseTx(params: {
+  authority: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  claimCaseAddress: PublicKeyish;
+  recentBlockhash: string;
+  reviewState: number;
+  approvedAmount: bigint;
+  deniedAmount: bigint;
+  reserveAmount: bigint;
+  decisionSupportHashHex?: string | null;
+  obligationAddress?: PublicKeyish | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  return buildOrderedTransaction({
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'adjudicate_claim_case',
+    programId: params.programId,
+    args: {
+      review_state: params.reviewState,
+      approved_amount: params.approvedAmount,
+      denied_amount: params.deniedAmount,
+      reserve_amount: params.reserveAmount,
+      decision_support_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.decisionSupportHashHex),
+          'decision support hash',
+        ),
+      ),
+    },
+    accounts: [
+      { pubkey: authority, isSigner: true },
+      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: params.healthPlanAddress },
+      { pubkey: params.claimCaseAddress, isWritable: true },
+      optionalProtocolAccount(params.obligationAddress, true),
+    ],
+  });
+}
+
+function buildObligationFlowTx(params: {
+  instructionName:
+    | 'reserve_obligation'
+    | 'release_reserve'
+    | 'settle_obligation';
+  authority: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  reserveDomainAddress: PublicKeyish;
+  fundingLineAddress: PublicKeyish;
+  assetMint: PublicKeyish;
+  obligationAddress: PublicKeyish;
+  recentBlockhash: string;
+  claimCaseAddress?: PublicKeyish | null;
+  policySeriesAddress?: PublicKeyish | null;
+  capitalClassAddress?: PublicKeyish | null;
+  allocationPositionAddress?: PublicKeyish | null;
+  poolAssetMint?: PublicKeyish | null;
+  args: Record<string, unknown>;
+  includeVault?: boolean;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  return buildOrderedTransaction({
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: params.instructionName,
+    programId: params.programId,
+    args: params.args,
+    accounts: [
+      { pubkey: authority, isSigner: true },
+      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: params.healthPlanAddress },
+      ...(params.includeVault
+        ? [
+            {
+              pubkey: deriveDomainAssetVaultPda({
+                reserveDomain: params.reserveDomainAddress,
+                assetMint: params.assetMint,
+              }),
+              isWritable: true,
+            } satisfies ProtocolInstructionAccountInput,
+          ]
+        : []),
+      {
+        pubkey: deriveDomainAssetLedgerPda({
+          reserveDomain: params.reserveDomainAddress,
+          assetMint: params.assetMint,
+        }),
+        isWritable: true,
+      },
+      { pubkey: params.fundingLineAddress, isWritable: true },
+      {
+        pubkey: deriveFundingLineLedgerPda({
+          fundingLine: params.fundingLineAddress,
+          assetMint: params.assetMint,
+        }),
+        isWritable: true,
+      },
+      {
+        pubkey: derivePlanReserveLedgerPda({
+          healthPlan: params.healthPlanAddress,
+          assetMint: params.assetMint,
+        }),
+        isWritable: true,
+      },
+      optionalSeriesReserveLedgerAccount(
+        params.policySeriesAddress,
+        params.assetMint,
+      ),
+      optionalPoolClassLedgerAccount(
+        params.capitalClassAddress,
+        params.poolAssetMint,
+      ),
+      optionalProtocolAccount(params.allocationPositionAddress, true),
+      optionalAllocationLedgerAccount(
+        params.allocationPositionAddress,
+        params.assetMint,
+      ),
+      { pubkey: params.obligationAddress, isWritable: true },
+      optionalProtocolAccount(params.claimCaseAddress, true),
+    ],
+  });
+}
+
+export function buildReserveObligationTx(params: {
+  authority: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  reserveDomainAddress: PublicKeyish;
+  fundingLineAddress: PublicKeyish;
+  assetMint: PublicKeyish;
+  obligationAddress: PublicKeyish;
+  recentBlockhash: string;
+  amount: bigint;
+  claimCaseAddress?: PublicKeyish | null;
+  policySeriesAddress?: PublicKeyish | null;
+  capitalClassAddress?: PublicKeyish | null;
+  allocationPositionAddress?: PublicKeyish | null;
+  poolAssetMint?: PublicKeyish | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  return buildObligationFlowTx({
+    ...params,
+    instructionName: 'reserve_obligation',
+    args: { amount: params.amount },
+  });
+}
+
+export function buildReleaseReserveTx(params: {
+  authority: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  reserveDomainAddress: PublicKeyish;
+  fundingLineAddress: PublicKeyish;
+  assetMint: PublicKeyish;
+  obligationAddress: PublicKeyish;
+  recentBlockhash: string;
+  amount: bigint;
+  claimCaseAddress?: PublicKeyish | null;
+  policySeriesAddress?: PublicKeyish | null;
+  capitalClassAddress?: PublicKeyish | null;
+  allocationPositionAddress?: PublicKeyish | null;
+  poolAssetMint?: PublicKeyish | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  return buildObligationFlowTx({
+    ...params,
+    instructionName: 'release_reserve',
+    args: { amount: params.amount },
+  });
+}
+
+export function buildSettleObligationTx(params: {
+  authority: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  reserveDomainAddress: PublicKeyish;
+  fundingLineAddress: PublicKeyish;
+  assetMint: PublicKeyish;
+  obligationAddress: PublicKeyish;
+  recentBlockhash: string;
+  nextStatus: number;
+  amount: bigint;
+  settlementReasonHashHex?: string | null;
+  claimCaseAddress?: PublicKeyish | null;
+  policySeriesAddress?: PublicKeyish | null;
+  capitalClassAddress?: PublicKeyish | null;
+  allocationPositionAddress?: PublicKeyish | null;
+  poolAssetMint?: PublicKeyish | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  return buildObligationFlowTx({
+    ...params,
+    instructionName: 'settle_obligation',
+    includeVault: true,
+    args: {
+      next_status: params.nextStatus,
+      amount: params.amount,
+      settlement_reason_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.settlementReasonHashHex),
+          'settlement reason hash',
+        ),
+      ),
+    },
+  });
+}
+
+export function buildUpdateLpPositionCredentialingTx(params: {
+  authority: PublicKeyish;
+  poolAddress: PublicKeyish;
+  capitalClassAddress: PublicKeyish;
+  ownerAddress: PublicKeyish;
+  recentBlockhash: string;
+  credentialed: boolean;
+  reasonHashHex?: string | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  return buildOrderedTransaction({
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'update_lp_position_credentialing',
+    programId: params.programId,
+    args: {
+      owner: toPublicKey(params.ownerAddress),
+      credentialed: params.credentialed,
+      reason_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.reasonHashHex),
+          'reason hash',
+        ),
+      ),
+    },
+    accounts: [
+      { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: params.poolAddress },
+      { pubkey: params.capitalClassAddress },
+      {
+        pubkey: deriveLpPositionPda({
+          capitalClass: params.capitalClassAddress,
+          owner: params.ownerAddress,
+        }),
+        isWritable: true,
+      },
+      { pubkey: SystemProgram.programId },
+    ],
+  });
+}
+
+export function buildMarkImpairmentTx(params: {
+  authority: PublicKeyish;
+  healthPlanAddress: PublicKeyish;
+  reserveDomainAddress: PublicKeyish;
+  fundingLineAddress: PublicKeyish;
+  assetMint: PublicKeyish;
+  recentBlockhash: string;
+  amount: bigint;
+  reasonHashHex?: string | null;
+  policySeriesAddress?: PublicKeyish | null;
+  capitalClassAddress?: PublicKeyish | null;
+  allocationPositionAddress?: PublicKeyish | null;
+  obligationAddress?: PublicKeyish | null;
+  poolAssetMint?: PublicKeyish | null;
+  programId?: PublicKeyish;
+}): Transaction {
+  const authority = toPublicKey(params.authority);
+  return buildOrderedTransaction({
+    feePayer: authority,
+    recentBlockhash: params.recentBlockhash,
+    instructionName: 'mark_impairment',
+    programId: params.programId,
+    args: {
+      amount: params.amount,
+      reason_hash: Array.from(
+        hexToFixedBytes(
+          normalizeOptionalHex32(params.reasonHashHex),
+          'reason hash',
+        ),
+      ),
+    },
+    accounts: [
+      { pubkey: authority, isSigner: true },
+      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: params.healthPlanAddress },
+      {
+        pubkey: deriveDomainAssetLedgerPda({
+          reserveDomain: params.reserveDomainAddress,
+          assetMint: params.assetMint,
+        }),
+        isWritable: true,
+      },
+      { pubkey: params.fundingLineAddress, isWritable: true },
+      {
+        pubkey: deriveFundingLineLedgerPda({
+          fundingLine: params.fundingLineAddress,
+          assetMint: params.assetMint,
+        }),
+        isWritable: true,
+      },
+      {
+        pubkey: derivePlanReserveLedgerPda({
+          healthPlan: params.healthPlanAddress,
+          assetMint: params.assetMint,
+        }),
+        isWritable: true,
+      },
+      optionalSeriesReserveLedgerAccount(
+        params.policySeriesAddress,
+        params.assetMint,
+      ),
+      optionalPoolClassLedgerAccount(
+        params.capitalClassAddress,
+        params.poolAssetMint,
+      ),
+      optionalProtocolAccount(params.allocationPositionAddress, true),
+      optionalAllocationLedgerAccount(
+        params.allocationPositionAddress,
+        params.assetMint,
+      ),
+      optionalProtocolAccount(params.obligationAddress, true),
+    ],
   });
 }
 

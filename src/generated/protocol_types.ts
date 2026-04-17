@@ -1302,6 +1302,7 @@ export interface ReleaseReserveAccounts {
   allocation_position?: PublicKeyish;
   allocation_ledger?: PublicKeyish;
   obligation: PublicKeyish;
+  claim_case?: PublicKeyish;
 }
 
 export interface RequestRedemptionAccounts {
@@ -1326,6 +1327,7 @@ export interface ReserveObligationAccounts {
   allocation_position?: PublicKeyish;
   allocation_ledger?: PublicKeyish;
   obligation: PublicKeyish;
+  claim_case?: PublicKeyish;
 }
 
 export interface SetPoolOracleAccounts {
@@ -1391,6 +1393,7 @@ export interface SettleObligationAccounts {
   allocation_position?: PublicKeyish;
   allocation_ledger?: PublicKeyish;
   obligation: PublicKeyish;
+  claim_case?: PublicKeyish;
 }
 
 export interface UpdateAllocationCapsAccounts {

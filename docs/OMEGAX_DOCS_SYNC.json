@@ -1,8 +1,8 @@
 {
-  "sdkVersion": "0.8.0",
+  "sdkVersion": "0.8.1",
   "omegaxDocsRepo": "https://github.com/OmegaX-Health/omegax-docs",
-  "omegaxDocsCommit": "31a0673f9861bf2ec424f50ea30ba91170dc0ece",
-  "syncedAt": "2026-04-11T05:36:19.711Z",
+  "omegaxDocsCommit": "8bdbad025498d8af2cedd42f99412900d9aa1190",
+  "syncedAt": "2026-04-17T20:04:55Z",
   "syncedBy": "dr_sabijan",
   "pages": [
     {
