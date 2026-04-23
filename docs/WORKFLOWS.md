@@ -99,7 +99,7 @@ Helpers:
 
 Note:
 
-- `buildOpenMemberPositionTx(...)` lives in the sponsor-funded plan workflow below because the same canonical builder can be used by self-serve products or sponsor-controlled products depending on plan configuration.
+- `buildOpenMemberPositionTx(...)` lives in the sponsor-funded plan workflow below because the same canonical builder can be used by app-facing products or sponsor-controlled products depending on plan configuration.
 
 ## Path C: Sponsor and capital integrators
 

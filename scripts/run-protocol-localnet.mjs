@@ -12,7 +12,7 @@ import {
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { PublicKey } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
   ensureProtocolWorkspace,
@@ -186,6 +186,31 @@ async function createLegacySchemaFixture(tempRoot) {
   };
 }
 
+async function createFundedSystemAccountFixture(tempRoot, label, keypair) {
+  const dumpPath = join(tempRoot, `${label}-funded-account.json`);
+  writeFileSync(
+    dumpPath,
+    JSON.stringify({
+      pubkey: keypair.publicKey.toBase58(),
+      account: {
+        lamports: 5_000_000_000,
+        data: ['', 'base64'],
+        owner: zeroPubkey.toBase58(),
+        executable: false,
+        rentEpoch: 0,
+        space: 0,
+      },
+    }),
+    'utf8',
+  );
+
+  return {
+    dumpPath,
+    address: keypair.publicKey.toBase58(),
+    secretKeyJson: JSON.stringify(Array.from(keypair.secretKey)),
+  };
+}
+
 async function waitForRpc(rpcUrl) {
   const startedAt = Date.now();
   let lastError = 'validator not ready';
@@ -204,6 +229,52 @@ async function waitForRpc(rpcUrl) {
       });
       const payload = await response.json();
       if (payload?.result?.value?.blockhash) {
+        const healthResponse = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 2,
+            method: 'getHealth',
+          }),
+        });
+        const healthPayload = await healthResponse.json();
+        if (healthPayload?.result === 'ok') {
+          return;
+        }
+        lastError = JSON.stringify(healthPayload);
+      } else {
+        lastError = JSON.stringify(payload);
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await new Promise((resolveSleep) => setTimeout(resolveSleep, 500));
+  }
+
+  throw new Error(
+    `Timed out waiting for validator RPC at ${rpcUrl}: ${lastError}`,
+  );
+}
+
+async function waitForProgram(rpcUrl, programId) {
+  const startedAt = Date.now();
+  let lastError = 'program account not ready';
+
+  while (Date.now() - startedAt < 30_000) {
+    try {
+      const response = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 3,
+          method: 'getAccountInfo',
+          params: [programId, { commitment: 'confirmed', encoding: 'base64' }],
+        }),
+      });
+      const payload = await response.json();
+      if (payload?.result?.value?.executable === true) {
         return;
       }
       lastError = JSON.stringify(payload);
@@ -214,7 +285,7 @@ async function waitForRpc(rpcUrl) {
   }
 
   throw new Error(
-    `Timed out waiting for validator RPC at ${rpcUrl}: ${lastError}`,
+    `Timed out waiting for program ${programId} on ${rpcUrl}: ${lastError}`,
   );
 }
 
@@ -264,6 +335,22 @@ async function runPhase(params) {
   const legacySchemaFixture = params.preloadLegacySchemaFixture
     ? await createLegacySchemaFixture(phaseRoot)
     : null;
+  const adminKeypair = Keypair.generate();
+  const memberKeypair = Keypair.generate();
+  const fundedSignerFixtures = params.preloadFundedSignerFixtures
+    ? [
+        await createFundedSystemAccountFixture(
+          phaseRoot,
+          'admin',
+          adminKeypair,
+        ),
+        await createFundedSystemAccountFixture(
+          phaseRoot,
+          'member',
+          memberKeypair,
+        ),
+      ]
+    : [];
 
   const logStream = createWriteStream(logPath, { flags: 'a' });
   const validatorArgs = [
@@ -286,6 +373,10 @@ async function runPhase(params) {
       legacySchemaFixture.schemaAddress,
       legacySchemaFixture.dumpPath,
     );
+  }
+
+  for (const fixture of fundedSignerFixtures) {
+    validatorArgs.push('--account', fixture.address, fixture.dumpPath);
   }
 
   validatorArgs.push(
@@ -342,6 +433,7 @@ async function runPhase(params) {
 
   try {
     await waitForRpc(rpcUrl);
+    await waitForProgram(rpcUrl, protocolProgramId);
     await params.run({
       rpcUrl,
       wsUrl,
@@ -350,6 +442,7 @@ async function runPhase(params) {
       dynamicPortRange: `${dynamicPortStart}-${dynamicPortEnd}`,
       validatorLogPath: logPath,
       legacySchemaFixture,
+      fundedSignerFixtures,
     });
   } finally {
     await stopValidator().catch(() => undefined);
@@ -382,6 +475,7 @@ async function main() {
 
   await runPhase({
     name: 'sdk-localnet-smoke',
+    preloadFundedSignerFixtures: true,
     run: async (context) => {
       console.log(
         `[omegax-sdk] Running SDK localnet smoke against ${context.rpcUrl}`,
@@ -401,6 +495,10 @@ async function main() {
           SOLANA_RPC_URL: context.rpcUrl,
           PROTOCOL_PROGRAM_ID: protocolProgramId,
           NEXT_PUBLIC_PROTOCOL_PROGRAM_ID: protocolProgramId,
+          OMEGAX_SDK_E2E_ADMIN_KEYPAIR:
+            context.fundedSignerFixtures[0]?.secretKeyJson ?? '',
+          OMEGAX_SDK_E2E_MEMBER_KEYPAIR:
+            context.fundedSignerFixtures[1]?.secretKeyJson ?? '',
         },
       });
     },

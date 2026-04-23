@@ -1,6 +1,6 @@
 # API Reference — `@omegax/protocol-sdk`
 
-This page documents the public SDK surface shipped in `0.8.1`.
+This page documents the public SDK surface shipped in `0.8.2`.
 
 ## Core runtime entrypoints
 

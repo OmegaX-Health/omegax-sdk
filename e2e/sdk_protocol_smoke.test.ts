@@ -44,8 +44,20 @@ function requiredEnv(name: string): string {
   return value;
 }
 
+function keypairFromEnv(name: string): Keypair | null {
+  const value = process.env[name]?.trim();
+  if (!value) return null;
+
+  const secretKey = JSON.parse(value) as number[];
+  return Keypair.fromSecretKey(Uint8Array.from(secretKey));
+}
+
 function fixedHash(byte: number): Uint8Array {
   return Uint8Array.from({ length: 32 }, () => byte);
+}
+
+async function sleep(ms: number) {
+  await new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 }
 
 async function airdrop(
@@ -53,15 +65,46 @@ async function airdrop(
   address: Keypair['publicKey'],
   lamports: number,
 ) {
-  const signature = await connection.requestAirdrop(address, lamports);
-  const latest = await connection.getLatestBlockhash('confirmed');
-  await connection.confirmTransaction(
-    {
-      signature,
-      blockhash: latest.blockhash,
-      lastValidBlockHeight: latest.lastValidBlockHeight,
-    },
-    'confirmed',
+  const maxChunkLamports = 1_000_000_000;
+  let remaining = lamports;
+
+  while (remaining > 0) {
+    const chunkLamports = Math.min(remaining, maxChunkLamports);
+    await requestAirdropChunk(connection, address, chunkLamports);
+    remaining -= chunkLamports;
+  }
+}
+
+async function requestAirdropChunk(
+  connection: ReturnType<typeof createConnection>,
+  address: Keypair['publicKey'],
+  lamports: number,
+) {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      const signature = await connection.requestAirdrop(address, lamports);
+      const latest = await connection.getLatestBlockhash('confirmed');
+      await connection.confirmTransaction(
+        {
+          signature,
+          blockhash: latest.blockhash,
+          lastValidBlockHeight: latest.lastValidBlockHeight,
+        },
+        'confirmed',
+      );
+      return;
+    } catch (error) {
+      lastError = error;
+      await sleep(300 * (attempt + 1));
+    }
+  }
+
+  throw new Error(
+    `airdrop to ${address.toBase58()} failed after retries: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`,
   );
 }
 
@@ -94,11 +137,26 @@ async function simulateAndBroadcast(params: {
   signers: Keypair[];
 }) {
   const signedTxBase64 = signToBase64(params.tx, params.signers);
-  const simulation = await params.rpc.simulateSignedTx({
+  let simulation = await params.rpc.simulateSignedTx({
     signedTxBase64,
     replaceRecentBlockhash: false,
     sigVerify: true,
   });
+  for (let attempt = 0; attempt < 10 && !simulation.ok; attempt += 1) {
+    const logs = simulation.logs.join('\n');
+    if (
+      !logs.includes('Program is not deployed') &&
+      !logs.includes('Unsupported program id')
+    ) {
+      break;
+    }
+    await sleep(500);
+    simulation = await params.rpc.simulateSignedTx({
+      signedTxBase64,
+      replaceRecentBlockhash: false,
+      sigVerify: true,
+    });
+  }
   assert.equal(
     simulation.ok,
     true,
@@ -131,14 +189,20 @@ test('sdk live localnet smoke exercises canonical reserve, plan, obligation, and
   const rpc = createRpcClient(connection);
   const protocol = asDynamicClient(createProtocolClient(connection, programId));
 
-  const admin = Keypair.generate();
-  const member = Keypair.generate();
+  const adminFromFixture = keypairFromEnv('OMEGAX_SDK_E2E_ADMIN_KEYPAIR');
+  const memberFromFixture = keypairFromEnv('OMEGAX_SDK_E2E_MEMBER_KEYPAIR');
+  const admin = adminFromFixture ?? Keypair.generate();
+  const member = memberFromFixture ?? Keypair.generate();
   const assetMint = Keypair.generate().publicKey.toBase58();
   const vaultTokenAccount = Keypair.generate().publicKey.toBase58();
   const shareMint = Keypair.generate().publicKey.toBase58();
 
-  await airdrop(connection, admin.publicKey, 5_000_000_000);
-  await airdrop(connection, member.publicKey, 5_000_000_000);
+  if (!adminFromFixture) {
+    await airdrop(connection, admin.publicKey, 5_000_000_000);
+  }
+  if (!memberFromFixture) {
+    await airdrop(connection, member.publicKey, 5_000_000_000);
+  }
 
   const protocolGovernance = deriveProtocolGovernancePda(programId).toBase58();
   const reserveDomain = deriveReserveDomainPda({

@@ -1,5 +1,11 @@
 # Release Notes — `@omegax/protocol-sdk`
 
+## `0.8.2`
+
+- Fixed `buildOpenMemberPositionTx(...)` so invite-only enrollment keeps `inviteAuthorityAddress` as an optional signer account, matching the canonical `open_member_position` contract.
+- Added regression coverage for invite-authority account metas so token/invite-gated member builders do not silently degrade back to open-member posture.
+- Kept the package on the devnet-first public release track while preserving the current `omegax-protocol v0.3.0` contract target.
+
 ## `0.8.1`
 
 - Refreshed generated IDL, contract, and type bindings against the latest public `omegax-protocol v0.3.0` surface.

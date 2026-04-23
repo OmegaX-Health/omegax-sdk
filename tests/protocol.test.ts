@@ -7,6 +7,7 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 import idl from '../src/generated/omegax_protocol.idl.json' with { type: 'json' };
 import {
   buildAttestClaimCaseTx,
+  buildOpenMemberPositionTx,
   CLAIM_INTAKE_APPROVED,
   CAPITAL_CLASS_RESTRICTION_WRAPPER_ONLY,
   FUNDING_LINE_TYPE_SPONSOR_BUDGET,
@@ -199,6 +200,34 @@ test('buildAttestClaimCaseTx rejects unsupported attestation decisions before su
       }),
     /claim attestation decision must be one of 0/,
   );
+});
+
+test('buildOpenMemberPositionTx keeps invite authority as an optional signer', () => {
+  const wallet = Keypair.generate().publicKey;
+  const healthPlanAddress = Keypair.generate().publicKey;
+  const inviteAuthorityAddress = Keypair.generate().publicKey;
+
+  const tx = buildOpenMemberPositionTx({
+    wallet,
+    healthPlanAddress,
+    recentBlockhash: '11111111111111111111111111111111',
+    eligibilityStatus: 1,
+    delegatedRightsMask: 0,
+    proofMode: 2,
+    tokenGateAmountSnapshot: 0n,
+    inviteIdHashHex: '78'.repeat(32),
+    inviteExpiresAt: 1n,
+    inviteAuthorityAddress,
+  });
+
+  const keys = tx.instructions[0]?.keys ?? [];
+  const inviteAuthority = keys[6];
+  assert.equal(
+    inviteAuthority?.pubkey.toBase58(),
+    inviteAuthorityAddress.toBase58(),
+  );
+  assert.equal(inviteAuthority?.isSigner, true);
+  assert.equal(inviteAuthority?.isWritable, false);
 });
 
 test('reserve and read-model helpers stay aligned with the canonical economic story', () => {

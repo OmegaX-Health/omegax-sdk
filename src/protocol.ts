@@ -573,9 +573,10 @@ function buildOrderedTransaction(params: {
 function optionalProtocolAccount(
   pubkey?: PublicKeyish | null,
   isWritable = false,
+  isSigner = false,
 ): ProtocolInstructionAccountInput {
   return pubkey
-    ? { pubkey, isWritable }
+    ? { pubkey, isWritable, isSigner }
     : { pubkey: undefined, isWritable: false };
 }
 
@@ -984,7 +985,7 @@ export function buildOpenMemberPositionTx(params: {
       { pubkey: memberPosition, isWritable: true },
       optionalProtocolAccount(membershipAnchorSeat, true),
       optionalProtocolAccount(params.tokenGateAccountAddress),
-      optionalProtocolAccount(params.inviteAuthorityAddress),
+      optionalProtocolAccount(params.inviteAuthorityAddress, false, true),
       { pubkey: SystemProgram.programId },
     ],
   });
