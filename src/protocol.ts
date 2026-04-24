@@ -704,7 +704,7 @@ export function buildCreateDomainAssetVaultTx(params: {
   reserveDomainAddress: PublicKeyish;
   assetMint: PublicKeyish;
   recentBlockhash: string;
-  vaultTokenAccountAddress?: PublicKeyish | null;
+  vaultTokenAccountAddress: PublicKeyish;
   programId?: PublicKeyish;
 }): Transaction {
   const authority = toPublicKey(params.authority);
@@ -716,9 +716,7 @@ export function buildCreateDomainAssetVaultTx(params: {
     programId: params.programId,
     args: {
       asset_mint: assetMint,
-      vault_token_account: toPublicKey(
-        params.vaultTokenAccountAddress ?? ZERO_PUBKEY_KEY,
-      ),
+      vault_token_account: toPublicKey(params.vaultTokenAccountAddress),
     },
     accounts: [
       { pubkey: authority, isSigner: true, isWritable: true },

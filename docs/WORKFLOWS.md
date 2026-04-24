@@ -109,6 +109,8 @@ Use this path when you need to create the settlement boundary, launch sponsor pr
 
 Use this when preparing the settlement boundary for a new domain and asset.
 
+`buildCreateDomainAssetVaultTx(...)` requires the SPL vault token account that will hold the asset for the domain. Do not pass a placeholder address; the protocol rejects missing custody rails.
+
 Builders:
 
 - `buildInitializeProtocolGovernanceTx(...)`
@@ -127,6 +129,8 @@ Readers:
 ### Workflow C2: Sponsor-funded health plan
 
 Use this for sponsor budgets, reward programs, or early-stage plans that do not need LP capital.
+
+Sponsor budget and premium builders now move tokens as part of the instruction. Provide the payer source token account, the configured domain vault token account, the asset mint, and the token program alongside the reserve ledgers.
 
 Builders:
 
@@ -162,6 +166,8 @@ Reserve helpers:
 ### Workflow C3: LP capital, classes, and redemptions
 
 Use this when capital providers enter through canonical liquidity pools and capital classes.
+
+LP deposits now transfer the deposited asset into the configured domain vault before shares are credited. Redemption requests and queue processing pass shares only; the program derives asset payout from class NAV and queued redemption state.
 
 Builders:
 

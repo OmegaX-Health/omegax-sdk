@@ -115,13 +115,14 @@ This package exposes the live canonical object model:
 
 ## Release status
 
-- SDK release target: `0.8.2`
-- Protocol surface target: `omegax-protocol v0.3.0`
+- SDK release target: `0.8.3`
+- Protocol surface target: `omegax-protocol v0.3.1`
 - Current public network target: Solana devnet beta
 - Public docs: [docs.omegax.health](https://docs.omegax.health)
 
 ## Release notes
 
+- `0.8.3` refreshes generated bindings for `omegax-protocol v0.3.1`, requires concrete domain vault token accounts, and reflects custody-aware inflows plus NAV-derived redemptions.
 - `0.8.2` keeps invite-only member enrollment builders aligned with the protocol account metas by preserving the optional invite-authority signer.
 - `0.8.1` refreshes generated bindings and protocol parity for the latest linked-claim and obligation-settlement hardening on the public `v0.3.0` surface.
 - `0.8.0` adds full parity for the current oracle and schema registry surface, plus a first-class oracle attestation helper module for service-side signing flows.

@@ -1,5 +1,12 @@
 # Release Notes — `@omegax/protocol-sdk`
 
+## `0.8.3`
+
+- Refreshed generated IDL, contract, and type bindings against `omegax-protocol v0.3.1`.
+- Updated reserve-domain bootstrap ergonomics so `buildCreateDomainAssetVaultTx(...)` requires a concrete vault token account instead of allowing a zero placeholder.
+- Reflected the new custody-aware inflow surface: sponsor funding, premium payments, and LP capital deposits require source token account, vault token account, mint, and token program accounts.
+- Reflected the redemption hardening: `request_redemption` and `process_redemption_queue` take shares only, while asset payout is derived on-chain from NAV and queued redemption state.
+
 ## `0.8.2`
 
 - Fixed `buildOpenMemberPositionTx(...)` so invite-only enrollment keeps `inviteAuthorityAddress` as an optional signer account, matching the canonical `open_member_position` contract.

@@ -7,6 +7,7 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 import idl from '../src/generated/omegax_protocol.idl.json' with { type: 'json' };
 import {
   buildAttestClaimCaseTx,
+  buildCreateDomainAssetVaultTx,
   buildOpenMemberPositionTx,
   CLAIM_INTAKE_APPROVED,
   CAPITAL_CLASS_RESTRICTION_WRAPPER_ONLY,
@@ -228,6 +229,42 @@ test('buildOpenMemberPositionTx keeps invite authority as an optional signer', (
   );
   assert.equal(inviteAuthority?.isSigner, true);
   assert.equal(inviteAuthority?.isWritable, false);
+});
+
+test('buildCreateDomainAssetVaultTx requires a concrete vault token account', () => {
+  const authority = Keypair.generate().publicKey;
+  const reserveDomainAddress = Keypair.generate().publicKey;
+  const assetMint = Keypair.generate().publicKey;
+  const vaultTokenAccountAddress = Keypair.generate().publicKey;
+
+  const tx = buildCreateDomainAssetVaultTx({
+    authority,
+    reserveDomainAddress,
+    assetMint,
+    vaultTokenAccountAddress,
+    recentBlockhash: '11111111111111111111111111111111',
+  });
+
+  assert.equal(tx.instructions.length, 1);
+  assert.equal(tx.feePayer?.toBase58(), authority.toBase58());
+
+  const encodedVault = tx.instructions[0]?.data.slice(40);
+  assert.equal(
+    new PublicKey(encodedVault ?? Buffer.alloc(32)).toBase58(),
+    vaultTokenAccountAddress.toBase58(),
+  );
+
+  assert.throws(
+    () =>
+      buildCreateDomainAssetVaultTx({
+        authority,
+        reserveDomainAddress,
+        assetMint,
+        vaultTokenAccountAddress: undefined as never,
+        recentBlockhash: '11111111111111111111111111111111',
+      }),
+    /public key value is required/,
+  );
 });
 
 test('reserve and read-model helpers stay aligned with the canonical economic story', () => {

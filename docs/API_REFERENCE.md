@@ -1,6 +1,6 @@
 # API Reference — `@omegax/protocol-sdk`
 
-This page documents the public SDK surface shipped in `0.8.2`.
+This page documents the public SDK surface shipped in `0.8.3`.
 
 ## Core runtime entrypoints
 
@@ -94,6 +94,8 @@ Returned by `createProtocolClient(...)`.
 - `buildCloseOutcomeSchemaTx(...)`
 
 Every instruction also exposes a sibling `build...Instruction(...)` helper.
+
+Custody-sensitive builders now mirror the on-chain custody requirements directly. `buildCreateDomainAssetVaultTx(...)` requires a concrete vault token account, while sponsor funding, premium payments, and LP capital deposits require source token account, vault token account, asset mint, and token program accounts. Redemption builders take shares only; payout assets are derived on-chain.
 
 ## Canonical account readers
 

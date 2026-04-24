@@ -2,6 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { Keypair } from '@solana/web3.js';
+import {
+  TOKEN_PROGRAM_ID,
+  createAccount,
+  createMint,
+  mintTo,
+} from '@solana/spl-token';
 
 import {
   CAPITAL_CLASS_RESTRICTION_OPEN,
@@ -193,8 +199,6 @@ test('sdk live localnet smoke exercises canonical reserve, plan, obligation, and
   const memberFromFixture = keypairFromEnv('OMEGAX_SDK_E2E_MEMBER_KEYPAIR');
   const admin = adminFromFixture ?? Keypair.generate();
   const member = memberFromFixture ?? Keypair.generate();
-  const assetMint = Keypair.generate().publicKey.toBase58();
-  const vaultTokenAccount = Keypair.generate().publicKey.toBase58();
   const shareMint = Keypair.generate().publicKey.toBase58();
 
   if (!adminFromFixture) {
@@ -203,6 +207,57 @@ test('sdk live localnet smoke exercises canonical reserve, plan, obligation, and
   if (!memberFromFixture) {
     await airdrop(connection, member.publicKey, 5_000_000_000);
   }
+
+  const assetMintKey = await createMint(
+    connection,
+    admin,
+    admin.publicKey,
+    null,
+    6,
+  );
+  const vaultTokenAccountKey = await createAccount(
+    connection,
+    admin,
+    assetMintKey,
+    admin.publicKey,
+    Keypair.generate(),
+  );
+  const adminSourceTokenAccountKey = await createAccount(
+    connection,
+    admin,
+    assetMintKey,
+    admin.publicKey,
+    Keypair.generate(),
+  );
+  const memberSourceTokenAccountKey = await createAccount(
+    connection,
+    admin,
+    assetMintKey,
+    member.publicKey,
+    Keypair.generate(),
+  );
+  await mintTo(
+    connection,
+    admin,
+    assetMintKey,
+    adminSourceTokenAccountKey,
+    admin,
+    500_000n,
+  );
+  await mintTo(
+    connection,
+    admin,
+    assetMintKey,
+    memberSourceTokenAccountKey,
+    admin,
+    200_000n,
+  );
+
+  const assetMint = assetMintKey.toBase58();
+  const vaultTokenAccount = vaultTokenAccountKey.toBase58();
+  const adminSourceTokenAccount = adminSourceTokenAccountKey.toBase58();
+  const memberSourceTokenAccount = memberSourceTokenAccountKey.toBase58();
+  const tokenProgram = TOKEN_PROGRAM_ID.toBase58();
 
   const protocolGovernance = deriveProtocolGovernancePda(programId).toBase58();
   const reserveDomain = deriveReserveDomainPda({
@@ -499,6 +554,10 @@ test('sdk live localnet smoke exercises canonical reserve, plan, obligation, and
         funding_line_ledger: fundingLineLedger,
         plan_reserve_ledger: planReserveLedger,
         series_reserve_ledger: seriesReserveLedger,
+        source_token_account: adminSourceTokenAccount,
+        asset_mint: assetMint,
+        vault_token_account: vaultTokenAccount,
+        token_program: tokenProgram,
       },
     })) as never,
   });
@@ -685,6 +744,10 @@ test('sdk live localnet smoke exercises canonical reserve, plan, obligation, and
         capital_class: capitalClass,
         pool_class_ledger: poolClassLedger,
         lp_position: lpPosition,
+        source_token_account: memberSourceTokenAccount,
+        asset_mint: assetMint,
+        vault_token_account: vaultTokenAccount,
+        token_program: tokenProgram,
       },
     })) as never,
   });
@@ -696,10 +759,10 @@ test('sdk live localnet smoke exercises canonical reserve, plan, obligation, and
     tx: (await buildTx('buildRequestRedemptionTx', {
       args: {
         shares: 50_000n,
-        asset_amount: 50_000n,
       },
       accounts: {
         owner: member.publicKey.toBase58(),
+        protocol_governance: protocolGovernance,
         liquidity_pool: liquidityPool,
         capital_class: capitalClass,
         pool_class_ledger: poolClassLedger,
@@ -716,7 +779,6 @@ test('sdk live localnet smoke exercises canonical reserve, plan, obligation, and
     tx: (await buildTx('buildProcessRedemptionQueueTx', {
       args: {
         shares: 50_000n,
-        asset_amount: 50_000n,
       },
       accounts: {
         authority: admin.publicKey.toBase58(),

@@ -446,6 +446,7 @@ export interface LPPosition {
   shares: BigNumberish;
   subscription_basis: BigNumberish;
   pending_redemption_shares: BigNumberish;
+  pending_redemption_assets: BigNumberish;
   realized_distributions: BigNumberish;
   impaired_principal: BigNumberish;
   lockup_ends_at: BigNumberish;
@@ -784,7 +785,6 @@ export interface PoolOraclePolicyChangedEvent {
 
 export interface ProcessRedemptionQueueArgs {
   shares: BigNumberish;
-  asset_amount: BigNumberish;
 }
 
 export interface ProtocolGovernance {
@@ -793,6 +793,13 @@ export interface ProtocolGovernance {
   emergency_pause: boolean;
   audit_nonce: BigNumberish;
   bump: number;
+}
+
+export interface ProtocolGovernanceAuthorityRotatedEvent {
+  previous_governance_authority: string;
+  new_governance_authority: string;
+  authority: string;
+  audit_nonce: BigNumberish;
 }
 
 export interface ProtocolGovernanceInitializedEvent {
@@ -840,7 +847,6 @@ export interface ReleaseReserveArgs {
 
 export interface RequestRedemptionArgs {
   shares: BigNumberish;
-  asset_amount: BigNumberish;
 }
 
 export interface ReserveBalanceSheet {
@@ -881,6 +887,10 @@ export interface ReserveDomainCreatedEvent {
 
 export interface ReserveObligationArgs {
   amount: BigNumberish;
+}
+
+export interface RotateProtocolGovernanceAuthorityArgs {
+  new_governance_authority: PublicKeyish;
 }
 
 export interface SchemaDependencyLedger {
@@ -1183,6 +1193,10 @@ export interface DepositIntoCapitalClassAccounts {
   capital_class: PublicKeyish;
   pool_class_ledger: PublicKeyish;
   lp_position: PublicKeyish;
+  source_token_account: PublicKeyish;
+  asset_mint: PublicKeyish;
+  vault_token_account: PublicKeyish;
+  token_program: PublicKeyish;
   system_program?: PublicKeyish;
 }
 
@@ -1196,6 +1210,10 @@ export interface FundSponsorBudgetAccounts {
   funding_line_ledger: PublicKeyish;
   plan_reserve_ledger: PublicKeyish;
   series_reserve_ledger?: PublicKeyish;
+  source_token_account: PublicKeyish;
+  asset_mint: PublicKeyish;
+  vault_token_account: PublicKeyish;
+  token_program: PublicKeyish;
 }
 
 export interface InitializeProtocolGovernanceAccounts {
@@ -1273,7 +1291,10 @@ export interface RecordPremiumPaymentAccounts {
   funding_line_ledger: PublicKeyish;
   plan_reserve_ledger: PublicKeyish;
   series_reserve_ledger?: PublicKeyish;
-  pool_class_ledger?: PublicKeyish;
+  source_token_account: PublicKeyish;
+  asset_mint: PublicKeyish;
+  vault_token_account: PublicKeyish;
+  token_program: PublicKeyish;
 }
 
 export interface RegisterOracleAccounts {
@@ -1307,6 +1328,7 @@ export interface ReleaseReserveAccounts {
 
 export interface RequestRedemptionAccounts {
   owner: PublicKeyish;
+  protocol_governance: PublicKeyish;
   liquidity_pool: PublicKeyish;
   capital_class: PublicKeyish;
   pool_class_ledger: PublicKeyish;
@@ -1328,6 +1350,11 @@ export interface ReserveObligationAccounts {
   allocation_ledger?: PublicKeyish;
   obligation: PublicKeyish;
   claim_case?: PublicKeyish;
+}
+
+export interface RotateProtocolGovernanceAuthorityAccounts {
+  authority: PublicKeyish;
+  protocol_governance: PublicKeyish;
 }
 
 export interface SetPoolOracleAccounts {
@@ -1823,6 +1850,18 @@ export interface ProtocolClient {
     params: BuildTransactionParams<
       ReserveObligationArgs,
       ReserveObligationAccounts
+    >,
+  ): Transaction;
+  buildRotateProtocolGovernanceAuthorityInstruction(
+    params: BuildInstructionParams<
+      RotateProtocolGovernanceAuthorityArgs,
+      RotateProtocolGovernanceAuthorityAccounts
+    >,
+  ): TransactionInstruction;
+  buildRotateProtocolGovernanceAuthorityTx(
+    params: BuildTransactionParams<
+      RotateProtocolGovernanceAuthorityArgs,
+      RotateProtocolGovernanceAuthorityAccounts
     >,
   ): Transaction;
   buildSetPoolOracleInstruction(
