@@ -3,6 +3,7 @@ logs
 *.log
 artifacts/
 .gstack/
+.superstack/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
