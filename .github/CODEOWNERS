@@ -1,0 +1,10 @@
+# Release and supply-chain sensitive surfaces.
+.github/workflows/* @marinosabijan
+package.json @marinosabijan
+package-lock.json @marinosabijan
+docs/OMEGAX_DOCS_SYNC.json @marinosabijan
+docs/RELEASE.md @marinosabijan
+docs/RELEASE_NOTES.md @marinosabijan
+docs/CROSS_REPO_RELEASE_ORDER.md @marinosabijan
+docs/DOCS_SYNC_WORKFLOW.md @marinosabijan
+src/generated/* @marinosabijan

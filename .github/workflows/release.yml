@@ -4,21 +4,35 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: npm-production
     permissions:
       contents: read
       id-token: write
     steps:
-      # v5 runs on the current GitHub-hosted JavaScript runtime and avoids the Node 20 deprecation warning.
       - name: Checkout
-        uses: actions/checkout@v5
+        # actions/checkout@v5 as of 2026-04-27.
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          fetch-depth: 0
+
+      - name: Verify release tag is on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_commit="$(git rev-parse HEAD)"
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "${tag_commit}" origin/main; then
+            echo "Release tag commit ${tag_commit} is not reachable from origin/main."
+            exit 1
+          fi
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        # actions/setup-node@v5 as of 2026-04-27.
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
