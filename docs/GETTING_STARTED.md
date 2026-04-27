@@ -82,12 +82,20 @@ const result = await rpc.broadcastSignedTx({
 Simulate before sending when you want preflight detail:
 
 ```ts
-const signedTxBase64 = Buffer.from(tx.serialize()).toString('base64');
+const signedTx = await wallet.signTransaction(tx);
+const signedTxBase64 = Buffer.from(signedTx.serialize()).toString('base64');
 const simulation = await rpc.simulateSignedTx({
   signedTxBase64,
   sigVerify: true,
 });
+if (!simulation.signatureVerified) {
+  throw new Error('Transaction signature was not verified during simulation.');
+}
 ```
+
+Simulation is preflight feedback, not authentication. Claim and intake services
+that accept user-submitted transactions should call `validateSignedClaimTx(...)`
+before trusting the signer or intent.
 
 ## Path A: Oracle and event producers
 

@@ -30,8 +30,15 @@ npm run docs:sync:check:strict
 npm run verify:protocol:local
 npm run test:protocol:localnet
 npm pack --dry-run
-npm audit --omit=dev --audit-level=moderate
+npm audit --omit=dev --audit-level=high
+npm audit --omit=dev --json
+npm audit --json
 ```
+
+Production high-or-critical dependency advisories are release blockers. Current
+Solana-chain moderate advisories without upstream fixes should be reviewed before
+publish and recorded in the release notes or security report rather than bypassed
+with forced transitive overrides.
 
 ## Protocol binding refresh
 

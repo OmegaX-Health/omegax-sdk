@@ -28,6 +28,13 @@ Returned by `createRpcClient(...)`.
 - `simulateSignedTx(...)`
 - `getSignatureStatus(...)`
 
+`simulateSignedTx(...)` verifies signatures by default. If an RPC rejects the
+signature-verifying simulation argument combination, the SDK fails closed unless
+the caller explicitly passes `allowSigVerifyFallback: true`. Results include
+`sigVerifyRequested`, `sigVerifyUsed`, `signatureVerified`, and
+`verificationDowngraded` so intake services can reject unverified preflight
+results.
+
 ## Canonical instruction builders
 
 Returned by `createProtocolClient(...)`.

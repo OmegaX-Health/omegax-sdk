@@ -1,5 +1,11 @@
 # Release Notes — `@omegax/protocol-sdk`
 
+## Unreleased
+
+- Hardened `simulateSignedTx(...)` so signature-verification downgrades fail closed by default and require explicit `allowSigVerifyFallback: true`.
+- Added simulation metadata fields so integrations can reject unverified preflight results before claim or intake processing.
+- Documented the current dependency-audit posture: production high advisories block release, while no-fix Solana-chain moderate advisories are reviewed and tracked.
+
 ## `0.8.3`
 
 - Refreshed generated IDL, contract, and type bindings against `omegax-protocol v0.3.1`.
