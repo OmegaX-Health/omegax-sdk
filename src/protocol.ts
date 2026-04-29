@@ -958,11 +958,13 @@ export function buildOpenMemberPositionTx(params: {
     healthPlan: params.healthPlanAddress,
     wallet,
     seriesScope,
+    programId: params.programId,
   });
   const membershipAnchorSeat = !anchorRef.equals(ZERO_PUBKEY_KEY)
     ? deriveMembershipAnchorSeatPda({
         healthPlan: params.healthPlanAddress,
-        anchorRef: anchorRef.toBase58(),
+        anchorRef,
+        programId: params.programId,
       })
     : undefined;
 
@@ -994,7 +996,7 @@ export function buildOpenMemberPositionTx(params: {
     },
     accounts: [
       { pubkey: wallet, isSigner: true, isWritable: true },
-      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: deriveProtocolGovernancePda(params.programId) },
       { pubkey: params.healthPlanAddress },
       { pubkey: memberPosition, isWritable: true },
       optionalProtocolAccount(membershipAnchorSeat, true),

@@ -255,14 +255,14 @@ export function deriveMemberPositionPda(params: {
 
 export function deriveMembershipAnchorSeatPda(params: {
   healthPlan: PublicKeyish;
-  anchorRef: string;
+  anchorRef: PublicKeyish;
   programId?: PublicKeyish;
 }): PublicKey {
   return derivePda(
     [
       TEXT_ENCODER.encode(SEED_MEMBERSHIP_ANCHOR_SEAT),
       toPublicKey(params.healthPlan).toBytes(),
-      stringSeed(params.anchorRef, 'anchor ref'),
+      toPublicKey(params.anchorRef).toBytes(),
     ],
     params.programId ?? PROGRAM_ID,
   );

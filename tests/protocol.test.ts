@@ -25,6 +25,7 @@ import {
   deriveDomainAssetVaultTokenAccountPda,
   deriveHealthPlanPda,
   deriveLiquidityPoolPda,
+  deriveMemberPositionPda,
   deriveMembershipAnchorSeatPda,
   deriveOracleProfilePda,
   derivePoolOracleFeeVaultPda,
@@ -89,9 +90,10 @@ test('PDA helpers match manual derivation under canonical seeds', () => {
     oracle: Keypair.generate().publicKey,
     assetMint,
   });
+  const anchorRef = Keypair.generate().publicKey;
   const membershipAnchorSeat = deriveMembershipAnchorSeatPda({
     healthPlan,
-    anchorRef: 'anchor-seat-alpha',
+    anchorRef,
   });
   const oracleProfile = deriveOracleProfilePda({
     oracle: Keypair.generate().publicKey,
@@ -258,6 +260,49 @@ test('buildOpenMemberPositionTx keeps invite authority as an optional signer', (
   );
   assert.equal(inviteAuthority?.isSigner, true);
   assert.equal(inviteAuthority?.isWritable, false);
+});
+
+test('buildOpenMemberPositionTx derives member anchor accounts with the selected program id', () => {
+  const wallet = Keypair.generate().publicKey;
+  const healthPlanAddress = Keypair.generate().publicKey;
+  const anchorRefAddress = Keypair.generate().publicKey;
+  const programId = Keypair.generate().publicKey;
+
+  const tx = buildOpenMemberPositionTx({
+    wallet,
+    healthPlanAddress,
+    anchorRefAddress,
+    programId,
+    recentBlockhash: '11111111111111111111111111111111',
+    eligibilityStatus: 1,
+    delegatedRightsMask: 0,
+    proofMode: 2,
+    tokenGateAmountSnapshot: 0n,
+    inviteExpiresAt: 1n,
+  });
+
+  const keys = tx.instructions[0]?.keys ?? [];
+  assert.equal(tx.instructions[0]?.programId.toBase58(), programId.toBase58());
+  assert.equal(
+    keys[1]?.pubkey.toBase58(),
+    deriveProtocolGovernancePda(programId).toBase58(),
+  );
+  assert.equal(
+    keys[3]?.pubkey.toBase58(),
+    deriveMemberPositionPda({
+      healthPlan: healthPlanAddress,
+      wallet,
+      programId,
+    }).toBase58(),
+  );
+  assert.equal(
+    keys[4]?.pubkey.toBase58(),
+    deriveMembershipAnchorSeatPda({
+      healthPlan: healthPlanAddress,
+      anchorRef: anchorRefAddress,
+      programId,
+    }).toBase58(),
+  );
 });
 
 test('buildCreateDomainAssetVaultTx derives the protocol-owned vault token account', () => {
