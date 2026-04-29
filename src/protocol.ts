@@ -316,6 +316,7 @@ function normalizeDecodedValue(type: IdlType, value: unknown): unknown {
 function resolveInstructionAccounts(
   instructionName: ProtocolInstructionName,
   accounts: GenericInstructionAccounts,
+  programId: PublicKeyish,
 ): Array<{ pubkey: PublicKey; isSigner: boolean; isWritable: boolean }> {
   return (PROTOCOL_INSTRUCTION_ACCOUNTS[instructionName] ?? []).flatMap(
     (
@@ -336,7 +337,7 @@ function resolveInstructionAccounts(
         if (account.optional) {
           return [
             {
-              pubkey: toPublicKey(PROTOCOL_PROGRAM_ID),
+              pubkey: toPublicKey(programId),
               isSigner: false,
               isWritable: false,
             },
@@ -449,9 +450,15 @@ export function buildProtocolInstruction(
     normalizedArgs,
   );
 
+  const resolvedProgramId = params.programId ?? PROTOCOL_PROGRAM_ID;
+
   return new TransactionInstruction({
-    programId: toPublicKey(params.programId ?? PROTOCOL_PROGRAM_ID),
-    keys: resolveInstructionAccounts(params.instructionName, params.accounts),
+    programId: toPublicKey(resolvedProgramId),
+    keys: resolveInstructionAccounts(
+      params.instructionName,
+      params.accounts,
+      resolvedProgramId,
+    ),
     data: Buffer.from(encoded),
   });
 }
@@ -517,9 +524,10 @@ export type ProtocolInstructionAccountInput = {
 
 function normalizeOrderedInstructionAccounts(
   accounts: ProtocolInstructionAccountInput[],
+  programId: PublicKeyish = PROTOCOL_PROGRAM_ID,
 ): Array<{ pubkey: PublicKey; isSigner: boolean; isWritable: boolean }> {
   return accounts.map((account) => {
-    const pubkey = toPublicKey(account.pubkey ?? getProgramId());
+    const pubkey = toPublicKey(account.pubkey ?? programId);
     return {
       pubkey,
       isSigner: account.pubkey ? Boolean(account.isSigner) : false,
@@ -548,7 +556,10 @@ function buildOrderedInstruction(params: {
 
   return new TransactionInstruction({
     programId: toPublicKey(params.programId ?? PROTOCOL_PROGRAM_ID),
-    keys: normalizeOrderedInstructionAccounts(params.accounts),
+    keys: normalizeOrderedInstructionAccounts(
+      params.accounts,
+      params.programId ?? PROTOCOL_PROGRAM_ID,
+    ),
     data: Buffer.from(encoded),
   });
 }
