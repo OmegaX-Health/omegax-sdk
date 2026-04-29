@@ -22,12 +22,16 @@ import {
   decodeProtocolAccount,
   deriveClaimAttestationPda,
   deriveAllocationPositionPda,
+  deriveDomainAssetVaultTokenAccountPda,
   deriveHealthPlanPda,
   deriveLiquidityPoolPda,
   deriveMembershipAnchorSeatPda,
   deriveOracleProfilePda,
+  derivePoolOracleFeeVaultPda,
   deriveOutcomeSchemaPda,
   derivePoolOraclePolicyPda,
+  derivePoolTreasuryVaultPda,
+  deriveProtocolFeeVaultPda,
   deriveProtocolGovernancePda,
   deriveReserveDomainPda,
   getProgramId,
@@ -67,6 +71,24 @@ test('PDA helpers match manual derivation under canonical seeds', () => {
     reserveDomain,
     poolId: 'omega-health-income',
   });
+  const assetMint = Keypair.generate().publicKey;
+  const domainAssetVaultToken = deriveDomainAssetVaultTokenAccountPda({
+    reserveDomain,
+    assetMint,
+  });
+  const protocolFeeVault = deriveProtocolFeeVaultPda({
+    reserveDomain,
+    assetMint,
+  });
+  const poolTreasuryVault = derivePoolTreasuryVaultPda({
+    liquidityPool,
+    assetMint,
+  });
+  const poolOracleFeeVault = derivePoolOracleFeeVaultPda({
+    liquidityPool,
+    oracle: Keypair.generate().publicKey,
+    assetMint,
+  });
   const membershipAnchorSeat = deriveMembershipAnchorSeatPda({
     healthPlan,
     anchorRef: 'anchor-seat-alpha',
@@ -102,6 +124,13 @@ test('PDA helpers match manual derivation under canonical seeds', () => {
   assert.equal(reserveDomain.toBase58(), manualDomain.toBase58());
   assert.match(healthPlan.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
   assert.match(liquidityPool.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+  assert.match(
+    domainAssetVaultToken.toBase58(),
+    /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
+  );
+  assert.match(protocolFeeVault.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+  assert.match(poolTreasuryVault.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+  assert.match(poolOracleFeeVault.toBase58(), /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
   assert.match(
     membershipAnchorSeat.toBase58(),
     /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
@@ -231,39 +260,53 @@ test('buildOpenMemberPositionTx keeps invite authority as an optional signer', (
   assert.equal(inviteAuthority?.isWritable, false);
 });
 
-test('buildCreateDomainAssetVaultTx requires a concrete vault token account', () => {
+test('buildCreateDomainAssetVaultTx derives the protocol-owned vault token account', () => {
   const authority = Keypair.generate().publicKey;
   const reserveDomainAddress = Keypair.generate().publicKey;
   const assetMint = Keypair.generate().publicKey;
-  const vaultTokenAccountAddress = Keypair.generate().publicKey;
+  const vaultTokenAccountAddress = deriveDomainAssetVaultTokenAccountPda({
+    reserveDomain: reserveDomainAddress,
+    assetMint,
+  });
 
   const tx = buildCreateDomainAssetVaultTx({
+    authority,
+    reserveDomainAddress,
+    assetMint,
+    recentBlockhash: '11111111111111111111111111111111',
+  });
+
+  assert.equal(tx.instructions.length, 1);
+  assert.equal(tx.feePayer?.toBase58(), authority.toBase58());
+  assert.equal(tx.instructions[0]?.data.byteLength, 40);
+  assert.equal(
+    tx.instructions[0]?.keys[6]?.pubkey.toBase58(),
+    vaultTokenAccountAddress.toBase58(),
+  );
+  assert.equal(tx.instructions[0]?.keys[6]?.isWritable, true);
+
+  const explicitTx = buildCreateDomainAssetVaultTx({
     authority,
     reserveDomainAddress,
     assetMint,
     vaultTokenAccountAddress,
     recentBlockhash: '11111111111111111111111111111111',
   });
-
-  assert.equal(tx.instructions.length, 1);
-  assert.equal(tx.feePayer?.toBase58(), authority.toBase58());
-
-  const encodedVault = tx.instructions[0]?.data.slice(40);
   assert.equal(
-    new PublicKey(encodedVault ?? Buffer.alloc(32)).toBase58(),
+    explicitTx.instructions[0]?.keys[6]?.pubkey.toBase58(),
     vaultTokenAccountAddress.toBase58(),
   );
 
-  assert.throws(
-    () =>
-      buildCreateDomainAssetVaultTx({
-        authority,
-        reserveDomainAddress,
-        assetMint,
-        vaultTokenAccountAddress: undefined as never,
-        recentBlockhash: '11111111111111111111111111111111',
-      }),
-    /public key value is required/,
+  const staleOverrideTx = buildCreateDomainAssetVaultTx({
+    authority,
+    reserveDomainAddress,
+    assetMint,
+    vaultTokenAccountAddress: Keypair.generate().publicKey,
+    recentBlockhash: '11111111111111111111111111111111',
+  });
+  assert.equal(
+    staleOverrideTx.instructions[0]?.keys[6]?.pubkey.toBase58(),
+    vaultTokenAccountAddress.toBase58(),
   );
 });
 

@@ -143,7 +143,7 @@ Then continue with:
 
 Start here when you need to create settlement boundaries, plan lanes, or LP capital flows on the canonical model.
 
-Reserve-moving builders require real token rails. Create the domain vault with its SPL vault token account, provide source and vault token accounts for funding or deposits, and let redemption payout amounts be derived by the protocol instead of supplying asset amounts from the client.
+Reserve-moving builders require real token rails. Create the domain vault through the protocol so it initializes the canonical SPL vault token account, provide source and vault token accounts for funding or deposits, and let redemption payout amounts be derived by the protocol instead of supplying asset amounts from the client.
 
 Example: derive canonical addresses for a sponsor-side deployment:
 
@@ -151,6 +151,7 @@ Example: derive canonical addresses for a sponsor-side deployment:
 import {
   deriveProtocolGovernancePda,
   deriveReserveDomainPda,
+  deriveDomainAssetVaultTokenAccountPda,
   deriveHealthPlanPda,
 } from '@omegax/protocol-sdk';
 
@@ -162,6 +163,11 @@ const reserveDomain = deriveReserveDomainPda({
 const healthPlan = deriveHealthPlanPda({
   reserveDomain,
   planId: 'builder-demo-plan',
+  programId,
+}).toBase58();
+const vaultTokenAccount = deriveDomainAssetVaultTokenAccountPda({
+  reserveDomain,
+  assetMint: process.env.ASSET_MINT!,
   programId,
 }).toBase58();
 ```

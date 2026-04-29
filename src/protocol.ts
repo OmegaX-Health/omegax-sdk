@@ -33,6 +33,7 @@ import {
   deriveClaimAttestationPda,
   deriveClaimCasePda,
   deriveDomainAssetLedgerPda,
+  deriveDomainAssetVaultTokenAccountPda,
   deriveDomainAssetVaultPda,
   deriveFundingLineLedgerPda,
   deriveFundingLinePda,
@@ -85,6 +86,9 @@ type IdlInstructionEntry = {
 
 const CODER = new BorshCoder(protocolIdl as never);
 const ZERO_HASH_HEX = '00'.repeat(32);
+const SPL_TOKEN_PROGRAM_ID = new PublicKey(
+  'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+);
 const TYPE_BY_NAME = new Map<string, IdlStruct>(
   ((protocolIdl as { types?: IdlTypeEntry[] }).types ?? []).map((entry) => [
     entry.name,
@@ -704,28 +708,36 @@ export function buildCreateDomainAssetVaultTx(params: {
   reserveDomainAddress: PublicKeyish;
   assetMint: PublicKeyish;
   recentBlockhash: string;
-  vaultTokenAccountAddress: PublicKeyish;
+  vaultTokenAccountAddress?: PublicKeyish;
+  tokenProgram?: PublicKeyish;
   programId?: PublicKeyish;
 }): Transaction {
   const authority = toPublicKey(params.authority);
   const assetMint = toPublicKey(params.assetMint);
+  const programId = params.programId ?? getProgramId();
+  const vaultTokenAccount = deriveDomainAssetVaultTokenAccountPda({
+    reserveDomain: params.reserveDomainAddress,
+    assetMint,
+    programId,
+  });
+
   return buildOrderedTransaction({
     feePayer: authority,
     recentBlockhash: params.recentBlockhash,
     instructionName: 'create_domain_asset_vault',
-    programId: params.programId,
+    programId,
     args: {
       asset_mint: assetMint,
-      vault_token_account: toPublicKey(params.vaultTokenAccountAddress),
     },
     accounts: [
       { pubkey: authority, isSigner: true, isWritable: true },
-      { pubkey: deriveProtocolGovernancePda() },
+      { pubkey: deriveProtocolGovernancePda(programId) },
       { pubkey: params.reserveDomainAddress, isWritable: true },
       {
         pubkey: deriveDomainAssetVaultPda({
           reserveDomain: params.reserveDomainAddress,
           assetMint,
+          programId,
         }),
         isWritable: true,
       },
@@ -733,9 +745,13 @@ export function buildCreateDomainAssetVaultTx(params: {
         pubkey: deriveDomainAssetLedgerPda({
           reserveDomain: params.reserveDomainAddress,
           assetMint,
+          programId,
         }),
         isWritable: true,
       },
+      { pubkey: assetMint },
+      { pubkey: vaultTokenAccount, isWritable: true },
+      { pubkey: toPublicKey(params.tokenProgram ?? SPL_TOKEN_PROGRAM_ID) },
       { pubkey: SystemProgram.programId },
     ],
   });
