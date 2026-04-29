@@ -9,6 +9,7 @@ import {
   buildAttestClaimCaseTx,
   buildCreateDomainAssetVaultTx,
   buildOpenMemberPositionTx,
+  buildProtocolInstruction,
   CLAIM_INTAKE_APPROVED,
   CAPITAL_CLASS_RESTRICTION_WRAPPER_ONLY,
   FUNDING_LINE_TYPE_SPONSOR_BUDGET,
@@ -201,6 +202,50 @@ test('buildAttestClaimCaseTx rejects unsupported attestation decisions before su
       }),
     /claim attestation decision must be one of 0/,
   );
+});
+
+
+
+test('buildProtocolInstruction uses the selected programId for omitted optional accounts', () => {
+  const customProgramId = Keypair.generate().publicKey;
+  const authority = Keypair.generate().publicKey;
+
+  const ix = buildProtocolInstruction({
+    instructionName: 'create_obligation',
+    programId: customProgramId,
+    args: {
+      obligation_id: 'obligation-1',
+      asset_mint: ZERO,
+      policy_series: ZERO,
+      member_wallet: ZERO,
+      beneficiary: ZERO,
+      claim_case: ZERO,
+      liquidity_pool: ZERO,
+      capital_class: ZERO,
+      allocation_position: ZERO,
+      delivery_mode: 0,
+      amount: 1n,
+      creation_reason_hash: Array.from(new Uint8Array(32)),
+    },
+    accounts: {
+      authority,
+      protocol_governance: Keypair.generate().publicKey,
+      health_plan: Keypair.generate().publicKey,
+      domain_asset_ledger: Keypair.generate().publicKey,
+      funding_line: Keypair.generate().publicKey,
+      funding_line_ledger: Keypair.generate().publicKey,
+      plan_reserve_ledger: Keypair.generate().publicKey,
+      obligation: Keypair.generate().publicKey,
+      system_program: Keypair.generate().publicKey,
+    },
+  });
+
+  assert.equal(ix.programId.toBase58(), customProgramId.toBase58());
+  for (const index of [7, 8, 9]) {
+    assert.equal(ix.keys[index]?.pubkey.toBase58(), customProgramId.toBase58());
+    assert.equal(ix.keys[index]?.isSigner, false);
+    assert.equal(ix.keys[index]?.isWritable, false);
+  }
 });
 
 test('buildOpenMemberPositionTx keeps invite authority as an optional signer', () => {
