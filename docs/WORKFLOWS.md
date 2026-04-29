@@ -110,6 +110,7 @@ Use this path when you need to create the settlement boundary, launch sponsor pr
 Use this when preparing the settlement boundary for a new domain and asset.
 
 `buildCreateDomainAssetVaultTx(...)` requires the SPL vault token account that will hold the asset for the domain. Do not pass a placeholder address; the protocol rejects missing custody rails.
+The vault token account owner/authority must be protocol-controlled (for example, the `domain_asset_vault` PDA) and must not be an admin or any externally withdrawable wallet.
 
 Builders:
 

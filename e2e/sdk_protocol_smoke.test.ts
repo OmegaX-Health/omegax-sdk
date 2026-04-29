@@ -215,11 +215,20 @@ test('sdk live localnet smoke exercises canonical reserve, plan, obligation, and
     null,
     6,
   );
+  const reserveDomain = deriveReserveDomainPda({
+    domainId: 'sdk-open-domain',
+    programId,
+  }).toBase58();
+  const domainAssetVaultKey = deriveDomainAssetVaultPda({
+    reserveDomain,
+    assetMint: assetMintKey,
+    programId,
+  });
   const vaultTokenAccountKey = await createAccount(
     connection,
     admin,
     assetMintKey,
-    admin.publicKey,
+    domainAssetVaultKey,
     Keypair.generate(),
   );
   const adminSourceTokenAccountKey = await createAccount(
@@ -260,15 +269,7 @@ test('sdk live localnet smoke exercises canonical reserve, plan, obligation, and
   const tokenProgram = TOKEN_PROGRAM_ID.toBase58();
 
   const protocolGovernance = deriveProtocolGovernancePda(programId).toBase58();
-  const reserveDomain = deriveReserveDomainPda({
-    domainId: 'sdk-open-domain',
-    programId,
-  }).toBase58();
-  const domainAssetVault = deriveDomainAssetVaultPda({
-    reserveDomain,
-    assetMint,
-    programId,
-  }).toBase58();
+  const domainAssetVault = domainAssetVaultKey.toBase58();
   const domainAssetLedger = deriveDomainAssetLedgerPda({
     reserveDomain,
     assetMint,
