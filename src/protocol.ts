@@ -38,7 +38,6 @@ import {
   deriveFundingLinePda,
   deriveLpPositionPda,
   deriveMemberPositionPda,
-  deriveMembershipAnchorSeatPda,
   deriveOracleProfilePda,
   deriveObligationPda,
   deriveOutcomeSchemaPda,
@@ -944,10 +943,14 @@ export function buildOpenMemberPositionTx(params: {
     seriesScope,
   });
   const membershipAnchorSeat = !anchorRef.equals(ZERO_PUBKEY_KEY)
-    ? deriveMembershipAnchorSeatPda({
-        healthPlan: params.healthPlanAddress,
-        anchorRef: anchorRef.toBase58(),
-      })
+    ? PublicKey.findProgramAddressSync(
+        [
+          Buffer.from('membership_anchor_seat'),
+          toPublicKey(params.healthPlanAddress).toBytes(),
+          anchorRef.toBytes(),
+        ],
+        getProgramId(params.programId),
+      )[0]
     : undefined;
 
   return buildOrderedTransaction({
