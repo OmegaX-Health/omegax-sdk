@@ -1999,6 +1999,20 @@ export function createProtocolClient(
   programId: PublicKeyish = PROTOCOL_PROGRAM_ID,
 ): ProtocolClient {
   const resolvedProgramId = toPublicKey(programId);
+  const resolveClientProgramId = (inputProgramId?: PublicKeyish): PublicKey => {
+    if (inputProgramId === undefined || inputProgramId === null) {
+      return resolvedProgramId;
+    }
+
+    const requestedProgramId = toPublicKey(inputProgramId);
+    if (!requestedProgramId.equals(resolvedProgramId)) {
+      throw new Error(
+        `programId mismatch: expected ${resolvedProgramId.toBase58()}, received ${requestedProgramId.toBase58()}`,
+      );
+    }
+
+    return resolvedProgramId;
+  };
 
   const client: Record<string, unknown> = {
     connection,
@@ -2014,7 +2028,7 @@ export function createProtocolClient(
     ) =>
       buildProtocolInstruction({
         ...params,
-        programId: params.programId ?? resolvedProgramId,
+        programId: resolveClientProgramId(params.programId),
       }),
     buildTransaction: (
       params: BuildTransactionParams<
@@ -2026,7 +2040,7 @@ export function createProtocolClient(
     ) =>
       buildProtocolTransaction({
         ...params,
-        programId: params.programId ?? resolvedProgramId,
+        programId: resolveClientProgramId(params.programId),
       }),
     decodeAccount: <T = Record<string, unknown>>(
       accountName: ProtocolAccountName,
@@ -2056,7 +2070,7 @@ export function createProtocolClient(
       buildProtocolInstruction({
         ...params,
         instructionName,
-        programId: params.programId ?? resolvedProgramId,
+        programId: resolveClientProgramId(params.programId),
       });
 
     client[`build${pascalName}Tx`] = (
@@ -2068,7 +2082,7 @@ export function createProtocolClient(
       buildProtocolTransaction({
         ...params,
         instructionName,
-        programId: params.programId ?? resolvedProgramId,
+        programId: resolveClientProgramId(params.programId),
       });
   }
 
