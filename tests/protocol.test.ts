@@ -67,9 +67,10 @@ test('PDA helpers match manual derivation under canonical seeds', () => {
     reserveDomain,
     poolId: 'omega-health-income',
   });
+  const anchorRef = Keypair.generate().publicKey;
   const membershipAnchorSeat = deriveMembershipAnchorSeatPda({
     healthPlan,
-    anchorRef: 'anchor-seat-alpha',
+    anchorRef,
   });
   const oracleProfile = deriveOracleProfilePda({
     oracle: Keypair.generate().publicKey,

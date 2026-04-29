@@ -946,7 +946,7 @@ export function buildOpenMemberPositionTx(params: {
   const membershipAnchorSeat = !anchorRef.equals(ZERO_PUBKEY_KEY)
     ? deriveMembershipAnchorSeatPda({
         healthPlan: params.healthPlanAddress,
-        anchorRef: anchorRef.toBase58(),
+        anchorRef,
       })
     : undefined;
 
